@@ -253,9 +253,10 @@ contract BitcrushStaking is Ownable {
         crush.approve( address(this), 0);
     }
 
-    function emergencyRewardWithdraw () public onlyOwner {
-        require(totalCompound > 0, "Rewards need to be greater than 0");
-        crush.transfer(msg.sender, totalCompound);
+    function emergencyTotalPoolWithdraw () public onlyOwner {
+        require(totalPool > 0, "Total Pool need to be greater than 0");
+        crush.transfer(msg.sender, totalPool);
+        totalPool = 0;
     }
     
 }
