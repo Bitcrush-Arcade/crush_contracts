@@ -99,15 +99,15 @@ contract BitcrushStaking is Ownable {
         stakings[msg.sender].compoundedAmount = stakings[msg.sender].compoundedAmount.add(reward);
         stakings[msg.sender].lastBlockCompounded = block.number;
         require(stakings[msg.sender].stakedAmount.add(stakings[msg.sender].compoundedAmount) >= _amount, "Withdraw amount can not be greater than staked amount");
-        if(_amount > totalPool){
-            _amount = totalPool;
-        }
+
         uint256 difference = 0;
             if(stakings[msg.sender].compoundedAmount >= _amount){
                 stakings[msg.sender].compoundedAmount = stakings[msg.sender].compoundedAmount.sub(_amount);
                 totalCompound = totalCompound.sub(_amount);
                 stakings[msg.sender].claimedAmount = stakings[msg.sender].claimedAmount.add(_amount);
+                totalPool = totalPool.sub(_amount);
             }else {
+                totalPool = totalPool.sub( stakings[msg.sender].compoundedAmount )
                 difference = _amount.sub(stakings[msg.sender].compoundedAmount);
                 totalCompound = totalCompound.sub(stakings[msg.sender].compoundedAmount);
                 stakings[msg.sender].claimedAmount = stakings[msg.sender].claimedAmount.add(stakings[msg.sender].compoundedAmount);
@@ -115,7 +115,6 @@ contract BitcrushStaking is Ownable {
                 stakings[msg.sender].stakedAmount = stakings[msg.sender].stakedAmount.sub(difference);
                 totalStaked = totalStaked.sub(difference);
             }
-        totalPool = totalPool.sub(_amount);
 
         
         //totalCompound = totalCompound.sub(stakings[msg.sender].compoundedAmount.sub(reward));
