@@ -96,11 +96,13 @@ contract BitcrushStaking is Ownable {
         //transfer reward and amount specified
         uint256 reward = getReward(msg.sender);
         totalCompound = totalCompound.add(reward);
+        totalStaked = totalStaked.add(reward);
         stakings[msg.sender].compoundedAmount = stakings[msg.sender].compoundedAmount.add(reward);
         stakings[msg.sender].lastBlockCompounded = block.number;
         require(stakings[msg.sender].stakedAmount.add(stakings[msg.sender].compoundedAmount) >= _amount, "Withdraw amount can not be greater than staked amount");
 
         uint256 difference = 0;
+        totalStaked = totalStaked.sub(_amount);
             if(stakings[msg.sender].compoundedAmount >= _amount){
                 stakings[msg.sender].compoundedAmount = stakings[msg.sender].compoundedAmount.sub(_amount);
                 totalCompound = totalCompound.sub(_amount);
@@ -113,7 +115,6 @@ contract BitcrushStaking is Ownable {
                 stakings[msg.sender].claimedAmount = stakings[msg.sender].claimedAmount.add(stakings[msg.sender].compoundedAmount);
                 stakings[msg.sender].compoundedAmount = 0;
                 stakings[msg.sender].stakedAmount = stakings[msg.sender].stakedAmount.sub(difference);
-                totalStaked = totalStaked.sub(difference);
             }
 
         
