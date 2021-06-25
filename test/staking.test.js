@@ -102,9 +102,17 @@ contract('MasterChef', ([alice, bob, carol, dev, minter]) => {
         //balance should remain unchanged since no fee was deducted 
         assert.equal((await this.crush.balanceOf(dev)).toString(),'2');
         console.log("burned tokens are:"+(await this.crush.tokensBurned()));
+        await this.staking.emergencyTotalPoolWithdraw({from : minter});
+        assert.equal((await this.staking.totalPool()).toString(),'0');
     })
     it("test only owner", async () =>{
         await expectRevert(this.staking.setEarlyWithdrawFeeTime(5,{from : alice}),'Ownable: caller is not the owner');
     })
+
+    it("emergency withdraw owner", async () =>{
+        await this.staking.emergencyTotalPoolWithdraw({from : minter});
+        assert.equal((await this.staking.totalPool()).toString(),'0');
+    })
+
 
 });
