@@ -54,7 +54,7 @@ contract BitcrushStaking is Ownable {
     //Receive/Transfer the amount of CRUSH specified in _amount into itself from msg.sender
     //Increase TotalPool
     function addRewardToPool (uint256 _amount) public  {
-        require(crush.balanceOf(msg.sender) > _amount, "Insufficient Crush tokens for transfer");
+        require(crush.balanceOf(msg.sender) >= _amount, "Insufficient Crush tokens for transfer");
         totalPool = totalPool + _amount;
         crush.transferFrom(msg.sender, address(this), _amount);
         emit RewardPoolUpdated(totalPool);
@@ -71,7 +71,7 @@ contract BitcrushStaking is Ownable {
     //Transfer CRUSH from msg.sender to Contract 
     //Add user to Staked Mapping, if user exists, update Staked amount
     function enterStaking (uint256 _amount) public  {
-        require(crush.balanceOf(msg.sender) > _amount, "Insufficient Crush tokens for transfer");
+        require(crush.balanceOf(msg.sender) >= _amount, "Insufficient Crush tokens for transfer");
         require(totalPool > 0, "Reward Pool Exhausted");
         
         crush.transferFrom(msg.sender, address(this), _amount);
