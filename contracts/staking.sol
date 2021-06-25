@@ -8,15 +8,15 @@ contract BitcrushStaking is Ownable {
     using SafeMath for uint256;
     
     // Constants
-    uint256 constant public PerformanceFeeCompounder = 1;
-    uint256 constant public PerformanceFeeBurn       = 1;
-    uint256 constant DivisorA = 100;
+    uint256  public PerformanceFeeCompounder = 100;
+    uint256  public PerformanceFeeBurn       = 100;
+    uint256  public Divisor = 10000;
     
-    uint256 constant public EarlyWithdrawFee         = 5;
-    uint256 constant public PerformanceFeeReserve    = 19;
-    uint256 constant DivisorB = 1000;
+    uint256  public EarlyWithdrawFee         = 50;
+    uint256  public PerformanceFeeReserve    = 190;
+    
 
-    uint256 constant EarlyWithdrawFeeTime = 72 * 60 * 60 / 3;
+    uint256 public EarlyWithdrawFeeTime = 72 * 60 * 60 / 3;
     
     CRUSHToken crush;
 
@@ -109,7 +109,7 @@ contract BitcrushStaking is Ownable {
                 stakings[msg.sender].claimedAmount = stakings[msg.sender].claimedAmount.add(_amount);
                 totalPool = totalPool.sub(_amount);
             }else {
-                totalPool = totalPool.sub( stakings[msg.sender].compoundedAmount )
+                totalPool = totalPool.sub( stakings[msg.sender].compoundedAmount );
                 difference = _amount.sub(stakings[msg.sender].compoundedAmount);
                 totalCompound = totalCompound.sub(stakings[msg.sender].compoundedAmount);
                 stakings[msg.sender].claimedAmount = stakings[msg.sender].claimedAmount.add(stakings[msg.sender].compoundedAmount);
@@ -122,7 +122,7 @@ contract BitcrushStaking is Ownable {
         //stakings[msg.sender].claimedAmount = stakings[msg.sender].claimedAmount.add(stakings[msg.sender].compoundedAmount) ;
         if(block.number < stakings[msg.sender].lastBlockStaked + EarlyWithdrawFeeTime ){
             //apply fee
-            uint256 withdrawalFee = _amount.mul(EarlyWithdrawFee.div(DivisorB));
+            uint256 withdrawalFee = _amount.mul(EarlyWithdrawFee).div(Divisor);
             _amount = _amount.sub(withdrawalFee);
             crush.transfer(reserveAddress, withdrawalFee);
         }
@@ -151,7 +151,7 @@ contract BitcrushStaking is Ownable {
             }else {
                 uint256 blocks = block.number.sub(stakings[_address].lastBlockCompounded);
                 uint256 totalReward = blocks.mul(crushPerBlock);
-                uint256 stakerReward = totalReward.mul(stakings[_address].stakedAmount.div(totalStaked));
+                uint256 stakerReward = totalReward.mul(stakings[_address].stakedAmount).div(totalStaked);
                 return stakerReward;
             }
             
@@ -208,13 +208,13 @@ contract BitcrushStaking is Ownable {
         for(uint256 i=0; i < addressIndexes.length; i++){
             uint256 stakerReward = getReward(addressIndexes[i]);
             
-            uint256 stakerBurn = stakerReward.mul(PerformanceFeeBurn.div(DivisorA));
+            uint256 stakerBurn = stakerReward.mul(PerformanceFeeBurn).div(Divisor);
             crushToBurn = crushToBurn.add(stakerBurn);
             
-            uint256 cpAllReward = stakerReward.mul(PerformanceFeeCompounder.div(DivisorA));
+            uint256 cpAllReward = stakerReward.mul(PerformanceFeeCompounder).div(Divisor);
             reward = reward.add(cpAllReward);
             
-            uint256 feeReserve = stakerReward.mul(PerformanceFeeReserve.div(DivisorB));
+            uint256 feeReserve = stakerReward.mul(PerformanceFeeReserve).div(Divisor);
             performanceFee = performanceFee.add(feeReserve);
             
 
@@ -257,6 +257,36 @@ contract BitcrushStaking is Ownable {
         require(totalPool > 0, "Total Pool need to be greater than 0");
         crush.transfer(msg.sender, totalPool);
         totalPool = 0;
+    }
+
+    function setPerformanceFeeCompounder (uint256 _fee) public onlyOwner{
+        require(_fee > 0, "Fee must be greater than 0");
+        PerformanceFeeCompounder = _fee;
+    }
+
+    function setPerformanceFeeBurn (uint256 _fee) public onlyOwner {
+        require(_fee > 0, "Fee must be greater than 0");
+        PerformanceFeeBurn = _fee;
+    }
+
+    function setEarlyWithdrawFee (uint256 _fee) public onlyOwner {
+        require(_fee > 0, "Fee must be greater than 0");
+        EarlyWithdrawFee = _fee;
+    }
+
+    function setPerformanceFeeReserve (uint256 _fee) public onlyOwner {
+        require(_fee > 0, "Fee must be greater than 0");
+        PerformanceFeeReserve = _fee;
+    }
+    
+    function setEarlyWithdrawFeeTime (uint256 _time) public onlyOwner {
+        require(_time > 0, "Time must be greater than 0");
+        EarlyWithdrawFeeTime = _time;
+    }
+
+    function setFeeDivisor (uint256 _divisor) public onlyOwner {
+        require(_divisor > 0, "Divisor must be greater than 0");
+        Divisor = _divisor;
     }
     
 }
