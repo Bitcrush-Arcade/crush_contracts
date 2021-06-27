@@ -8,7 +8,7 @@ contract BitcrushStaking is Ownable {
     using SafeMath for uint256;
     
     // Constants
-    uint256  public PerformanceFeeCompounder = 100;
+    uint256  public PerformanceFeeCompounder = 10;
     uint256  public PerformanceFeeBurn       = 100;
     uint256  public Divisor = 10000;
     
@@ -23,7 +23,7 @@ contract BitcrushStaking is Ownable {
     struct staked {
         uint256 stakedAmount;
         uint256 claimedAmount;
-        uint256 compoundedAmount;
+        //uint256 compoundedAmount;
         uint256 lastBlockCompounded;
         uint256 lastBlockStaked;
         uint256 index;
@@ -33,16 +33,16 @@ contract BitcrushStaking is Ownable {
 
     uint256 public totalPool;
     uint256 public lastAutoCompoundBlock;
-    uint256 public crushPerBlock;
+    uint256 public crushPerBlock = 5;
     address public reserveAddress;
 
     uint256 public totalStaked;
-    uint256 public totalCompound;
+    
     uint256 public totalClaimed;
 
     event RewardPoolUpdated (uint256 _totalPool);
     event CompoundAll ();
-
+    
     constructor (CRUSHToken _crush, uint256 _crushPerBlock, address _reserveAddress) public{
         crush = _crush;
         crushPerBlock = _crushPerBlock;
@@ -80,11 +80,13 @@ contract BitcrushStaking is Ownable {
             addressIndexes.push(msg.sender);
             stakings[msg.sender].index = addressIndexes.length-1;
         }
-        stakings[msg.sender].stakedAmount += _amount;
+        stakings[msg.sender].stakedAmount = stakings[msg.sender].stakedAmount.add(_amount);
         stakings[msg.sender].lastBlockStaked = block.number;
-        totalStaked += _amount;
+        totalStaked = totalStaked.add(_amount);
        
     }
+
+
 
     //Withdraw CRUSH from staking and claim rewards
     //Decrease Staked Amount from Staked
@@ -95,31 +97,13 @@ contract BitcrushStaking is Ownable {
         //check amount is less than staked amount
         //transfer reward and amount specified
         uint256 reward = getReward(msg.sender);
-        totalCompound = totalCompound.add(reward);
-        totalStaked = totalStaked.add(reward);
-        stakings[msg.sender].compoundedAmount = stakings[msg.sender].compoundedAmount.add(reward);
         stakings[msg.sender].lastBlockCompounded = block.number;
-        require(stakings[msg.sender].stakedAmount.add(stakings[msg.sender].compoundedAmount) >= _amount, "Withdraw amount can not be greater than staked amount");
-
-        uint256 difference = 0;
+        totalStaked = totalStaked.add(reward);
+        totalPool = totalPool.sub(reward);
+        stakings[msg.sender].stakedAmount = stakings[msg.sender].stakedAmount.add(reward);
+        require(stakings[msg.sender].stakedAmount >= _amount, "Withdraw amount can not be greater than staked amount");
         totalStaked = totalStaked.sub(_amount);
-            if(stakings[msg.sender].compoundedAmount >= _amount){
-                stakings[msg.sender].compoundedAmount = stakings[msg.sender].compoundedAmount.sub(_amount);
-                totalCompound = totalCompound.sub(_amount);
-                stakings[msg.sender].claimedAmount = stakings[msg.sender].claimedAmount.add(_amount);
-                totalPool = totalPool.sub(_amount);
-            }else {
-                totalPool = totalPool.sub( stakings[msg.sender].compoundedAmount );
-                difference = _amount.sub(stakings[msg.sender].compoundedAmount);
-                totalCompound = totalCompound.sub(stakings[msg.sender].compoundedAmount);
-                stakings[msg.sender].claimedAmount = stakings[msg.sender].claimedAmount.add(stakings[msg.sender].compoundedAmount);
-                stakings[msg.sender].compoundedAmount = 0;
-                stakings[msg.sender].stakedAmount = stakings[msg.sender].stakedAmount.sub(difference);
-            }
-
-        
-        //totalCompound = totalCompound.sub(stakings[msg.sender].compoundedAmount.sub(reward));
-        //stakings[msg.sender].claimedAmount = stakings[msg.sender].claimedAmount.add(stakings[msg.sender].compoundedAmount) ;
+        stakings[msg.sender].stakedAmount = stakings[msg.sender].stakedAmount.sub(_amount);
         if(block.number < stakings[msg.sender].lastBlockStaked + EarlyWithdrawFeeTime ){
             //apply fee
             uint256 withdrawalFee = _amount.mul(EarlyWithdrawFee).div(Divisor);
@@ -142,6 +126,35 @@ contract BitcrushStaking is Ownable {
     }
 
 
+    function leaveStakingCompletely () public {
+        uint256 reward = getReward(msg.sender);
+        stakings[msg.sender].lastBlockCompounded = block.number;
+        totalStaked = totalStaked.add(reward);
+        totalPool = totalPool.sub(reward);
+        stakings[msg.sender].stakedAmount = stakings[msg.sender].stakedAmount.add(reward);
+        totalStaked = totalStaked.sub(stakings[msg.sender].stakedAmount);
+        if(block.number < stakings[msg.sender].lastBlockStaked + EarlyWithdrawFeeTime ){
+            //apply fee
+            uint256 withdrawalFee = stakings[msg.sender].stakedAmount.mul(EarlyWithdrawFee).div(Divisor);
+            stakings[msg.sender].stakedAmount = stakings[msg.sender].stakedAmount.sub(withdrawalFee);
+            crush.transfer(reserveAddress, withdrawalFee);
+        }
+        crush.transfer(msg.sender, stakings[msg.sender].stakedAmount);
+        stakings[msg.sender].stakedAmount = 0;
+        //remove from array
+        if(stakings[msg.sender].stakedAmount == 0){
+            staked storage staking = stakings[msg.sender];
+            if(staking.index != addressIndexes.length-1){
+                address lastAddress = addressIndexes[addressIndexes.length-1];
+                addressIndexes[staking.index] = lastAddress;
+                stakings[lastAddress].index = staking.index;
+                crush.approve( address(this), 0);
+            }
+            addressIndexes.pop();
+        }
+        emit RewardPoolUpdated(totalPool);
+    }
+
     function getReward(address _address) internal view returns (uint256) {
         if(block.number <=  stakings[_address].lastBlockCompounded){
             return 0;
@@ -159,6 +172,9 @@ contract BitcrushStaking is Ownable {
     }
 
     function totalPendingRewards () public view returns (uint256){
+            if(block.number <= lastAutoCompoundBlock){
+                return 0;
+            }
             uint256 blocks = block.number.sub(lastAutoCompoundBlock);
             uint256 totalReward = blocks.mul(crushPerBlock);
 
@@ -171,48 +187,51 @@ contract BitcrushStaking is Ownable {
 
     //Send Rewards only to msg.sender
     function claim () public  {
-        singleCompound();
-        if(stakings[msg.sender].compoundedAmount > 0){
-        //require(stakings[msg.sender].compoundedAmount > 0, "Compounded Amount must be greater than 0");
-        if(stakings[msg.sender].compoundedAmount > totalPool){
-                stakings[msg.sender].compoundedAmount = totalPool;
+        
+        uint256 reward = getReward(msg.sender);
+       
+        if(reward > totalPool){
+            reward = totalPool;
         }
-        stakings[msg.sender].claimedAmount += stakings[msg.sender].compoundedAmount;
-        crush.transfer(msg.sender, stakings[msg.sender].compoundedAmount);
-        totalStaked = totalStaked.sub(stakings[msg.sender].compoundedAmount);
-        totalCompound = totalCompound.sub(stakings[msg.sender].compoundedAmount);
-        totalClaimed += stakings[msg.sender].compoundedAmount;
-        stakings[msg.sender].compoundedAmount = 0;
-        }
+        stakings[msg.sender].claimedAmount = stakings[msg.sender].claimedAmount.add(reward);
+        crush.transfer(msg.sender, reward);
+        stakings[msg.sender].lastBlockCompounded = block.number;
+        totalClaimed += reward;
+       
         
     }
 
     //Update staked values on a single User.
     function singleCompound () public  {
         uint256 reward = getReward(msg.sender);
-        stakings[msg.sender].compoundedAmount = stakings[msg.sender].compoundedAmount.add(reward);
+        
+        stakings[msg.sender].stakedAmount = stakings[msg.sender].stakedAmount.add(reward); 
         totalStaked = totalStaked.add(reward);
+
+        
         stakings[msg.sender].lastBlockCompounded = block.number;
-        totalCompound = totalCompound.add(reward);
+        
+
+        //decide how total pook is updated
         totalPool = totalPool.sub(reward);
         emit RewardPoolUpdated(totalPool);
     }
 
     //Compound all of the rewards for all stakers
     function compoundAll () public  {
-        require(lastAutoCompoundBlock < block.number, "Compound All not yet application.");
+        require(lastAutoCompoundBlock <= block.number, "Compound All not yet applicable.");
         uint256 crushToBurn = 0;
-        uint256 reward = 0;
+        uint256 reward = totalPendingRewards().mul(PerformanceFeeCompounder).div(Divisor);
         uint256 performanceFee = 0;
-        uint256 totalReward = 0;
+        
         for(uint256 i=0; i < addressIndexes.length; i++){
             uint256 stakerReward = getReward(addressIndexes[i]);
-            
+            totalPool = totalPool.sub(stakerReward);
             uint256 stakerBurn = stakerReward.mul(PerformanceFeeBurn).div(Divisor);
             crushToBurn = crushToBurn.add(stakerBurn);
             
             uint256 cpAllReward = stakerReward.mul(PerformanceFeeCompounder).div(Divisor);
-            reward = reward.add(cpAllReward);
+            
             
             uint256 feeReserve = stakerReward.mul(PerformanceFeeReserve).div(Divisor);
             performanceFee = performanceFee.add(feeReserve);
@@ -223,16 +242,14 @@ contract BitcrushStaking is Ownable {
             stakerReward = stakerReward.sub(feeReserve);
 
             totalStaked = totalStaked.add(stakerReward);
-            totalReward = totalReward.add(stakerReward);
-            totalCompound = totalCompound.add(stakerReward); 
-            stakings[addressIndexes[i]].compoundedAmount += stakerReward;
+            stakings[addressIndexes[i]].stakedAmount += stakerReward;
             stakings[addressIndexes[i]].lastBlockCompounded = block.number;
         }
         lastAutoCompoundBlock = block.number;
         crush.burn(crushToBurn);
         crush.transfer(msg.sender, reward);
         crush.transfer(reserveAddress, performanceFee);
-        totalPool = totalPool.sub(totalReward);
+        totalPool = totalPool.sub(reward);
         emit CompoundAll();
         emit RewardPoolUpdated(totalPool);
     }
@@ -241,7 +258,7 @@ contract BitcrushStaking is Ownable {
     function emergencyWithdraw() public{
         crush.transfer( msg.sender, stakings[msg.sender].stakedAmount);
         stakings[msg.sender].stakedAmount = 0;
-        stakings[msg.sender].compoundedAmount = 0;
+        
         stakings[msg.sender].lastBlockCompounded = block.number;
         staked storage staking = stakings[msg.sender];
         if(staking.index != addressIndexes.length-1){
