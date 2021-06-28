@@ -14,12 +14,44 @@ contract('MasterChef', ([alice, bob, carol, dev, minter]) => {
         await this.crush.mint(carol,10000, {from : minter});
         await this.crush.approve(this.staking.address,1000, {from : minter});
         await this.staking.addRewardToPool(1000, {from : minter});
+        
     });
     it("total pool added",async () => {
         let totalPool = await this.staking.totalPool();
         console.log("total Pool is:"+totalPool);
         assert.equal(totalPool,1000);
     })
+    it("emergency withdraw", async()=>{
+        await this.crush.approve(this.staking.address,500,{from : alice});
+        await this.staking.enterStaking(500, {from : alice});
+        assert((await this.crush.balanceOf(alice)).toString(),"9500");
+        await time.advanceBlockTo((await web3.eth.getBlock("latest")).number+10);
+        await this.staking.emergencyWithdraw();
+        assert((await this.crush.balanceOf(alice)).toString(),"10000");
+    });
+
+    it("auto compound reward calculation", async()=>{
+        console.log("current block is:"+(await web3.eth.getBlock("latest")).number);
+        console.log("crush per block is:"+(await this.staking.crushPerBlock()).toString());
+        await this.crush.approve(this.staking.address,500,{from : alice});
+        await this.staking.enterStaking(500, {from : alice});
+        await time.advanceBlockTo((await web3.eth.getBlock("latest")).number+10);
+        assert.equal((parseInt(await this.staking.crushPerBlock()).toString())* (10),((parseInt(await this.staking.totalPendingRewards()).toString())));
+        console.log("Test 1 Total Pending reward:"+ (await this.staking.totalPendingRewards()).toString());
+        //testing fee calculation
+        await this.staking.compoundAll({from : bob});
+        //balance should be 10000 + 0.1% of 100 so 10000.1
+        console.log("Balance of bob is: "+(await this.crush.balanceOf(bob)).toString());
+        //burn should be 1
+        //reserve should be 1.9
+        assert((await this.crush.balanceOf(bob)).toString(),'10000.1');
+        assert((await this.crush.balanceOf(dev)).toString(),'1.9');
+        console.log("crush burned is:"+(await this.crush.tokensBurned()).toString());
+        console.log((await this.crush.balanceOf(dev)).toString());
+        
+
+
+    });
 
     it("add staking/withdraw without early fee", async () =>{
         console.log("total Pool is:"+(await this.staking.totalPool()));
@@ -41,14 +73,13 @@ contract('MasterChef', ([alice, bob, carol, dev, minter]) => {
         console.log("amount being withdrawn is"+ (await this.staking.stakings(alice)).stakedAmount + (await this.staking.pendingReward(alice,{from : alice})));
         console.log("pending amount is:"+(await this.staking.pendingReward(alice,{from : alice})), {from : alice});
         console.log("current block is:"+(await web3.eth.getBlock("latest")).number);
-        await this.staking.leaveStaking(parseInt((await this.staking.stakings(alice)).stakedAmount) + parseInt((await this.staking.pendingReward(alice,{from : alice})), {from : alice}));
+        await this.staking.leaveStaking(parseInt((await this.staking.stakings(alice)).stakedAmount) , {from : alice});
         console.log("staked amount after withdrawal is:"+await this.staking.totalStaked());
         console.log("current block is:"+(await web3.eth.getBlock("latest")).number);
-        //because compound is added and called before leave staking so total staked has base crush per block added
-        //advancing 10 blocks at 10 per block and accounting for blocks by previous executions
         
-        assert.equal((await this.staking.totalStaked()).toString(),'10');
-        //balance should remain unchanged since no fee was deducted 
+        
+        assert.equal((await this.staking.totalStaked()).toString(),'0');
+        
         assert.equal((await this.crush.balanceOf(dev)).toString(),'0');
     })
 
@@ -61,9 +92,9 @@ contract('MasterChef', ([alice, bob, carol, dev, minter]) => {
         assert.equal((await this.crush.balanceOf(alice)).toString(),'9500');
         await this.staking.leaveStaking((await this.staking.stakings(alice)).stakedAmount, {from : alice});
         console.log("staked amount after withdrawal is:"+await this.staking.totalStaked());
-        //because compound is added and called before leave staking so total staked has base crush per block added
-        assert.equal((await this.staking.totalStaked()).toString(),'10');
-        //2.5 calculated but since cast to uint hence rounded down to 2
+        
+        assert.equal((await this.staking.totalStaked()).toString(),'0');
+        
         assert.equal((await this.crush.balanceOf(dev)).toString(),'2');
     })
    
@@ -78,16 +109,15 @@ contract('MasterChef', ([alice, bob, carol, dev, minter]) => {
         await this.staking.setEarlyWithdrawFeeTime(10,{from : minter});
         console.log("current block is:"+(await web3.eth.getBlock("latest")).number);
         await time.advanceBlockTo((await web3.eth.getBlock("latest")).number+10);
-        //await this.staking.singleCompound({from : bob});
+        
         await this.staking.claim({from : bob});
         await this.staking.leaveStaking(500, {from : bob});
         console.log("staked amount after withdrawal is:"+await this.staking.totalStaked());
         console.log("staking mapping:"+ JSON.stringify(await this.staking.stakings(bob)));
         console.log("balance of bob:"+(await this.crush.balanceOf(bob)));
-        //because compound is added and called before leave staking so total staked has base crush per block added
-        //advancing 10 blocks at 10 per block and accounting for blocks by previous executions
-        assert.equal((await this.staking.totalStaked()).toString(),'10');
-        //balance should remain unchanged since no fee was deducted 
+        
+        assert.equal((await this.staking.totalStaked()).toString(),'0');
+        
         assert.equal((await this.crush.balanceOf(dev)).toString(),'0');
     })
 
@@ -108,10 +138,9 @@ contract('MasterChef', ([alice, bob, carol, dev, minter]) => {
         console.log("staked amount after withdrawal is:"+await this.staking.totalStaked());
         console.log("staking mapping:"+ JSON.stringify(await this.staking.stakings(carol)));
         
-        //because compound is added and called before leave staking so total staked has base crush per block added
-        //advancing 10 blocks at 10 per block and accounting for blocks by previous executions
+        
         assert.equal((await this.staking.totalStaked()).toString(),((await this.staking.stakings(carol)).stakedAmount));
-        //balance should remain unchanged since no fee was deducted 
+        
         assert.equal((await this.crush.balanceOf(dev)).toString(),'2');
         console.log("burned tokens are:"+(await this.crush.tokensBurned()));
         await this.staking.emergencyTotalPoolWithdraw({from : minter});
