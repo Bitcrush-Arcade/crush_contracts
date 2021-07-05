@@ -55,7 +55,7 @@ contract BitcrushStaking is Ownable {
     //Increase TotalPool
     function addRewardToPool (uint256 _amount) public  {
         require(crush.balanceOf(msg.sender) >= _amount, "Insufficient Crush tokens for transfer");
-        totalPool = totalPool + _amount;
+        totalPool = totalPool.add(_amount);
         crush.transferFrom(msg.sender, address(this), _amount);
         emit RewardPoolUpdated(totalPool);
     }
@@ -109,7 +109,7 @@ contract BitcrushStaking is Ownable {
         require(stakings[msg.sender].stakedAmount >= _amount, "Withdraw amount can not be greater than staked amount");
         totalStaked = totalStaked.sub(_amount);
         stakings[msg.sender].stakedAmount = stakings[msg.sender].stakedAmount.sub(_amount);
-        if(block.number < stakings[msg.sender].lastBlockStaked + EarlyWithdrawFeeTime ){
+        if(block.number < stakings[msg.sender].lastBlockStaked.add(EarlyWithdrawFeeTime)){
             //apply fee
             uint256 withdrawalFee = _amount.mul(EarlyWithdrawFee).div(Divisor);
             _amount = _amount.sub(withdrawalFee);
@@ -211,7 +211,8 @@ contract BitcrushStaking is Ownable {
         stakings[msg.sender].claimedAmount = stakings[msg.sender].claimedAmount.add(reward);
         crush.transfer(msg.sender, reward);
         stakings[msg.sender].lastBlockCompounded = block.number;
-        totalClaimed += reward;
+        totalClaimed = totalClaimed.add(reward);
+        totalPool = totalPool.sub(reward);
        
         
     }
@@ -263,7 +264,7 @@ contract BitcrushStaking is Ownable {
             stakerReward = stakerReward.sub(feeReserve);
             
             totalStaked = totalStaked.add(stakerReward);
-            stakings[addressIndexes[i]].stakedAmount += stakerReward;
+            stakings[addressIndexes[i]].stakedAmount = stakings[addressIndexes[i]].stakedAmount.add(stakerReward);
             stakings[addressIndexes[i]].lastBlockCompounded = block.number;
         }
         lastAutoCompoundBlock = block.number;
