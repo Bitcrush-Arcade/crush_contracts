@@ -1,4 +1,4 @@
-//SPDX-License-Identifier: UNLICENSED
+//SPDX-License-Identifier: MIT
 pragma solidity >=0.6.2;
 
 import "@pancakeswap/pancake-swap-lib/contracts/access/Ownable.sol";
@@ -7,18 +7,20 @@ import "@pancakeswap/pancake-swap-lib/contracts/math/SafeMath.sol";
 contract BitcrushStaking is Ownable {
     using SafeMath for uint256;
     
-    // Constants
-    uint256  public PerformanceFeeCompounder = 10; // 10/10000 * 100 = 0.1%
-    uint256  public PerformanceFeeBurn       = 100; // 100/10000 * = 1%
-    uint256  public Divisor = 10000;
+    uint256 constant MAX_CRUSH_PER_BLOCK = 10;
+    uint256 constant MAX_FEE = 1000; // 1000/10000 * 100 = 10%
+    uint256 public performanceFeeCompounder = 10; // 10/10000 * 100 = 0.1%
+    uint256 public performanceFeeBurn       = 100; // 100/10000 * 100 = 1%
+    uint256 constant divisor = 10000;
     
-    uint256  public EarlyWithdrawFee         = 50; // 50/10000 * 100 = 0.5% 
-    uint256  public PerformanceFeeReserve    = 190; // 190/10000 * 100 = 1.9%
+    uint256  public earlyWithdrawFee         = 50; // 50/10000 * 100 = 0.5% 
+    uint256  public performanceFeeReserve    = 190; // 190/10000 * 100 = 1.9%
     
-
-    uint256 public EarlyWithdrawFeeTime = 72 * 60 * 60 / 3;
+    uint256 public blockPerSecond = 3;
+    uint256 public earlyWithdrawFeeTime = 72 * 60 * 60 / blockPerSecond;
     
-    CRUSHToken crush;
+    //address of the crush token
+    CRUSHToken public crush;
 
     struct staked {
         uint256 stakedAmount;
@@ -39,9 +41,9 @@ contract BitcrushStaking is Ownable {
     
     uint256 public totalClaimed;
 
-    event RewardPoolUpdated (uint256 _totalPool);
-    event CompoundAll (uint256 _totalRewarded);
-    event StakeUpdated (address recipeint, uint256 _amount);
+    event RewardPoolUpdated (uint256 indexed _totalPool);
+    event CompoundAll (uint256 indexed _totalRewarded);
+    event StakeUpdated (address indexed recipeint, uint256 indexed _amount);
     
     constructor (CRUSHToken _crush, uint256 _crushPerBlock, address _reserveAddress) public{
         crush = _crush;
@@ -50,9 +52,9 @@ contract BitcrushStaking is Ownable {
         lastAutoCompoundBlock = 0;
     }
 
-    //Increases the CRUSH prize pool by receiving tokens
-    //Receive/Transfer the amount of CRUSH specified in _amount into itself from msg.sender
-    //Increase TotalPool
+    /// Adds the provided amount to the totalPool
+    /// @param _amount the amount to add
+    /// @dev adds the provided amount to `totalPool` state variable
     function addRewardToPool (uint256 _amount) public  {
         require(crush.balanceOf(msg.sender) >= _amount, "Insufficient Crush tokens for transfer");
         totalPool = totalPool.add(_amount);
@@ -60,16 +62,17 @@ contract BitcrushStaking is Ownable {
         emit RewardPoolUpdated(totalPool);
     }
 
-    //Edits CrushPerBlock to be equal to _amount
+    
     function setCrushPerBlock (uint256 _amount) public onlyOwner {
         require(_amount >= 0, "Crush per Block can not be negative" );
+        require(_amount <= MAX_CRUSH_PER_BLOCK, "Crush Per Block can not be more than 10");
         crushPerBlock = _amount;
     }
 
 
-    //Stake CRUSH in Contract
-    //Transfer CRUSH from msg.sender to Contract 
-    //Add user to Staked Mapping, if user exists, update Staked amount
+    /// Stake the provided amount
+    /// @param _amount the amount to stake
+    /// @dev stakes the provided amount
     function enterStaking (uint256 _amount) public  {
         require(crush.balanceOf(msg.sender) >= _amount, "Insufficient Crush tokens for transfer");
         require(_amount > 0,"Invalid staking amount");
@@ -95,23 +98,19 @@ contract BitcrushStaking is Ownable {
 
 
 
-    //Withdraw CRUSH from staking and claim rewards
-    //Decrease Staked Amount from Staked
-    //Transfer CRUSH from Contract to msg.sender, amount to be determined by 
+    /// Leaves staking for a user by the specified amount and transfering staked amount and reward to users address
+    /// @param _amount the amount to unstake
+    /// @dev leaves staking and deducts total pool by the users reward. early withdrawal fee applied if withdraw is made before earlyWithdrawFeeTime
     function leaveStaking (uint256 _amount) public  {
-        //check time
-        //impose penalty if time limit not met
-        //check amount is less than staked amount
-        //transfer reward and amount specified
         uint256 reward = getReward(msg.sender);
         stakings[msg.sender].lastBlockCompounded = block.number;
         totalPool = totalPool.sub(reward);
         require(stakings[msg.sender].stakedAmount >= _amount, "Withdraw amount can not be greater than staked amount");
         totalStaked = totalStaked.sub(_amount);
         stakings[msg.sender].stakedAmount = stakings[msg.sender].stakedAmount.sub(_amount);
-        if(block.number < stakings[msg.sender].lastBlockStaked.add(EarlyWithdrawFeeTime)){
+        if(block.number < stakings[msg.sender].lastBlockStaked.add(earlyWithdrawFeeTime)){
             //apply fee
-            uint256 withdrawalFee = _amount.mul(EarlyWithdrawFee).div(Divisor);
+            uint256 withdrawalFee = _amount.mul(earlyWithdrawFee).div(divisor);
             _amount = _amount.sub(withdrawalFee);
             crush.transfer(reserveAddress, withdrawalFee);
         }
@@ -127,27 +126,28 @@ contract BitcrushStaking is Ownable {
                 crush.approve( address(this), 0);
             }
             addressIndexes.pop();
+            delete stakings[msg.sender];
         }
         emit RewardPoolUpdated(totalPool);
     }
 
-
+    /// Leaves staking for a user while setting stakedAmount to 0 and transfering staked amount and reward to users address
+    /// @dev leaves staking and deducts total pool by the users reward. early withdrawal fee applied if withdraw is made before earlyWithdrawFeeTime
     function leaveStakingCompletely () public {
         uint256 reward = getReward(msg.sender);
         stakings[msg.sender].lastBlockCompounded = block.number;
-        totalStaked = totalStaked.add(reward);
+        uint256 stakedAmount = stakings[msg.sender].stakedAmount;
         totalPool = totalPool.sub(reward);
-        stakings[msg.sender].stakedAmount = stakings[msg.sender].stakedAmount.add(reward);
+        stakedAmount = stakedAmount.add(reward);
         totalStaked = totalStaked.sub(stakings[msg.sender].stakedAmount);
-        if(block.number < stakings[msg.sender].lastBlockStaked + EarlyWithdrawFeeTime ){
-            //apply fee
-            uint256 withdrawalFee = stakings[msg.sender].stakedAmount.mul(EarlyWithdrawFee).div(Divisor);
-            stakings[msg.sender].stakedAmount = stakings[msg.sender].stakedAmount.sub(withdrawalFee);
+        
+        if(block.number < stakings[msg.sender].lastBlockStaked + earlyWithdrawFeeTime ){
+            uint256 withdrawalFee = stakedAmount.mul(earlyWithdrawFee).div(divisor);
+            stakedAmount = stakedAmount.sub(withdrawalFee);
             crush.transfer(reserveAddress, withdrawalFee);
         }
-        crush.transfer(msg.sender, stakings[msg.sender].stakedAmount);
+        crush.transfer(msg.sender, stakedAmount);
         stakings[msg.sender].stakedAmount = 0;
-        //remove from array
         if(stakings[msg.sender].stakedAmount == 0){
             staked storage staking = stakings[msg.sender];
             if(staking.index != addressIndexes.length-1){
@@ -157,15 +157,17 @@ contract BitcrushStaking is Ownable {
                 crush.approve( address(this), 0);
             }
             addressIndexes.pop();
+            delete stakings[msg.sender];
         }
         emit RewardPoolUpdated(totalPool);
     }
 
+    
     function getReward(address _address) internal view returns (uint256) {
         if(block.number <=  stakings[_address].lastBlockCompounded){
             return 0;
         }else {
-            if(totalPool <= 0 || totalStaked <=0 ){
+            if(totalPool == 0 || totalStaked ==0 ){
                 return 0;
             }else {
                 //if the staker reward is greater than total pool => set it to total pool
@@ -181,12 +183,14 @@ contract BitcrushStaking is Ownable {
         }
     }
 
+    /// Calculates total potential pending rewards
+    /// @dev Calculates potential reward based on crush per block
     function totalPendingRewards () public view returns (uint256){
             if(block.number <= lastAutoCompoundBlock){
                 return 0;
             }else if(lastAutoCompoundBlock == 0){
                 return 0;
-            }else if (totalPool <= 0){
+            }else if (totalPool == 0){
                 return 0;
             }
 
@@ -196,18 +200,17 @@ contract BitcrushStaking is Ownable {
             return totalReward;
     }
 
+    /// Get pending rewards of a user
+    /// @param _address the address to calculate the reward for
+    /// @dev calculates potential reward for the address provided based on crush per block
     function pendingReward (address _address) public view returns (uint256){
         return getReward(_address);
     }
 
-    //Send Rewards only to msg.sender
+    /// transfers the rewards of a user to their address
+    /// @dev calculates users rewards and transfers it out while deducting reward from totalPool
     function claim () public  {
-        
         uint256 reward = getReward(msg.sender);
-       
-        if(reward > totalPool){
-            reward = totalPool;
-        }
         stakings[msg.sender].claimedAmount = stakings[msg.sender].claimedAmount.add(reward);
         crush.transfer(msg.sender, reward);
         stakings[msg.sender].lastBlockCompounded = block.number;
@@ -217,7 +220,8 @@ contract BitcrushStaking is Ownable {
         
     }
 
-    //Update staked values on a single User.
+    /// compounds the rewards of the caller
+    /// @dev compounds the rewards of the caller add adds it into their staked amount
     function singleCompound () public  {
         require(stakings[msg.sender].stakedAmount > 0, "Please Stake Crush to compound");
         uint256 reward = getReward(msg.sender);
@@ -229,7 +233,7 @@ contract BitcrushStaking is Ownable {
         stakings[msg.sender].lastBlockCompounded = block.number;
         
 
-        //decide how total pook is updated
+        
         totalPool = totalPool.sub(reward);
         emit RewardPoolUpdated(totalPool);
         emit StakeUpdated(msg.sender,reward);
@@ -237,7 +241,8 @@ contract BitcrushStaking is Ownable {
 
   
 
-//Compound all of the rewards for all stakers
+    /// compounds the rewards of all users in the pool
+    /// @dev compounds the rewards of all users in the pool add adds it into their staked amount while deducting fees
     function compoundAll () public  {
         require(lastAutoCompoundBlock <= block.number, "Compound All not yet applicable.");
         require(totalStaked > 0, "No Staked rewards to claim" );
@@ -249,13 +254,13 @@ contract BitcrushStaking is Ownable {
             uint256 stakerReward = getReward(addressIndexes[i]);
             totalRewarded = totalRewarded.add(stakerReward);
             totalPool = totalPool.sub(stakerReward);
-            uint256 stakerBurn = stakerReward.mul(PerformanceFeeBurn).div(Divisor);
+            uint256 stakerBurn = stakerReward.mul(performanceFeeBurn).div(divisor);
             crushToBurn = crushToBurn.add(stakerBurn);
             
-            uint256 cpAllReward = stakerReward.mul(PerformanceFeeCompounder).div(Divisor);
+            uint256 cpAllReward = stakerReward.mul(performanceFeeCompounder).div(divisor);
             compounderReward = compounderReward.add(cpAllReward);
             
-            uint256 feeReserve = stakerReward.mul(PerformanceFeeReserve).div(Divisor);
+            uint256 feeReserve = stakerReward.mul(performanceFeeReserve).div(divisor);
             performanceFee = performanceFee.add(feeReserve);
             
 
@@ -277,7 +282,8 @@ contract BitcrushStaking is Ownable {
 
 
 
-    //emergency withdraw without caring about reward
+    /// withdraws the staked amount of user in case of emergency.
+    /// @dev drains the staked amount and sets the state variable `stakedAmount` of staking mapping to 0
     function emergencyWithdraw() public {
         crush.transfer( msg.sender, stakings[msg.sender].stakedAmount);
         stakings[msg.sender].stakedAmount = 0;
@@ -293,40 +299,58 @@ contract BitcrushStaking is Ownable {
         crush.approve( address(this), 0);
     }
 
+    /// withdraws the total pool in case of emergency.
+    /// @dev drains the total pool and sets the state variable `totalPool` to 0
     function emergencyTotalPoolWithdraw () public onlyOwner {
         require(totalPool > 0, "Total Pool need to be greater than 0");
         crush.transfer(msg.sender, totalPool);
         totalPool = 0;
     }
 
+    /// Store `_fee`.
+    /// @param _fee the new value to store
+    /// @dev stores the fee in the state variable `performanceFeeCompounder`
     function setPerformanceFeeCompounder (uint256 _fee) public onlyOwner{
         require(_fee > 0, "Fee must be greater than 0");
-        PerformanceFeeCompounder = _fee;
+        require(_fee < MAX_FEE, "Fee must be less than 10%");
+        performanceFeeCompounder = _fee;
     }
 
+    /// Store `_fee`.
+    /// @param _fee the new value to store
+    /// @dev stores the fee in the state variable `performanceFeeBurn`
     function setPerformanceFeeBurn (uint256 _fee) public onlyOwner {
         require(_fee > 0, "Fee must be greater than 0");
-        PerformanceFeeBurn = _fee;
+        require(_fee < MAX_FEE, "Fee must be less than 10%");
+        performanceFeeBurn = _fee;
     }
 
+    /// Store `_fee`.
+    /// @param _fee the new value to store
+    /// @dev stores the fee in the state variable `earlyWithdrawFee`
     function setEarlyWithdrawFee (uint256 _fee) public onlyOwner {
         require(_fee > 0, "Fee must be greater than 0");
-        EarlyWithdrawFee = _fee;
+        require(_fee < MAX_FEE, "Fee must be less than 10%");
+        earlyWithdrawFee = _fee;
     }
 
+
+    /// Store `_fee`.
+    /// @param _fee the new value to store
+    /// @dev stores the fee in the state variable `performanceFeeReserve`
     function setPerformanceFeeReserve (uint256 _fee) public onlyOwner {
         require(_fee > 0, "Fee must be greater than 0");
-        PerformanceFeeReserve = _fee;
-    }
-    
-    function setEarlyWithdrawFeeTime (uint256 _time) public onlyOwner {
-        require(_time > 0, "Time must be greater than 0");
-        EarlyWithdrawFeeTime = _time;
+        require(_fee <= MAX_FEE, "Fee must be less than 10%");
+        performanceFeeReserve = _fee;
     }
 
-    function setFeeDivisor (uint256 _divisor) public onlyOwner {
-        require(_divisor > 0, "Divisor must be greater than 0");
-        Divisor = _divisor;
+    /// Store `_time`.
+    /// @param _time the new value to store
+    /// @dev stores the time in the state variable `earlyWithdrawFeeTime`
+    function setEarlyWithdrawFeeTime (uint256 _time) public onlyOwner {
+        require(_time > 0, "Time must be greater than 0");
+        earlyWithdrawFeeTime = _time;
     }
-    
+
+   
 }
