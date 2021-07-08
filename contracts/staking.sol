@@ -7,7 +7,7 @@ import "@pancakeswap/pancake-swap-lib/contracts/math/SafeMath.sol";
 contract BitcrushStaking is Ownable {
     using SafeMath for uint256;
     
-    uint256 constant MAX_CRUSH_PER_BLOCK = 10;
+    uint256 constant MAX_CRUSH_PER_BLOCK = 1000000000000000000;
     uint256 constant MAX_FEE = 1000; // 1000/10000 * 100 = 10%
     uint256 public performanceFeeCompounder = 10; // 10/10000 * 100 = 0.1%
     uint256 public performanceFeeBurn       = 100; // 100/10000 * 100 = 1%
