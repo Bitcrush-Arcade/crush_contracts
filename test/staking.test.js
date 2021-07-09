@@ -7,7 +7,7 @@ const BitcrushStaking = artifacts.require('BitcrushStaking');
 contract('MasterChef', ([alice, bob, carol, dev, minter]) => {
     beforeEach(async () => {
         this.crush = await CrushToken.new({ from: minter });
-        this.staking = await BitcrushStaking.new(this.crush.address,10,dev, { from: minter });
+        this.staking = await BitcrushStaking.new(this.crush.address,10,dev,dev, { from: minter });
         await this.crush.mint(minter,10000, {from : minter});
         await this.crush.mint(alice,10000, {from : minter});
         await this.crush.mint(bob,10000, {from : minter});

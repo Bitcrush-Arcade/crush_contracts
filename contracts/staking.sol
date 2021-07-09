@@ -36,7 +36,7 @@ contract BitcrushStaking is Ownable {
     uint256 public lastAutoCompoundBlock;
     uint256 public crushPerBlock = 5;
     address public reserveAddress;
-
+    address public withdrawFeeAddress;
     uint256 public totalStaked;
     
     uint256 public totalClaimed;
@@ -45,11 +45,12 @@ contract BitcrushStaking is Ownable {
     event CompoundAll (uint256 indexed _totalRewarded);
     event StakeUpdated (address indexed recipeint, uint256 indexed _amount);
     
-    constructor (CRUSHToken _crush, uint256 _crushPerBlock, address _reserveAddress) public{
+    constructor (CRUSHToken _crush, uint256 _crushPerBlock, address _reserveAddress, address _withdrawFeeAddress) public{
         crush = _crush;
         crushPerBlock = _crushPerBlock;
         reserveAddress = _reserveAddress;
         lastAutoCompoundBlock = 0;
+        withdrawFeeAddress = _withdrawFeeAddress;
     }
 
     /// Adds the provided amount to the totalPool
@@ -112,7 +113,7 @@ contract BitcrushStaking is Ownable {
             //apply fee
             uint256 withdrawalFee = _amount.mul(earlyWithdrawFee).div(divisor);
             _amount = _amount.sub(withdrawalFee);
-            crush.transfer(reserveAddress, withdrawalFee);
+            crush.transfer(withdrawFeeAddress, withdrawalFee);
         }
         _amount = _amount.add(reward);
         crush.transfer(msg.sender, _amount);
@@ -144,7 +145,7 @@ contract BitcrushStaking is Ownable {
         if(block.number < stakings[msg.sender].lastBlockStaked + earlyWithdrawFeeTime ){
             uint256 withdrawalFee = stakedAmount.mul(earlyWithdrawFee).div(divisor);
             stakedAmount = stakedAmount.sub(withdrawalFee);
-            crush.transfer(reserveAddress, withdrawalFee);
+            crush.transfer(withdrawFeeAddress, withdrawalFee);
         }
         crush.transfer(msg.sender, stakedAmount);
         stakings[msg.sender].stakedAmount = 0;
@@ -351,6 +352,7 @@ contract BitcrushStaking is Ownable {
         require(_time > 0, "Time must be greater than 0");
         earlyWithdrawFeeTime = _time;
     }
+
 
    
 }
