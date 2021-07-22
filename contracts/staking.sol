@@ -25,6 +25,7 @@ contract BitcrushStaking is Ownable {
     struct staked {
         uint256 stakedAmount;
         uint256 claimedAmount;
+        uint256 frozen;
         uint256 lastBlockCompounded;
         uint256 lastBlockStaked;
         uint256 index;
@@ -40,6 +41,7 @@ contract BitcrushStaking is Ownable {
     uint256 public totalStaked;
     
     uint256 public totalClaimed;
+    uint256 public totalFrozen = 0;
 
     event RewardPoolUpdated (uint256 indexed _totalPool);
     event CompoundAll (uint256 indexed _totalRewarded);
@@ -173,7 +175,7 @@ contract BitcrushStaking is Ownable {
                 //if the staker reward is greater than total pool => set it to total pool
                 uint256 blocks = block.number.sub(stakings[_address].lastBlockCompounded);
                 uint256 totalReward = blocks.mul(crushPerBlock);
-                uint256 stakerReward = totalReward.mul(stakings[_address].stakedAmount).div(totalStaked);
+                uint256 stakerReward = totalReward.mul(stakings[_address].stakedAmount.add(stakings[_address].frozen)).div(totalStaked);
                 if(stakerReward > totalPool){
                     stakerReward = totalPool;
                 }
@@ -250,10 +252,13 @@ contract BitcrushStaking is Ownable {
         uint256 performanceFee = 0;
         uint256 totalRewarded = 0;
         uint256 compounderReward = 0;
+        uint totalPoolDeducted = 0;
         for(uint256 i=0; i < addressIndexes.length; i++){
             uint256 stakerReward = getReward(addressIndexes[i]);
-            totalRewarded = totalRewarded.add(stakerReward);
-            totalPool = totalPool.sub(stakerReward);
+            if(stakerReward > 0){
+                totalRewarded = totalRewarded.add(stakerReward);
+            totalPoolDeducted = totalPoolDeducted.add(stakerReward);
+            
             uint256 stakerBurn = stakerReward.mul(performanceFeeBurn).div(divisor);
             crushToBurn = crushToBurn.add(stakerBurn);
             
@@ -271,15 +276,40 @@ contract BitcrushStaking is Ownable {
             totalStaked = totalStaked.add(stakerReward);
             stakings[addressIndexes[i]].stakedAmount = stakings[addressIndexes[i]].stakedAmount.add(stakerReward);
             stakings[addressIndexes[i]].lastBlockCompounded = block.number;
+            }
+            
         }
+        totalPool = totalPool.sub(totalPoolDeducted);
         lastAutoCompoundBlock = block.number;
         crush.burn(crushToBurn);
         crush.transfer(msg.sender, compounderReward);
         crush.transfer(reserveAddress, performanceFee);
-        emit CompoundAll(totalRewarded);
-        emit RewardPoolUpdated(totalPool);
+        
     }
 
+
+    function freezeStaking (uint256 _amount, address _recipient) public {
+        //divide amount over users
+        //update user mapping to reflect frozen amount
+         for(uint256 i=0; i < addressIndexes.length; i++){
+             uint256 stakedShare = _amount.mul(stakings[addressIndexes[i]].stakedAmount.add(stakings[addressIndexes[i]].frozen)).div(totalStaked);
+             stakings[addressIndexes[i]].stakedAmount = stakings[addressIndexes[i]].stakedAmount.sub(stakedShare);
+             stakings[addressIndexes[i]].frozen = stakings[addressIndexes[i]].frozen.add(stakedShare);
+         }
+         totalFrozen = totalFrozen.add(_amount);
+         crush.transfer(_recipient, _amount);
+    }
+
+    function unfreezeStaking (uint256 _amount) public {
+       //divide amount over users
+        //update user mapping to reflect deducted frozen amount
+         for(uint256 i=0; i < addressIndexes.length; i++){
+             uint256 stakedShare = _amount.mul(stakings[addressIndexes[i]].frozen).div(totalFrozen);
+             stakings[addressIndexes[i]].stakedAmount = stakings[addressIndexes[i]].stakedAmount.add(stakedShare);
+             stakings[addressIndexes[i]].frozen = stakings[addressIndexes[i]].frozen.sub(stakedShare);
+         } 
+         totalFrozen = totalFrozen.sub(_amount);
+    }
 
 
     /// withdraws the staked amount of user in case of emergency.
