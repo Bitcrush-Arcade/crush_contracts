@@ -26,17 +26,17 @@ contract BitcrushLiveWallet is Ownable {
         
     }
 
-    function registerWin (uint256 _gameId, uint256 _bet, uint256 _win) public {
-        require(betAmounts[_gameId][msg.sender].bet > 0, "No Bet Made");
-        require(betAmounts[_gameId][msg.sender].bet >= _bet, "amount greater than live wallet balance");
+    function registerWin (uint256 _gameId, uint256 _bet, uint256 _win, address _user) public onlyOwner{
+        require(betAmounts[_gameId][_user].bet > 0, "No Bet Made");
+        require(betAmounts[_gameId][_user].bet >= _bet, "amount greater than live wallet balance");
         transferToBankroll(_bet);
         betAmounts[_gameId][msg.sender].bet = betAmounts[_gameId][msg.sender].bet.sub(_bet);
-        bankroll.payOutUserWinning(_win);
+        bankroll.payOutUserWinning(_win, _user);
     }
 
-    function registerLoss (uint256 _gameId, uint256 _bet) public {
-        require(betAmounts[_gameId][msg.sender].bet > 0, "No Bet Made");
-        require(betAmounts[_gameId][msg.sender].bet >= _bet, "amount greater than live wallet balance");
+    function registerLoss (uint256 _gameId, uint256 _bet, address _user) public onlyOwner{
+        require(betAmounts[_gameId][_user].bet > 0, "No Bet Made");
+        require(betAmounts[_gameId][_user].bet >= _bet, "amount greater than live wallet balance");
         transferToBankroll(_bet);
         betAmounts[_gameId][msg.sender].bet = betAmounts[_gameId][msg.sender].bet.sub(_bet);
     }
@@ -44,5 +44,11 @@ contract BitcrushLiveWallet is Ownable {
     function transferToBankroll (uint256 _amount) internal {
         crush.approve(address(bankroll), _amount);
         bankroll.addUserLoss(_amount);       
+    }
+
+    function WithdrawBet(uint256 _gameId, uint256 _amount) public {
+        require(betAmounts[_gameId][msg.sender].bet > _amount, "bet less than amount withdraw");
+        betAmounts[_gameId][msg.sender].bet = betAmounts[_gameId][msg.sender].bet.sub(_amount);
+        emit Withdraw(_gameId, msg.sender, _amount);
     }
 }
