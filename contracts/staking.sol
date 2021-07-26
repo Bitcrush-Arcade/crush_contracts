@@ -4,6 +4,7 @@ pragma solidity >=0.6.2;
 import "@pancakeswap/pancake-swap-lib/contracts/access/Ownable.sol";
 import "./CrushCoin.sol";
 import "@pancakeswap/pancake-swap-lib/contracts/math/SafeMath.sol";
+import "./HouseBankroll.sol";
 contract BitcrushStaking is Ownable {
     using SafeMath for uint256;
     
@@ -21,11 +22,11 @@ contract BitcrushStaking is Ownable {
     
     //address of the crush token
     CRUSHToken public crush;
-
+    BitcrushBankroll public bankroll;
     struct staked {
         uint256 stakedAmount;
         uint256 claimedAmount;
-        uint256 frozen;
+        uint256 profit;
         uint256 lastBlockCompounded;
         uint256 lastBlockStaked;
         uint256 index;
@@ -47,11 +48,12 @@ contract BitcrushStaking is Ownable {
     event CompoundAll (uint256 indexed _totalRewarded);
     event StakeUpdated (address indexed recipeint, uint256 indexed _amount);
     
-    constructor (CRUSHToken _crush, uint256 _crushPerBlock, address _reserveAddress) public{
+    constructor (CRUSHToken _crush, uint256 _crushPerBlock, address _reserveAddress, BitcrushBankroll _bankroll) public{
         crush = _crush;
         crushPerBlock = _crushPerBlock;
         reserveAddress = _reserveAddress;
         lastAutoCompoundBlock = 0;
+        bankroll = _bankroll;
     }
 
     /// Adds the provided amount to the totalPool
@@ -107,7 +109,10 @@ contract BitcrushStaking is Ownable {
         uint256 reward = getReward(msg.sender);
         stakings[msg.sender].lastBlockCompounded = block.number;
         totalPool = totalPool.sub(reward);
-        require(stakings[msg.sender].stakedAmount >= _amount, "Withdraw amount can not be greater than staked amount");
+        uint256 availableStaked = totalFrozen.mul(stakings[msg.sender].stakedAmount).div(totalStaked);
+
+
+        require(availableStaked >= _amount, "Withdraw amount can not be greater than available staked amount");
         totalStaked = totalStaked.sub(_amount);
         stakings[msg.sender].stakedAmount = stakings[msg.sender].stakedAmount.sub(_amount);
         if(block.number < stakings[msg.sender].lastBlockStaked.add(earlyWithdrawFeeTime)){
@@ -132,7 +137,7 @@ contract BitcrushStaking is Ownable {
         }
         emit RewardPoolUpdated(totalPool);
     }
-
+    //todo deprecated verify from jose if still in use
     /// Leaves staking for a user while setting stakedAmount to 0 and transfering staked amount and reward to users address
     /// @dev leaves staking and deducts total pool by the users reward. early withdrawal fee applied if withdraw is made before earlyWithdrawFeeTime
     function leaveStakingCompletely () public {
@@ -175,7 +180,7 @@ contract BitcrushStaking is Ownable {
                 //if the staker reward is greater than total pool => set it to total pool
                 uint256 blocks = block.number.sub(stakings[_address].lastBlockCompounded);
                 uint256 totalReward = blocks.mul(crushPerBlock);
-                uint256 stakerReward = totalReward.mul(stakings[_address].stakedAmount.add(stakings[_address].frozen)).div(totalStaked);
+                uint256 stakerReward = totalReward.mul(stakings[_address].stakedAmount).div(totalStaked);
                 if(stakerReward > totalPool){
                     stakerReward = totalPool;
                 }
@@ -217,9 +222,13 @@ contract BitcrushStaking is Ownable {
         crush.transfer(msg.sender, reward);
         stakings[msg.sender].lastBlockCompounded = block.number;
         totalClaimed = totalClaimed.add(reward);
-        totalPool = totalPool.sub(reward);
-       
-        
+        totalPool = totalPool.sub(reward); 
+    }
+
+    function claimProfit () public {
+        require(stakings[msg.sender].profit > 0, "No Profit to claim");
+        crush.transfer(msg.sender, stakings[msg.sender].profit);
+        stakings[msg.sender].profit = 0;
     }
 
     /// compounds the rewards of the caller
@@ -253,6 +262,7 @@ contract BitcrushStaking is Ownable {
         uint256 totalRewarded = 0;
         uint256 compounderReward = 0;
         uint totalPoolDeducted = 0;
+        uint256 availableProfit = bankroll.transferProfit();
         for(uint256 i=0; i < addressIndexes.length; i++){
             uint256 stakerReward = getReward(addressIndexes[i]);
             if(stakerReward > 0){
@@ -277,6 +287,10 @@ contract BitcrushStaking is Ownable {
             stakings[addressIndexes[i]].stakedAmount = stakings[addressIndexes[i]].stakedAmount.add(stakerReward);
             stakings[addressIndexes[i]].lastBlockCompounded = block.number;
             }
+            if(availableProfit > 0){
+                uint256 profitShare = availableProfit.mul(stakings[addressIndexes[i]].stakedAmount).div(totalStaked);
+                stakings[addressIndexes[i]].profit = stakings[addressIndexes[i]].profit.add(profitShare); 
+            }
             
         }
         totalPool = totalPool.sub(totalPoolDeducted);
@@ -291,11 +305,7 @@ contract BitcrushStaking is Ownable {
     function freezeStaking (uint256 _amount, address _recipient) public {
         //divide amount over users
         //update user mapping to reflect frozen amount
-         for(uint256 i=0; i < addressIndexes.length; i++){
-             uint256 stakedShare = _amount.mul(stakings[addressIndexes[i]].stakedAmount.add(stakings[addressIndexes[i]].frozen)).div(totalStaked);
-             stakings[addressIndexes[i]].stakedAmount = stakings[addressIndexes[i]].stakedAmount.sub(stakedShare);
-             stakings[addressIndexes[i]].frozen = stakings[addressIndexes[i]].frozen.add(stakedShare);
-         }
+         require(_amount <= totalStaked.sub(totalFrozen), "Freeze amount should be less than or equal to available funds");
          totalFrozen = totalFrozen.add(_amount);
          crush.transfer(_recipient, _amount);
     }
@@ -303,11 +313,7 @@ contract BitcrushStaking is Ownable {
     function unfreezeStaking (uint256 _amount) public {
        //divide amount over users
         //update user mapping to reflect deducted frozen amount
-         for(uint256 i=0; i < addressIndexes.length; i++){
-             uint256 stakedShare = _amount.mul(stakings[addressIndexes[i]].frozen).div(totalFrozen);
-             stakings[addressIndexes[i]].stakedAmount = stakings[addressIndexes[i]].stakedAmount.add(stakedShare);
-             stakings[addressIndexes[i]].frozen = stakings[addressIndexes[i]].frozen.sub(stakedShare);
-         } 
+         require(_amount >= totalFrozen, "unfreeze amount cant be greater than currently frozen amount");
          totalFrozen = totalFrozen.sub(_amount);
     }
 

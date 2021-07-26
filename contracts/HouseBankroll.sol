@@ -11,7 +11,7 @@ contract BitcrushBankroll is Ownable {
 
     uint256 public totalBankroll;
     uint256 public allTimeHigh;
-
+    uint256 public availableProfit;
     bool poolDepleted = false;
     uint256 negativeBankroll;
     //address of the crush token
@@ -19,7 +19,7 @@ contract BitcrushBankroll is Ownable {
     BitcrushStaking public stakingPool;
     BitcrushLiveWallet public liveWallet;
     address public reserve;
-
+    address public lottery;
     uint256 gameIds = 1;
     uint256 constant public DIVISOR = 10000;
     uint256 burnRate = 100;
@@ -30,22 +30,29 @@ contract BitcrushBankroll is Ownable {
         uint256 profit;
         bytes32 identifier;
         uint256 houseShare;
+        uint256 lotteryShare;
+        uint256 reserveShare;
+        address profitAddress;
     }
     mapping (uint256 => game) public games;
 
 
-    constructor (CRUSHToken _crush, BitcrushStaking _stakingPool, BitcrushLiveWallet _liveWallet, address _reserve) public{
+    constructor (CRUSHToken _crush, BitcrushStaking _stakingPool, BitcrushLiveWallet _liveWallet, address _reserve, address _lottery) public{
         crush = _crush;
         stakingPool = _stakingPool;
         liveWallet = _liveWallet;
         reserve = _reserve;
+        lottery = _lottery;
     }
 
 
-    function addGame (uint256 _profit, bytes32 _identifier, uint256 _houseShare) public onlyOwner {
+    function addGame (uint256 _profit, bytes32 _identifier, uint256 _houseShare, uint256 _lotteryShare, uint256 _reserveShare, address  _profitAddress) public onlyOwner {
         games[gameIds].profit = _profit;
         games[gameIds].identifier = _identifier;
         games[gameIds].houseShare = _houseShare;
+        games[gameIds].lotteryShare = _lotteryShare;
+        games[gameIds].reserveShare = _reserveShare;
+        games[gameIds].profitAddress = _profitAddress;
         gameIds = gameIds.add(1);
     }
 
@@ -54,7 +61,7 @@ contract BitcrushBankroll is Ownable {
         totalBankroll = totalBankroll.add(_amount);
     }
 
-    function addUserLoss (uint256 _amount) public {
+    function addUserLoss (uint256 _amount,  uint256 _gameId) public {
         require(msg.sender == address(liveWallet),"Caller must be bitcrush live wallet");
         //make game specific
         //check if bankroll is in negative 
@@ -80,7 +87,7 @@ contract BitcrushBankroll is Ownable {
             totalBankroll = totalBankroll.add(_amount);
 
         }
-        checkForRewardPayOut();
+        checkForRewardPayOut(_gameId);
         
 
     }
@@ -104,16 +111,37 @@ contract BitcrushBankroll is Ownable {
         }
     }
 
-    function checkForRewardPayOut () internal {
+    function checkForRewardPayOut (uint256 _gameId) internal {
         if(totalBankroll > allTimeHigh) {
             //payout winning
             //todo handle transfer
             //handle calculation
             //calculate share
             //update all time high
+            uint256 difference = totalBankroll.sub(allTimeHigh);
+            totalBankroll = totalBankroll.sub(difference);
+            uint256 profit = difference.mul(games[_gameId].profit).div(DIVISOR);
+            uint256 burn = difference.mul(burnRate).div(DIVISOR);
+            uint256 reserveCrush = difference.mul(games[_gameId].reserveShare).div(DIVISOR);
+            uint256 lotteryCrush = difference.mul(games[_gameId].lotteryShare).div(DIVISOR);
+            uint256 house = difference.mul(games[_gameId].houseShare).div(DIVISOR);
+
+            availableProfit = availableProfit.add(house);
+            crush.burn(burn);
+            crush.transfer(reserve, reserveCrush);
+            crush.transfer(lottery, lotteryCrush);
+            crush.transfer(games[_gameId].profitAddress, profit);
             allTimeHigh = totalBankroll;
 
         }
+    }
+
+    function transferProfit () public returns (uint256){
+        require(msg.sender == address(stakingPool), "Caller must be staking pool");
+        crush.transfer(address(stakingPool), availableProfit);
+        uint256 profit = availableProfit;
+        availableProfit = 0;
+        return profit;
     }
 
 
