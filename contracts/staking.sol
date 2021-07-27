@@ -48,11 +48,15 @@ contract BitcrushStaking is Ownable {
     event CompoundAll (uint256 indexed _totalRewarded);
     event StakeUpdated (address indexed recipeint, uint256 indexed _amount);
     
-    constructor (CRUSHToken _crush, uint256 _crushPerBlock, address _reserveAddress, BitcrushBankroll _bankroll) public{
+    constructor (CRUSHToken _crush, uint256 _crushPerBlock, address _reserveAddress) public{
         crush = _crush;
         crushPerBlock = _crushPerBlock;
         reserveAddress = _reserveAddress;
         lastAutoCompoundBlock = 0;
+        
+    }
+
+    function setBankroll (BitcrushBankroll _bankroll) public {
         bankroll = _bankroll;
     }
 
@@ -109,7 +113,13 @@ contract BitcrushStaking is Ownable {
         uint256 reward = getReward(msg.sender);
         stakings[msg.sender].lastBlockCompounded = block.number;
         totalPool = totalPool.sub(reward);
-        uint256 availableStaked = totalFrozen.mul(stakings[msg.sender].stakedAmount).div(totalStaked);
+        uint256 availableStaked;
+        if(totalFrozen > 0){
+            availableStaked = stakings[msg.sender].stakedAmount.sub(totalFrozen.mul(stakings[msg.sender].stakedAmount).div(totalStaked));
+        }else {
+            availableStaked = stakings[msg.sender].stakedAmount;
+        }
+        
 
 
         require(availableStaked >= _amount, "Withdraw amount can not be greater than available staked amount");

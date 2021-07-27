@@ -3,11 +3,17 @@ const { inTransaction } = require('@openzeppelin/test-helpers/src/expectEvent');
 const { assertion } = require('@openzeppelin/test-helpers/src/expectRevert');
 const CrushToken = artifacts.require('CRUSHToken');
 const BitcrushStaking = artifacts.require('BitcrushStaking');
+const BitcrushBankroll = artifacts.require('BitcrushBankroll');
+const BitcrushLiveWallet = artifacts.require('BitcrushLiveWallet');
 
 contract('MasterChef', ([alice, bob, carol, dev, minter]) => {
     beforeEach(async () => {
         this.crush = await CrushToken.new({ from: minter });
-        this.staking = await BitcrushStaking.new(this.crush.address,10,dev, { from: minter });
+        this.staking = await BitcrushStaking.new(this.crush.address,10,dev, { from: minter },);
+        this.bankroll = await BitcrushBankroll.new(this.crush.address,this.staking.address,dev,carol, { from: minter });
+        this.staking.setBankroll(this.bankroll.address);
+        this.liveWallet = await BitcrushLiveWallet.new(this.crush.address,this.bankroll.address, { from: minter });
+        await this.bankroll.setLiveWallet(this.liveWallet.address);
         await this.crush.mint(minter,10000, {from : minter});
         await this.crush.mint(alice,10000, {from : minter});
         await this.crush.mint(bob,10000, {from : minter});

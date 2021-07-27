@@ -37,14 +37,16 @@ contract BitcrushBankroll is Ownable {
     mapping (uint256 => game) public games;
 
 
-    constructor (CRUSHToken _crush, BitcrushStaking _stakingPool, BitcrushLiveWallet _liveWallet, address _reserve, address _lottery) public{
+    constructor (CRUSHToken _crush, BitcrushStaking _stakingPool,  address _reserve, address _lottery) public{
         crush = _crush;
         stakingPool = _stakingPool;
-        liveWallet = _liveWallet;
         reserve = _reserve;
         lottery = _lottery;
     }
 
+    function setLiveWallet (BitcrushLiveWallet _liveWallet) public {
+        liveWallet = _liveWallet;
+    }
 
     function addGame (uint256 _profit, bytes32 _identifier, uint256 _houseShare, uint256 _lotteryShare, uint256 _reserveShare, address  _profitAddress) public onlyOwner {
         games[gameIds].profit = _profit;

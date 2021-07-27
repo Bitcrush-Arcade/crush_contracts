@@ -19,8 +19,13 @@ contract BitcrushLiveWallet is Ownable {
     CRUSHToken public crush;
     BitcrushBankroll public bankroll;
 
-    //todo add emergency methods
+    
     event Withdraw (uint256 indexed _gameId, address indexed _address, uint256 indexed _amount);
+
+    constructor (CRUSHToken _crush, BitcrushBankroll _bankroll) public{
+        crush = _crush;
+        bankroll = _bankroll;
+    }
 
     function addbet (uint256 _amount, uint256 _gameId) public {
         //todo add validation for valid game id
@@ -48,7 +53,7 @@ contract BitcrushLiveWallet is Ownable {
 
     function transferToBankroll (uint256 _amount, uint256 _gameId) internal {
         crush.approve(address(bankroll), _amount);
-        bankroll.addUserLoss(_amount,_gameId);       
+        bankroll.addUserLoss(_amount, _gameId);       
     }
 
     function WithdrawBet(uint256 _gameId, uint256 _amount) public {
