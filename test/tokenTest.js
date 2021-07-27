@@ -3,7 +3,7 @@ const { BN } = require('@openzeppelin/test-helpers/src/setup');
 
 const CRUSHToken = artifacts.require("CRUSHToken");
 
-contract("CRUSHToken",  async accounts => {
+/* contract("CRUSHToken",  async accounts => {
 
   beforeEach( async ()=>{
     this.token = await CRUSHToken.new()
@@ -38,4 +38,4 @@ contract("CRUSHToken",  async accounts => {
   })
 
   
-})
+}) */
