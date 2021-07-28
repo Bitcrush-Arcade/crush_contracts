@@ -246,15 +246,9 @@ contract BitcrushStaking is Ownable {
     function singleCompound () public  {
         require(stakings[msg.sender].stakedAmount > 0, "Please Stake Crush to compound");
         uint256 reward = getReward(msg.sender);
-        
         stakings[msg.sender].stakedAmount = stakings[msg.sender].stakedAmount.add(reward); 
         totalStaked = totalStaked.add(reward);
-
-        
         stakings[msg.sender].lastBlockCompounded = block.number;
-        
-
-        
         totalPool = totalPool.sub(reward);
         emit RewardPoolUpdated(totalPool);
         emit StakeUpdated(msg.sender,reward);
@@ -317,13 +311,14 @@ contract BitcrushStaking is Ownable {
         //update user mapping to reflect frozen amount
          require(_amount <= totalStaked.sub(totalFrozen), "Freeze amount should be less than or equal to available funds");
          totalFrozen = totalFrozen.add(_amount);
+         //todo transfer to live wallet instead
          crush.transfer(_recipient, _amount);
     }
 
     function unfreezeStaking (uint256 _amount) public {
        //divide amount over users
         //update user mapping to reflect deducted frozen amount
-         require(_amount >= totalFrozen, "unfreeze amount cant be greater than currently frozen amount");
+         require(_amount <= totalFrozen, "unfreeze amount cant be greater than currently frozen amount");
          totalFrozen = totalFrozen.sub(_amount);
     }
 
@@ -331,6 +326,7 @@ contract BitcrushStaking is Ownable {
     /// withdraws the staked amount of user in case of emergency.
     /// @dev drains the staked amount and sets the state variable `stakedAmount` of staking mapping to 0
     function emergencyWithdraw() public {
+        //add check for frozen amount
         crush.transfer( msg.sender, stakings[msg.sender].stakedAmount);
         stakings[msg.sender].stakedAmount = 0;
         

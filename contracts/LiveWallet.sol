@@ -18,6 +18,8 @@ contract BitcrushLiveWallet is Ownable {
     //address of the crush token
     CRUSHToken public crush;
     BitcrushBankroll public bankroll;
+    //todo dont deduct bet on winning
+    // todo winnings added to live wallet
 
     
     event Withdraw (uint256 indexed _gameId, address indexed _address, uint256 indexed _amount);
@@ -36,15 +38,15 @@ contract BitcrushLiveWallet is Ownable {
         
     }
 
-    function registerWin (uint256 _gameId, uint256 _bet, uint256 _win, address _user) public onlyOwner{
+    function registerWin (uint256 _gameId, uint256 _bet, uint256 _win, address _user) public onlyOwner {
         require(betAmounts[_gameId][_user].bet > 0, "No Bet Made");
         require(betAmounts[_gameId][_user].bet >= _bet, "amount greater than live wallet balance");
-        transferToBankroll(_bet, _gameId);
-        betAmounts[_gameId][msg.sender].bet = betAmounts[_gameId][msg.sender].bet.sub(_bet);
+        //transferToBankroll(_bet, _gameId);
+        //betAmounts[_gameId][msg.sender].bet = betAmounts[_gameId][msg.sender].bet.sub(_bet);
         bankroll.payOutUserWinning(_win, _user);
     }
 
-    function registerLoss (uint256 _gameId, uint256 _bet, address _user) public onlyOwner{
+    function registerLoss (uint256 _gameId, uint256 _bet, address _user) public onlyOwner {
         require(betAmounts[_gameId][_user].bet > 0, "No Bet Made");
         require(betAmounts[_gameId][_user].bet >= _bet, "amount greater than live wallet balance");
         transferToBankroll(_bet, _gameId);
@@ -57,7 +59,7 @@ contract BitcrushLiveWallet is Ownable {
     }
 
     function WithdrawBet(uint256 _gameId, uint256 _amount) public {
-        require(betAmounts[_gameId][msg.sender].bet > _amount, "bet less than amount withdraw");
+        require(betAmounts[_gameId][msg.sender].bet >= _amount, "bet less than amount withdraw");
         betAmounts[_gameId][msg.sender].bet = betAmounts[_gameId][msg.sender].bet.sub(_amount);
         emit Withdraw(_gameId, msg.sender, _amount);
     }

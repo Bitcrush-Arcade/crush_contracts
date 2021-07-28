@@ -22,22 +22,24 @@ contract BitcrushBankroll is Ownable {
     address public lottery;
     uint256 gameIds = 1;
     uint256 constant public DIVISOR = 10000;
-    uint256 burnRate = 100;
+    uint256 constant public burnRate = 100;
     //todo add configurable values for distribution of house profit
     //consistent 1% burn
-
+    
+    //todo house to housebankroll
     struct game {
         uint256 profit;
         bytes32 identifier;
         uint256 houseShare;
         uint256 lotteryShare;
         uint256 reserveShare;
+        uint256 partnerShare;
         address profitAddress;
     }
     mapping (uint256 => game) public games;
 
 
-    constructor (CRUSHToken _crush, BitcrushStaking _stakingPool,  address _reserve, address _lottery) public{
+    constructor (CRUSHToken _crush, BitcrushStaking _stakingPool,  address _reserve, address _lottery) public {
         crush = _crush;
         stakingPool = _stakingPool;
         reserve = _reserve;
@@ -109,6 +111,7 @@ contract BitcrushBankroll is Ownable {
             totalBankroll = 0;
         }else {
             totalBankroll = totalBankroll.sub(_amount);
+            //todo transfer to live wallet
             crush.transfer(_winner, _amount);
         }
     }
@@ -120,20 +123,24 @@ contract BitcrushBankroll is Ownable {
             //handle calculation
             //calculate share
             //update all time high
+            allTimeHigh = totalBankroll;
             uint256 difference = totalBankroll.sub(allTimeHigh);
             totalBankroll = totalBankroll.sub(difference);
-            uint256 profit = difference.mul(games[_gameId].profit).div(DIVISOR);
+            uint256 stakingBakrollProfit = difference.mul(games[_gameId].profit).div(DIVISOR);
             uint256 burn = difference.mul(burnRate).div(DIVISOR);
             uint256 reserveCrush = difference.mul(games[_gameId].reserveShare).div(DIVISOR);
             uint256 lotteryCrush = difference.mul(games[_gameId].lotteryShare).div(DIVISOR);
-            uint256 house = difference.mul(games[_gameId].houseShare).div(DIVISOR);
+            uint256 partnerShareCrush = difference.mul(games[_gameId].partnerShare).div(DIVISOR);
+            uint256 houseBankrollShare = difference.mul(games[_gameId].houseShare).div(DIVISOR);
 
-            availableProfit = availableProfit.add(house);
+            availableProfit = availableProfit.add(stakingBakrollProfit);
+            //todo dont add again, optimize
+            totalBankroll = totalBankroll.add(houseBankrollShare); 
             crush.burn(burn);
             crush.transfer(reserve, reserveCrush);
             crush.transfer(lottery, lotteryCrush);
-            crush.transfer(games[_gameId].profitAddress, profit);
-            allTimeHigh = totalBankroll;
+            crush.transfer(games[_gameId].profitAddress, partnerShareCrush);
+            
 
         }
     }
