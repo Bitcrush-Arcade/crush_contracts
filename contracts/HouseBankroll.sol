@@ -96,7 +96,7 @@ contract BitcrushBankroll is Ownable {
 
     }
 
-    function payOutUserWinning (uint256 _amount, address _winner) public {
+    function payOutUserWinning (uint256 _amount, address _winner, uint256 _gameId) public {
         require(msg.sender == address(liveWallet),"Caller must be bitcrush live wallet");
         //check if bankroll has funds available
         //if not dip into staking pool for any remainder
@@ -105,15 +105,20 @@ contract BitcrushBankroll is Ownable {
             
             uint256 remainder = _amount.sub(totalBankroll); 
             poolDepleted = true;
-            stakingPool.freezeStaking(remainder, _winner);
+            stakingPool.freezeStaking(remainder, _winner, _gameId);
             negativeBankroll = negativeBankroll.add(remainder);
-            crush.transfer(_winner, totalBankroll);
+            transferWinnings(totalBankroll, _winner, _gameId);
+            
             totalBankroll = 0;
         }else {
             totalBankroll = totalBankroll.sub(_amount);
-            //todo transfer to live wallet
-            crush.transfer(_winner, _amount);
+            transferWinnings(_amount, _winner, _gameId);
+            
         }
+    }
+    function transferWinnings (uint256 _amount, address _winner, uint256 _gameId) internal {
+        crush.transfer(address(liveWallet), _amount);
+        liveWallet.addToUserWinnings(_gameId,_amount, _winner);
     }
 
     function checkForRewardPayOut (uint256 _gameId) internal {

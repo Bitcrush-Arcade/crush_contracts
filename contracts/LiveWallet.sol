@@ -8,12 +8,16 @@ import "@pancakeswap/pancake-swap-lib/contracts/math/SafeMath.sol";
 contract BitcrushLiveWallet is Ownable {
     using SafeMath for uint256;
     struct bet {
+        //rename to balance
         uint256 bet;
+        uint256 winnings;
     }
+    //todo make a balanceOf function
     struct blackList {
         bool blacklisted;
     }
     mapping (address => blackList) public blacklistedUsers;
+    //mapping of gameids to users address with bet amount
     mapping (uint256 => mapping (address => bet)) public betAmounts;
     //address of the crush token
     CRUSHToken public crush;
@@ -38,14 +42,11 @@ contract BitcrushLiveWallet is Ownable {
         
     }
 
-    function registerWin (uint256 _gameId, uint256 _bet, uint256 _win, address _user) public onlyOwner {
+    function registerWin (uint256 _gameId,  uint256 _win, address _user) public onlyOwner {
         require(betAmounts[_gameId][_user].bet > 0, "No Bet Made");
-        require(betAmounts[_gameId][_user].bet >= _bet, "amount greater than live wallet balance");
-        //transferToBankroll(_bet, _gameId);
-        //betAmounts[_gameId][msg.sender].bet = betAmounts[_gameId][msg.sender].bet.sub(_bet);
-        bankroll.payOutUserWinning(_win, _user);
+        bankroll.payOutUserWinning(_win, _user, _gameId);
     }
-
+    
     function registerLoss (uint256 _gameId, uint256 _bet, address _user) public onlyOwner {
         require(betAmounts[_gameId][_user].bet > 0, "No Bet Made");
         require(betAmounts[_gameId][_user].bet >= _bet, "amount greater than live wallet balance");
@@ -61,7 +62,19 @@ contract BitcrushLiveWallet is Ownable {
     function WithdrawBet(uint256 _gameId, uint256 _amount) public {
         require(betAmounts[_gameId][msg.sender].bet >= _amount, "bet less than amount withdraw");
         betAmounts[_gameId][msg.sender].bet = betAmounts[_gameId][msg.sender].bet.sub(_amount);
+        crush.transfer(msg.sender, _amount);
         emit Withdraw(_gameId, msg.sender, _amount);
+    }
+
+    function addToUserWinnings (uint256 _gameId, uint256 _amount, address _user) public {
+        require(msg.sender == address(bankroll),"Caller must be bankroll");
+        betAmounts[_gameId][_user].winnings = betAmounts[_gameId][_user].winnings.add(_amount);
+
+    }
+    function withdrawWinnings (uint256 _gameId, uint256 _amount) public {
+        require(betAmounts[_gameId][msg.sender].winnings >= _amount, "winnings less than amount withdraw");
+        betAmounts[_gameId][msg.sender].winnings = betAmounts[_gameId][msg.sender].winnings.sub(_amount);
+        crush.transfer(msg.sender, _amount);
     }
 
     function blacklistUser (address _address) public onlyOwner {
