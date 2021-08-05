@@ -18,6 +18,7 @@ contract BitcrushStaking is Ownable {
     uint256  public earlyWithdrawFee         = 50; // 50/10000 * 100 = 0.5% 
     uint256  public performanceFeeReserve    = 190; // 190/10000 * 100 = 1.9%
     
+    uint256 public profitShare = 10;
     uint256 public blockPerSecond = 3;
     uint256 public earlyWithdrawFeeTime = 72 * 60 * 60 / blockPerSecond;
     
@@ -313,13 +314,26 @@ contract BitcrushStaking is Ownable {
             stakings[addressIndexes[i]].lastBlockCompounded = block.number;
             }
             if(profits[0].remaining > 0){
-                uint256 profitShare = profits[0].remaining.mul(stakings[addressIndexes[i]].stakedAmount).div(totalStaked);
-                stakings[addressIndexes[i]].profit = stakings[addressIndexes[i]].profit.add(profitShare); 
-                profits[0].remaining = profits[0].remaining.sub(profitShare);
+                uint256 profitShareUser = profits[0].total.mul(stakings[addressIndexes[i]].stakedAmount).div(totalStaked);
+                if(profitShareUser >= profits[0].remaining){
+                 profitShare = profits[0].remaining;
+                }
+                uint256 compounderShare = profitShareUser.mul(profitShare).div(divisor);
+                profits[0].remaining = profits[0].remaining.sub(profitShareUser);
+                profitShareUser = profitShareUser.sub(compounderShare);
+                stakings[addressIndexes[i]].profit = stakings[addressIndexes[i]].profit.add(profitShareUser); 
+                compounderReward = compounderReward.add(compounderShare);
+                
             }
             
         }
         if(batchStartingIndex.add(batchLimit) >= addressIndexes.length){
+            if(profits[0].remaining == 0 && profits[0].total > 0 && profits.length > 0 ){
+                //rearrange array
+                profits[0] = profits[profits.length - 1];
+                profits.pop;
+
+            }
             batchStartingIndex = 0;
             uint256 newProfit = bankroll.transferProfit();
             if(newProfit > 0){
@@ -428,6 +442,11 @@ contract BitcrushStaking is Ownable {
     function setAutoCompoundLimit (uint256 _limit) public onlyOwner {
         require(_limit > 0, "Limit can not be 0");
         autoCompoundLimit = _limit;
+    }
+
+    function setProfitShare (uint256 _profitShare) public onlyOwner {
+        require(_profitShare > 0, "Profit share can not be 0");
+        profitShare = _profitShare;
     }
 
    

@@ -7,23 +7,24 @@ import "./HouseBankroll.sol";
 import "@pancakeswap/pancake-swap-lib/contracts/math/SafeMath.sol";
 contract BitcrushLiveWallet is Ownable {
     using SafeMath for uint256;
-    struct bet {
+    struct wallet {
         //rename to balance
-        uint256 bet;
+        uint256 balance;
         uint256 winnings;
     }
-    //todo make a balanceOf function
+    
     struct blackList {
         bool blacklisted;
     }
     mapping (address => blackList) public blacklistedUsers;
     //mapping of gameids to users address with bet amount
-    mapping (uint256 => mapping (address => bet)) public betAmounts;
+    mapping (uint256 => mapping (address => wallet)) public betAmounts;
     //address of the crush token
     CRUSHToken public crush;
     BitcrushBankroll public bankroll;
-    //todo dont deduct bet on winning
-    // todo winnings added to live wallet
+    
+    uint256 public lossBurn = 10;
+    uint256 constant public DIVISOR = 10000;
 
     
     event Withdraw (uint256 indexed _gameId, address indexed _address, uint256 indexed _amount);
@@ -38,30 +39,37 @@ contract BitcrushLiveWallet is Ownable {
         require(_amount > 0, "Bet amount should be greater than 0");
         require(blacklistedUsers[msg.sender].blacklisted == false, "User is black Listed");
         crush.transferFrom(msg.sender, address(this), _amount);
-        betAmounts[_gameId][msg.sender].bet = betAmounts[_gameId][msg.sender].bet.add(_amount);
+        betAmounts[_gameId][msg.sender].balance = betAmounts[_gameId][msg.sender].balance.add(_amount);
         
     }
 
+    function balanceOf (uint256 _gameId, address _user) public view returns (uint256){
+        return betAmounts[_gameId][_user].balance;
+    }
+
     function registerWin (uint256 _gameId,  uint256 _win, address _user) public onlyOwner {
-        require(betAmounts[_gameId][_user].bet > 0, "No Bet Made");
+        require(betAmounts[_gameId][_user].balance > 0, "No Bet Made");
         bankroll.payOutUserWinning(_win, _user, _gameId);
     }
     
     function registerLoss (uint256 _gameId, uint256 _bet, address _user) public onlyOwner {
-        require(betAmounts[_gameId][_user].bet > 0, "No Bet Made");
-        require(betAmounts[_gameId][_user].bet >= _bet, "amount greater than live wallet balance");
+        require(betAmounts[_gameId][_user].balance > 0, "No Bet Made");
+        require(betAmounts[_gameId][_user].balance >= _bet, "amount greater than live wallet balance");
         transferToBankroll(_bet, _gameId);
-        betAmounts[_gameId][msg.sender].bet = betAmounts[_gameId][msg.sender].bet.sub(_bet);
+        betAmounts[_gameId][msg.sender].balance = betAmounts[_gameId][msg.sender].balance.sub(_bet);
     }
 
     function transferToBankroll (uint256 _amount, uint256 _gameId) internal {
-        crush.approve(address(bankroll), _amount);
-        bankroll.addUserLoss(_amount, _gameId);       
+        uint256 burnShare = _amount.mul(lossBurn).div(DIVISOR);
+        crush.burn(burnShare);
+        uint256 remainingAmount = _amount.sub(burnShare);
+        crush.approve(address(bankroll), remainingAmount);
+        bankroll.addUserLoss(remainingAmount, _gameId);       
     }
 
     function WithdrawBet(uint256 _gameId, uint256 _amount) public {
-        require(betAmounts[_gameId][msg.sender].bet >= _amount, "bet less than amount withdraw");
-        betAmounts[_gameId][msg.sender].bet = betAmounts[_gameId][msg.sender].bet.sub(_amount);
+        require(betAmounts[_gameId][msg.sender].balance >= _amount, "bet less than amount withdraw");
+        betAmounts[_gameId][msg.sender].balance = betAmounts[_gameId][msg.sender].balance.sub(_amount);
         crush.transfer(msg.sender, _amount);
         emit Withdraw(_gameId, msg.sender, _amount);
     }
@@ -87,6 +95,11 @@ contract BitcrushLiveWallet is Ownable {
 
     function blacklistSelf () public  {
         blacklistedUsers[msg.sender].blacklisted = true;
+    }
+
+    function setLossBurn(uint256 _lossBurn) public onlyOwner {
+        require(_lossBurn > 0, "Loss burn cant be 0");
+        lossBurn = _lossBurn;
     }
 
 }

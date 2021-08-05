@@ -23,6 +23,7 @@ contract BitcrushBankroll is Ownable {
     uint256 gameIds = 1;
     uint256 constant public DIVISOR = 10000;
     uint256 constant public burnRate = 100;
+    uint256 public profitThreshold = 0;
     //todo add configurable values for distribution of house profit
     //consistent 1% burn
     
@@ -30,7 +31,7 @@ contract BitcrushBankroll is Ownable {
     struct game {
         uint256 profit;
         bytes32 identifier;
-        uint256 houseShare;
+        uint256 houseBankrollShare;
         uint256 lotteryShare;
         uint256 reserveShare;
         uint256 partnerShare;
@@ -50,10 +51,10 @@ contract BitcrushBankroll is Ownable {
         liveWallet = _liveWallet;
     }
 
-    function addGame (uint256 _profit, bytes32 _identifier, uint256 _houseShare, uint256 _lotteryShare, uint256 _reserveShare, address  _profitAddress) public onlyOwner {
+    function addGame (uint256 _profit, bytes32 _identifier, uint256 _houseBankrollShare, uint256 _lotteryShare, uint256 _reserveShare, address  _profitAddress) public onlyOwner {
         games[gameIds].profit = _profit;
         games[gameIds].identifier = _identifier;
-        games[gameIds].houseShare = _houseShare;
+        games[gameIds].houseBankrollShare = _houseBankrollShare;
         games[gameIds].lotteryShare = _lotteryShare;
         games[gameIds].reserveShare = _reserveShare;
         games[gameIds].profitAddress = _profitAddress;
@@ -136,7 +137,7 @@ contract BitcrushBankroll is Ownable {
             uint256 reserveCrush = difference.mul(games[_gameId].reserveShare).div(DIVISOR);
             uint256 lotteryCrush = difference.mul(games[_gameId].lotteryShare).div(DIVISOR);
             uint256 partnerShareCrush = difference.mul(games[_gameId].partnerShare).div(DIVISOR);
-            uint256 houseBankrollShare = difference.mul(games[_gameId].houseShare).div(DIVISOR);
+            uint256 houseBankrollShare = difference.mul(games[_gameId].houseBankrollShare).div(DIVISOR);
 
             availableProfit = availableProfit.add(stakingBakrollProfit);
             //todo dont add again, optimize
@@ -152,10 +153,19 @@ contract BitcrushBankroll is Ownable {
 
     function transferProfit () public returns (uint256){
         require(msg.sender == address(stakingPool), "Caller must be staking pool");
-        crush.transfer(address(stakingPool), availableProfit);
-        uint256 profit = availableProfit;
-        availableProfit = 0;
-        return profit;
+        if(availableProfit >= profitThreshold){
+            crush.transfer(address(stakingPool), availableProfit);
+            uint256 profit = availableProfit;
+            availableProfit = 0;
+            return profit;
+        }else {
+            return 0;
+        }
+        
+    }
+
+    function setProfitThreshold (uint256 _threshold) public onlyOwner {
+        profitThreshold = _threshold;
     }
 
 
