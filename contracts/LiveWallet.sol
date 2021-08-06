@@ -47,16 +47,24 @@ contract BitcrushLiveWallet is Ownable {
         return betAmounts[_gameId][_user].balance;
     }
 
-    function registerWin (uint256 _gameId,  uint256 _win, address _user) public onlyOwner {
-        require(betAmounts[_gameId][_user].balance > 0, "No Bet Made");
-        bankroll.payOutUserWinning(_win, _user, _gameId);
+    function registerWin (uint256[] memory _gameIds,  uint256[] memory _wins, address[] memory _users) public onlyOwner {
+        require (_gameIds.length == _wins.length && _gameIds.length == _users.length, "Parameter lengths should be equal");
+        for(uint256 i=0; i < _gameIds.length; i++){
+            if(betAmounts[_gameIds[i]][_users[i]].balance > 0){
+                bankroll.payOutUserWinning(_wins[i], _users[i], _gameIds[i]);
+            }
+        }
     }
     
-    function registerLoss (uint256 _gameId, uint256 _bet, address _user) public onlyOwner {
-        require(betAmounts[_gameId][_user].balance > 0, "No Bet Made");
-        require(betAmounts[_gameId][_user].balance >= _bet, "amount greater than live wallet balance");
-        transferToBankroll(_bet, _gameId);
-        betAmounts[_gameId][msg.sender].balance = betAmounts[_gameId][msg.sender].balance.sub(_bet);
+    function registerLoss (uint256[] memory _gameIds, uint256[] memory _bets, address[] memory _users) public onlyOwner {
+        require (_gameIds.length == _bets.length && _gameIds.length == _users.length, "Parameter lengths should be equal");
+        for(uint256 i=0; i < _gameIds.length; i++){
+            if(_bets[i] > 0){
+            transferToBankroll(_bets[i], _gameIds[i]);
+            betAmounts[_gameIds[i]][msg.sender].balance = betAmounts[_gameIds[i]][msg.sender].balance.sub(_bets[i]);
+            }
+            
+        }
     }
 
     function transferToBankroll (uint256 _amount, uint256 _gameId) internal {
