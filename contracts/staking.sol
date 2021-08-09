@@ -283,7 +283,7 @@ contract BitcrushStaking is Ownable {
         uint256 compounderReward = 0;
         uint totalPoolDeducted = 0;
         
-        uint256 batchLimit = 0;
+        uint256 batchLimit = addressIndexes.length;
         if(addressIndexes.length <= autoCompoundLimit || batchStartingIndex.add(autoCompoundLimit) >= addressIndexes.length){
             batchLimit = addressIndexes.length;
         }else {
@@ -313,7 +313,8 @@ contract BitcrushStaking is Ownable {
             stakings[addressIndexes[i]].stakedAmount = stakings[addressIndexes[i]].stakedAmount.add(stakerReward);
             stakings[addressIndexes[i]].lastBlockCompounded = block.number;
             }
-            if(profits[0].remaining > 0){
+            if(profits.length > 0){
+                if(profits[0].remaining > 0){
                 uint256 profitShareUser = profits[0].total.mul(stakings[addressIndexes[i]].stakedAmount).div(totalStaked);
                 if(profitShareUser >= profits[0].remaining){
                  profitShare = profits[0].remaining;
@@ -322,18 +323,21 @@ contract BitcrushStaking is Ownable {
                 profits[0].remaining = profits[0].remaining.sub(profitShareUser);
                 profitShareUser = profitShareUser.sub(compounderShare);
                 stakings[addressIndexes[i]].profit = stakings[addressIndexes[i]].profit.add(profitShareUser); 
-                compounderReward = compounderReward.add(compounderShare);
-                
+                compounderReward = compounderReward.add(compounderShare);   
+                }
             }
-            
+                        
         }
         if(batchStartingIndex.add(batchLimit) >= addressIndexes.length){
-            if(profits[0].remaining == 0 && profits[0].total > 0 && profits.length > 0 ){
+            if(profits.length > 0){
+                if(profits[0].remaining == 0 && profits[0].total > 0 && profits.length > 0 ){
                 //rearrange array
                 profits[0] = profits[profits.length - 1];
                 profits.pop;
 
+                }
             }
+            
             batchStartingIndex = 0;
             uint256 newProfit = bankroll.transferProfit();
             if(newProfit > 0){
