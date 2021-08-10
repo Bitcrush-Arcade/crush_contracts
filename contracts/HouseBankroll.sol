@@ -51,13 +51,14 @@ contract BitcrushBankroll is Ownable {
         liveWallet = _liveWallet;
     }
 
-    function addGame (uint256 _profit, bytes32 _identifier, uint256 _houseBankrollShare, uint256 _lotteryShare, uint256 _reserveShare, address  _profitAddress) public onlyOwner {
+    function addGame (uint256 _profit, bytes32 _identifier, uint256 _houseBankrollShare, uint256 _lotteryShare, uint256 _reserveShare, uint256 _partnerShare,  address  _profitAddress) public onlyOwner {
         games[gameIds].profit = _profit;
         games[gameIds].identifier = _identifier;
         games[gameIds].houseBankrollShare = _houseBankrollShare;
         games[gameIds].lotteryShare = _lotteryShare;
         games[gameIds].reserveShare = _reserveShare;
         games[gameIds].profitAddress = _profitAddress;
+        games[gameIds].partnerShare = _partnerShare;
         gameIds = gameIds.add(1);
     }
 
@@ -125,27 +126,48 @@ contract BitcrushBankroll is Ownable {
     function checkForRewardPayOut (uint256 _gameId) internal {
         if(totalBankroll > allTimeHigh) {
             //payout winning
-            //todo handle transfer
+            //todo add checks for 0 percent share
             //handle calculation
             //calculate share
             //update all time high
             allTimeHigh = totalBankroll;
             uint256 difference = totalBankroll.sub(allTimeHigh);
             totalBankroll = totalBankroll.sub(difference);
-            uint256 stakingBakrollProfit = difference.mul(games[_gameId].profit).div(DIVISOR);
-            uint256 burn = difference.mul(burnRate).div(DIVISOR);
-            uint256 reserveCrush = difference.mul(games[_gameId].reserveShare).div(DIVISOR);
-            uint256 lotteryCrush = difference.mul(games[_gameId].lotteryShare).div(DIVISOR);
-            uint256 partnerShareCrush = difference.mul(games[_gameId].partnerShare).div(DIVISOR);
-            uint256 houseBankrollShare = difference.mul(games[_gameId].houseBankrollShare).div(DIVISOR);
+            if(games[_gameId].profit > 0 ){
+                uint256 stakingBakrollProfit = difference.mul(games[_gameId].profit).div(DIVISOR);
+                availableProfit = availableProfit.add(stakingBakrollProfit);
+            }
+            
+            if(games[_gameId].reserveShare > 0 ){
+                uint256 reserveCrush = difference.mul(games[_gameId].reserveShare).div(DIVISOR);
+                crush.transfer(reserve, reserveCrush);
+            }
+            
+            if(games[_gameId].lotteryShare > 0){
+                uint256 lotteryCrush = difference.mul(games[_gameId].lotteryShare).div(DIVISOR);
+                crush.transfer(lottery, lotteryCrush);
+            }
+            
+            if(games[_gameId].partnerShare > 0 ){
+                uint256 partnerShareCrush = difference.mul(games[_gameId].partnerShare).div(DIVISOR);
+                crush.transfer(games[_gameId].profitAddress, partnerShareCrush);
+            }
 
-            availableProfit = availableProfit.add(stakingBakrollProfit);
-            //todo dont add again, optimize
-            totalBankroll = totalBankroll.add(houseBankrollShare); 
+            if(games[_gameId].houseBankrollShare > 0){
+                uint256 houseBankrollShare = difference.mul(games[_gameId].houseBankrollShare).div(DIVISOR);
+                //todo dont add again, optimize
+                totalBankroll = totalBankroll.add(houseBankrollShare); 
+            }
+            
+            
+
+            
+            
+            uint256 burn = difference.mul(burnRate).div(DIVISOR);
             crush.burn(burn);
-            crush.transfer(reserve, reserveCrush);
-            crush.transfer(lottery, lotteryCrush);
-            crush.transfer(games[_gameId].profitAddress, partnerShareCrush);
+            
+            
+            
             
 
         }
