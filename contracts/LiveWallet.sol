@@ -10,7 +10,7 @@ contract BitcrushLiveWallet is Ownable {
     struct wallet {
         //rename to balance
         uint256 balance;
-        uint256 winnings;
+        //uint256 winnings;
     }
     
     struct blackList {
@@ -84,14 +84,14 @@ contract BitcrushLiveWallet is Ownable {
 
     function addToUserWinnings (uint256 _gameId, uint256 _amount, address _user) public {
         require(msg.sender == address(bankroll),"Caller must be bankroll");
-        betAmounts[_gameId][_user].winnings = betAmounts[_gameId][_user].winnings.add(_amount);
+        betAmounts[_gameId][_user].balance = betAmounts[_gameId][_user].balance.add(_amount);
 
     }
-    function withdrawWinnings (uint256 _gameId, uint256 _amount) public {
+    /* function withdrawWinnings (uint256 _gameId, uint256 _amount) public {
         require(betAmounts[_gameId][msg.sender].winnings >= _amount, "winnings less than amount withdraw");
         betAmounts[_gameId][msg.sender].winnings = betAmounts[_gameId][msg.sender].winnings.sub(_amount);
         crush.transfer(msg.sender, _amount);
-    }
+    } */
 
     function blacklistUser (address _address) public onlyOwner {
         blacklistedUsers[_address].blacklisted = true;
