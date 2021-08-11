@@ -61,7 +61,7 @@ contract BitcrushLiveWallet is Ownable {
         for(uint256 i=0; i < _gameIds.length; i++){
             if(_bets[i] > 0){
             transferToBankroll(_bets[i], _gameIds[i]);
-            betAmounts[_gameIds[i]][msg.sender].balance = betAmounts[_gameIds[i]][msg.sender].balance.sub(_bets[i]);
+            betAmounts[_gameIds[i]][_users[i]].balance = betAmounts[_gameIds[i]][_users[i]].balance.sub(_bets[i]);
             }
             
         }
