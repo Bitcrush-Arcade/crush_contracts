@@ -125,7 +125,7 @@ contract BitcrushStaking is Ownable {
     /// Leaves staking for a user by the specified amount and transfering staked amount and reward to users address
     /// @param _amount the amount to unstake
     /// @dev leaves staking and deducts total pool by the users reward. early withdrawal fee applied if withdraw is made before earlyWithdrawFeeTime
-    function leaveStaking (uint256 _amount) public  {
+    function leaveStaking (uint256 _amount, bool _liveWallet) public  {
         uint256 reward = getReward(msg.sender);
         stakings[msg.sender].lastBlockCompounded = block.number;
         totalPool = totalPool.sub(reward);
@@ -135,9 +135,6 @@ contract BitcrushStaking is Ownable {
         }else {
             availableStaked = stakings[msg.sender].stakedAmount;
         }
-        
-
-
         require(availableStaked >= _amount, "Withdraw amount can not be greater than available staked amount");
         totalStaked = totalStaked.sub(_amount);
         stakings[msg.sender].stakedAmount = stakings[msg.sender].stakedAmount.sub(_amount);
@@ -148,7 +145,13 @@ contract BitcrushStaking is Ownable {
             crush.transfer(reserveAddress, withdrawalFee);
         }
         _amount = _amount.add(reward);
-        crush.transfer(msg.sender, _amount);
+        if(_liveWallet == false){
+            crush.transfer(msg.sender, _amount);
+        }else {
+            crush.approve(address(liveWallet), _amount);
+            liveWallet.addbetWithAddress(_amount, msg.sender);
+        }
+        
         //remove from array
         if(stakings[msg.sender].stakedAmount == 0){
             staked storage staking = stakings[msg.sender];
@@ -163,7 +166,51 @@ contract BitcrushStaking is Ownable {
         }
         emit RewardPoolUpdated(totalPool);
     }
-    //todo deprecated verify from jose if still in use
+
+
+/* function transferStakingToLiveWallet (uint256 _amount) public  {
+        uint256 reward = getReward(msg.sender);
+        stakings[msg.sender].lastBlockCompounded = block.number;
+        totalPool = totalPool.sub(reward);
+        uint256 availableStaked;
+        if(totalFrozen > 0){
+            availableStaked = stakings[msg.sender].stakedAmount.sub(totalFrozen.mul(stakings[msg.sender].stakedAmount).div(totalStaked));
+        }else {
+            availableStaked = stakings[msg.sender].stakedAmount;
+        }
+        require(availableStaked >= _amount, "Withdraw amount can not be greater than available staked amount");
+        totalStaked = totalStaked.sub(_amount);
+        stakings[msg.sender].stakedAmount = stakings[msg.sender].stakedAmount.sub(_amount);
+        if(block.number < stakings[msg.sender].lastBlockStaked.add(earlyWithdrawFeeTime)){
+            //apply fee
+            uint256 withdrawalFee = _amount.mul(earlyWithdrawFee).div(divisor);
+            _amount = _amount.sub(withdrawalFee);
+            crush.transfer(reserveAddress, withdrawalFee);
+        }
+        _amount = _amount.add(reward);
+        crush.approve(address(liveWallet), _amount);
+        liveWallet.addbetWithAddress(_amount, msg.sender);
+        
+        //remove from array
+        if(stakings[msg.sender].stakedAmount == 0){
+            staked storage staking = stakings[msg.sender];
+            if(staking.index != addressIndexes.length-1){
+                address lastAddress = addressIndexes[addressIndexes.length-1];
+                addressIndexes[staking.index] = lastAddress;
+                stakings[lastAddress].index = staking.index;
+                crush.approve( address(this), 0);
+            }
+            addressIndexes.pop();
+            delete stakings[msg.sender];
+        }
+        emit RewardPoolUpdated(totalPool);
+    }
+ */
+
+
+
+
+    /* //todo deprecated verify from jose if still in use
     /// Leaves staking for a user while setting stakedAmount to 0 and transfering staked amount and reward to users address
     /// @dev leaves staking and deducts total pool by the users reward. early withdrawal fee applied if withdraw is made before earlyWithdrawFeeTime
     function leaveStakingCompletely () public {
@@ -194,7 +241,7 @@ contract BitcrushStaking is Ownable {
         }
         emit RewardPoolUpdated(totalPool);
     }
-
+ */
     
     function getReward(address _address) internal view returns (uint256) {
         if(block.number <=  stakings[_address].lastBlockCompounded){
@@ -242,14 +289,22 @@ contract BitcrushStaking is Ownable {
 
     /// transfers the rewards of a user to their address
     /// @dev calculates users rewards and transfers it out while deducting reward from totalPool
-    function claim () public  {
+    function claim (bool _liveWallet) public  {
         uint256 reward = getReward(msg.sender);
         stakings[msg.sender].claimedAmount = stakings[msg.sender].claimedAmount.add(reward);
-        crush.transfer(msg.sender, reward);
+        if(_liveWallet == false){
+            crush.transfer(msg.sender, reward);
+        }else {
+            crush.approve(address(liveWallet), reward);
+            liveWallet.addbetWithAddress(reward, msg.sender);
+        }
         stakings[msg.sender].lastBlockCompounded = block.number;
         totalClaimed = totalClaimed.add(reward);
         totalPool = totalPool.sub(reward); 
     }
+
+
+
 
     function claimProfit () public {
         require(stakings[msg.sender].profit > 0, "No Profit to claim");
@@ -355,12 +410,12 @@ contract BitcrushStaking is Ownable {
     }
 
 
-    function freezeStaking (uint256 _amount, address _recipient, uint256 _gameId) public {
+    function freezeStaking (uint256 _amount, address _recipient) public {
         //divide amount over users
         //update user mapping to reflect frozen amount
          require(_amount <= totalStaked.sub(totalFrozen), "Freeze amount should be less than or equal to available funds");
          totalFrozen = totalFrozen.add(_amount);
-         liveWallet.addToUserWinnings(_gameId, _amount, _recipient);
+         liveWallet.addToUserWinnings(_amount, _recipient);
          crush.transfer(address(liveWallet), _amount);
     }
 
@@ -376,26 +431,42 @@ contract BitcrushStaking is Ownable {
     /// @dev drains the staked amount and sets the state variable `stakedAmount` of staking mapping to 0
     function emergencyWithdraw() public {
         //add check for frozen amount
-        crush.transfer( msg.sender, stakings[msg.sender].stakedAmount);
-        stakings[msg.sender].stakedAmount = 0;
+        uint256 availableStaked;
+        if(totalFrozen > 0){
+            availableStaked = stakings[msg.sender].stakedAmount.sub(totalFrozen.mul(stakings[msg.sender].stakedAmount).div(totalStaked));
+        }else {
+            availableStaked = stakings[msg.sender].stakedAmount;
+        }
+
+        crush.transfer( msg.sender, availableStaked);
+        stakings[msg.sender].stakedAmount = stakings[msg.sender].stakedAmount.sub(availableStaked);
         
         stakings[msg.sender].lastBlockCompounded = block.number;
-        staked storage staking = stakings[msg.sender];
-        if(staking.index != addressIndexes.length-1){
-            address lastAddress = addressIndexes[addressIndexes.length-1];
-            addressIndexes[staking.index] = lastAddress;
-            stakings[lastAddress].index = staking.index;
+        if(stakings[msg.sender].stakedAmount == 0) {
+            staked storage staking = stakings[msg.sender];
+            if(staking.index != addressIndexes.length-1){
+                address lastAddress = addressIndexes[addressIndexes.length-1];
+                addressIndexes[staking.index] = lastAddress;
+                stakings[lastAddress].index = staking.index;
+            }
+            addressIndexes.pop();
+            crush.approve( address(this), 0);
         }
-        addressIndexes.pop();
-        crush.approve( address(this), 0);
+        
     }
 
     /// withdraws the total pool in case of emergency.
     /// @dev drains the total pool and sets the state variable `totalPool` to 0
     function emergencyTotalPoolWithdraw () public onlyOwner {
         require(totalPool > 0, "Total Pool need to be greater than 0");
-        crush.transfer(msg.sender, totalPool);
-        totalPool = 0;
+        if(totalFrozen > 0){
+            crush.transfer(msg.sender, totalPool.sub(totalFrozen));
+            totalPool = totalPool.sub(totalFrozen);
+        } else {
+            crush.transfer(msg.sender, totalPool);
+            totalPool = 0;
+        }
+        
     }
 
     /// Store `_fee`.
