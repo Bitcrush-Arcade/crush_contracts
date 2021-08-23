@@ -60,9 +60,7 @@ contract BitcrushLiveWallet is Ownable {
     function registerWin (uint256[] memory _wins, address[] memory _users) public onlyOwner {
         require (_wins.length == _users.length, "Parameter lengths should be equal");
         for(uint256 i=0; i < _users.length; i++){
-            if(betAmounts[_users[i]].balance > 0){
                 bankroll.payOutUserWinning(_wins[i], _users[i]);
-            }
         }
     }
     
