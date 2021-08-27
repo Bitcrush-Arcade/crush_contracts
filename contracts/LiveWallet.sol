@@ -42,7 +42,7 @@ contract BitcrushLiveWallet is Ownable {
         require(blacklistedUsers[msg.sender].blacklisted == false, "User is black Listed");
         crush.transferFrom(msg.sender, address(this), _amount);
         betAmounts[msg.sender].balance = betAmounts[msg.sender].balance.add(_amount);
-        emit Withdraw(msg.sender, _amount);
+        emit Deposit(msg.sender, _amount);
         
     }
 
