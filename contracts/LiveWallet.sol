@@ -29,6 +29,7 @@ contract BitcrushLiveWallet is Ownable {
 
     
     event Withdraw (address indexed _address, uint256 indexed _amount);
+    event Deposit (address indexed _address, uint256 indexed _amount);
 
     constructor (CRUSHToken _crush, BitcrushBankroll _bankroll) public{
         crush = _crush;
@@ -41,6 +42,7 @@ contract BitcrushLiveWallet is Ownable {
         require(blacklistedUsers[msg.sender].blacklisted == false, "User is black Listed");
         crush.transferFrom(msg.sender, address(this), _amount);
         betAmounts[msg.sender].balance = betAmounts[msg.sender].balance.add(_amount);
+        emit Withdraw(msg.sender, _amount);
         
     }
 
@@ -83,7 +85,7 @@ contract BitcrushLiveWallet is Ownable {
         bankroll.addUserLoss(remainingAmount);       
     }
 
-    function WithdrawBet(uint256 _amount) public {
+    function withdrawBet(uint256 _amount) public {
         require(betAmounts[msg.sender].balance >= _amount, "bet less than amount withdraw");
         betAmounts[msg.sender].balance = betAmounts[msg.sender].balance.sub(_amount);
         crush.transfer(msg.sender, _amount);
@@ -95,11 +97,6 @@ contract BitcrushLiveWallet is Ownable {
         betAmounts[_user].balance = betAmounts[_user].balance.add(_amount);
 
     }
-    /* function withdrawWinnings (uint256 _gameId, uint256 _amount) public {
-        require(betAmounts[_gameId][msg.sender].winnings >= _amount, "winnings less than amount withdraw");
-        betAmounts[_gameId][msg.sender].winnings = betAmounts[_gameId][msg.sender].winnings.sub(_amount);
-        crush.transfer(msg.sender, _amount);
-    } */
 
     function blacklistUser (address _address) public onlyOwner {
         blacklistedUsers[_address].blacklisted = true;
