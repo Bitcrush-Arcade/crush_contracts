@@ -26,7 +26,7 @@ contract BitcrushLiveWallet is Ownable {
     
     uint256 public lossBurn = 10;
     uint256 constant public DIVISOR = 10000;
-
+    uint256 public lockPeriod = 10800;
     
     event Withdraw (address indexed _address, uint256 indexed _amount);
     event Deposit (address indexed _address, uint256 indexed _amount);
@@ -87,7 +87,7 @@ contract BitcrushLiveWallet is Ownable {
 
     function withdrawBet(uint256 _amount) public {
         require(betAmounts[msg.sender].balance >= _amount, "bet less than amount withdraw");
-        require(betAmounts[msg.sender].lockTimeStamp == 0 || betAmounts[msg.sender].lockTimeStamp < block.timestamp, "Bet Amount locked, please try again later");
+        require(betAmounts[msg.sender].lockTimeStamp == 0 || betAmounts[msg.sender].lockTimeStamp.add(lockPeriod) < block.timestamp, "Bet Amount locked, please try again later");
         betAmounts[msg.sender].balance = betAmounts[msg.sender].balance.sub(_amount);
         crush.transfer(msg.sender, _amount);
         emit Withdraw(msg.sender, _amount);
@@ -129,6 +129,9 @@ contract BitcrushLiveWallet is Ownable {
     function setLossBurn(uint256 _lossBurn) public onlyOwner {
         require(_lossBurn > 0, "Loss burn cant be 0");
         lossBurn = _lossBurn;
+    }
+    function setLockPeriod (uint256 _lockPeriod) public onlyOwner {
+        lockPeriod = _lockPeriod;
     }
 
 }
