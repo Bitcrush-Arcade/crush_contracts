@@ -10,7 +10,7 @@ contract BitcrushLiveWallet is Ownable {
     struct wallet {
         //rename to balance
         uint256 balance;
-        //uint256 winnings;
+        uint256 lockTimeStamp;
     }
     
     struct blackList {
@@ -50,7 +50,7 @@ contract BitcrushLiveWallet is Ownable {
         //todo add validation for valid game id
         require(_amount > 0, "Bet amount should be greater than 0");
         require(blacklistedUsers[_user].blacklisted == false, "User is black Listed");
-        crush.transferFrom(_user, address(this), _amount);
+        crush.transferFrom(msg.sender, address(this), _amount);
         betAmounts[_user].balance = betAmounts[_user].balance.add(_amount);
         
     }
@@ -87,15 +87,31 @@ contract BitcrushLiveWallet is Ownable {
 
     function withdrawBet(uint256 _amount) public {
         require(betAmounts[msg.sender].balance >= _amount, "bet less than amount withdraw");
+        require(betAmounts[msg.sender].lockTimeStamp == 0 || betAmounts[msg.sender].lockTimeStamp < block.timestamp, "Bet Amount locked, please try again later");
         betAmounts[msg.sender].balance = betAmounts[msg.sender].balance.sub(_amount);
         crush.transfer(msg.sender, _amount);
         emit Withdraw(msg.sender, _amount);
     }
 
+    function withdrawBetForUser(uint256 _amount, address _user) public onlyOwner {
+        require(betAmounts[_user].balance >= _amount, "bet less than amount withdraw");
+        betAmounts[_user].balance = betAmounts[_user].balance.sub(_amount);
+        crush.transfer(_user, _amount);
+        emit Withdraw(_user, _amount);
+    }
+
+
     function addToUserWinnings (uint256 _amount, address _user) public {
         require(msg.sender == address(bankroll),"Caller must be bankroll");
         betAmounts[_user].balance = betAmounts[_user].balance.add(_amount);
 
+    }
+    function updateBetLock (address _user) public {
+        betAmounts[_user].lockTimeStamp = block.timestamp;
+    }
+
+    function releaseBetLock (address _user) public {
+        betAmounts[_user].lockTimeStamp = 0;
     }
 
     function blacklistUser (address _address) public onlyOwner {

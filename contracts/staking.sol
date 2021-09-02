@@ -54,6 +54,7 @@ contract BitcrushStaking is Ownable {
     
     uint256 public totalClaimed;
     uint256 public totalFrozen = 0;
+    uint256 public totalProfitDistributed = 0;
     
     uint256 public autoCompoundLimit = 10;
 
@@ -399,6 +400,7 @@ contract BitcrushStaking is Ownable {
                 //profit deduction
                 profit memory prof = profit(newProfit,newProfit);
                 profits.push(prof);
+                totalProfitDistributed = totalProfitDistributed.add(newProfit);
             }
         }
         totalPool = totalPool.sub(totalPoolDeducted);

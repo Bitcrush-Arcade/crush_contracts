@@ -24,13 +24,13 @@ contract BitcrushBankroll is Ownable {
     uint256 public constant DIVISOR = 10000;
     uint256 public constant burnRate = 100;
     uint256 public profitThreshold = 0;
-    //todo add configurable values for distribution of house profit
+    
     //consistent 1% burn
 
-        uint256 profitShare;
-        uint256 houseBankrollShare;
-        uint256 lotteryShare;
-        uint256 reserveShare;
+        uint256 public profitShare;
+        uint256 public houseBankrollShare;
+        uint256 public lotteryShare;
+        uint256 public reserveShare;
     
     constructor(
         CRUSHToken _crush,
@@ -204,5 +204,15 @@ contract BitcrushBankroll is Ownable {
 
     function setReserveShare (uint256 _reserveShare) public onlyOwner {
         reserveShare = _reserveShare;
+    }
+
+    function EmergencyWithdrawBankroll () public onlyOwner {
+        crush.transfer(msg.sender, totalBankroll);
+        totalBankroll = 0;
+    }
+
+    function EmergencyWithdrawAvailableProfit () public onlyOwner {
+        crush.transfer(msg.sender, availableProfit);
+        availableProfit = 0;
     }
 }
