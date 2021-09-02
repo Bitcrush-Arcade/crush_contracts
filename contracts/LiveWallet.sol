@@ -106,12 +106,17 @@ contract BitcrushLiveWallet is Ownable {
         betAmounts[_user].balance = betAmounts[_user].balance.add(_amount);
 
     }
-    function updateBetLock (address _user) public {
-        betAmounts[_user].lockTimeStamp = block.timestamp;
+    function updateBetLock (address[] memory _users) public {
+        for(uint256 i=0; i < _users.length; i++){
+            betAmounts[_users[i]].lockTimeStamp = block.timestamp;
+        }
+        
     }
 
-    function releaseBetLock (address _user) public {
-        betAmounts[_user].lockTimeStamp = 0;
+    function releaseBetLock (address[] memory _users) public {
+        for(uint256 i=0; i < _users.length; i++){
+            betAmounts[_users[i]].lockTimeStamp = 0;
+        }
     }
 
     function blacklistUser (address _address) public onlyOwner {
