@@ -27,13 +27,16 @@ contract BitcrushLiveWallet is Ownable {
     uint256 public lossBurn = 10;
     uint256 constant public DIVISOR = 10000;
     uint256 public lockPeriod = 10800;
+    address public reserveAddress;
+    uint256  public earlyWithdrawFee         = 50; // 50/10000 * 100 = 0.5% 
     
     event Withdraw (address indexed _address, uint256 indexed _amount);
     event Deposit (address indexed _address, uint256 indexed _amount);
 
-    constructor (CRUSHToken _crush, BitcrushBankroll _bankroll) public{
+    constructor (CRUSHToken _crush, BitcrushBankroll _bankroll, address _reserveAddress) public{
         crush = _crush;
         bankroll = _bankroll;
+        reserveAddress = _reserveAddress;
     }
 
     function addbet (uint256 _amount) public {
@@ -96,8 +99,12 @@ contract BitcrushLiveWallet is Ownable {
     function withdrawBetForUser(uint256 _amount, address _user) public onlyOwner {
         require(betAmounts[_user].balance >= _amount, "bet less than amount withdraw");
         betAmounts[_user].balance = betAmounts[_user].balance.sub(_amount);
-        crush.transfer(_user, _amount);
         emit Withdraw(_user, _amount);
+        uint256 withdrawalFee = _amount.mul(earlyWithdrawFee).div(DIVISOR);
+        _amount = _amount.sub(withdrawalFee);
+        crush.transfer(reserveAddress, withdrawalFee);
+        crush.transfer(_user, _amount);
+        
     }
 
 
@@ -137,6 +144,14 @@ contract BitcrushLiveWallet is Ownable {
     }
     function setLockPeriod (uint256 _lockPeriod) public onlyOwner {
         lockPeriod = _lockPeriod;
+    }
+
+    function setReserveAddress (address _reserveAddress) public onlyOwner {
+        reserveAddress = _reserveAddress;
+    }
+
+    function setEarlyWithdrawFee (uint256 _earlyWithdrawFee ) public onlyOwner {
+        earlyWithdrawFee = _earlyWithdrawFee;
     }
 
 }
