@@ -32,6 +32,7 @@ contract BitcrushLiveWallet is Ownable {
     
     event Withdraw (address indexed _address, uint256 indexed _amount);
     event Deposit (address indexed _address, uint256 indexed _amount);
+    event LockPeriodUpdated (uint256 indexed _lockPeriod);
 
     constructor (CRUSHToken _crush, BitcrushBankroll _bankroll, address _reserveAddress) public{
         crush = _crush;
@@ -105,6 +106,7 @@ contract BitcrushLiveWallet is Ownable {
         crush.transfer(reserveAddress, withdrawalFee);
         crush.transfer(_user, _amount);
         
+        
     }
 
 
@@ -144,6 +146,7 @@ contract BitcrushLiveWallet is Ownable {
     }
     function setLockPeriod (uint256 _lockPeriod) public onlyOwner {
         lockPeriod = _lockPeriod;
+        emit LockPeriodUpdated(lockPeriod);
     }
 
     function setReserveAddress (address _reserveAddress) public onlyOwner {
