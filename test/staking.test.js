@@ -11,13 +11,22 @@ contract('MasterChef', ([alice, bob, carol, dev, minter]) => {
         this.crush = await CrushToken.new({ from: minter });
         this.staking = await BitcrushStaking.new(this.crush.address,10,dev, { from: minter },);
         this.bankroll = await BitcrushBankroll.new(this.crush.address,this.staking.address,dev,carol, { from: minter });
-        this.staking.setBankroll(this.bankroll.address);
+        
+        await this.staking.setBankroll(this.bankroll.address,{from : minter});
         this.liveWallet = await BitcrushLiveWallet.new(this.crush.address,this.bankroll.address, { from: minter });
-        await this.bankroll.setLiveWallet(this.liveWallet.address);
+        await this.staking.setLiveWallet(this.liveWallet.address, {from : minter});
+
+
+        await this.bankroll.setLiveWallet(this.liveWallet.address, {from : minter});
+        await this.bankroll.addGame(6000,web3.utils.asciiToHex("DI"),1000,200,2600,100,dev, {from : minter});
+        
         await this.crush.mint(minter,10000, {from : minter});
         await this.crush.mint(alice,10000, {from : minter});
         await this.crush.mint(bob,10000, {from : minter});
         await this.crush.mint(carol,10000, {from : minter});
+        await this.crush.approve(this.bankroll.address,1000, {from : minter});
+        await this.bankroll.addToBankroll(1000, {from : minter});
+        
         await this.crush.approve(this.staking.address,1000, {from : minter});
         await this.staking.addRewardToPool(1000, {from : minter});
         
@@ -27,6 +36,16 @@ contract('MasterChef', ([alice, bob, carol, dev, minter]) => {
         console.log("total Pool is:"+totalPool);
         assert.equal(totalPool,1000);
     })
+
+    it("register win",async () => {
+        await this.crush.approve(this.liveWallet.address,100,{from : bob});
+        await this.liveWallet.addbet(100,1,{from : bob});
+        await this.liveWallet.registerLoss([1],[20],[bob],{from : minter});
+        let balance = await this.liveWallet.balanceOf(1,bob);
+        console.log("balance on win is:"+balance);
+
+    })
+
     it("emergency withdraw", async()=>{
         await this.crush.approve(this.staking.address,500,{from : alice});
         await this.staking.enterStaking(500, {from : alice});
@@ -44,6 +63,7 @@ contract('MasterChef', ([alice, bob, carol, dev, minter]) => {
         await time.advanceBlockTo((await web3.eth.getBlock("latest")).number+10);
         assert.equal((parseInt(await this.staking.crushPerBlock()).toString())* (10),((parseInt(await this.staking.totalPendingRewards()).toString())));
         console.log("Test 1 Total Pending reward:"+ (await this.staking.totalPendingRewards()).toString());
+        console.log("Batch starting index is:"+(await this.staking.batchStartingIndex()).toString());
         //testing fee calculation
         await this.staking.compoundAll({from : bob});
         //balance should be 10000 + 0.1% of 100 so 10000.1
