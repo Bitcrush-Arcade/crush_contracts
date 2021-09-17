@@ -6,9 +6,11 @@
   "author": "Jose Miguel Fernandez",
   "license": "MIT",
   "dependencies": {
-    "@openzeppelin/contracts": "^4.1.0",
+    "@chainlink/contracts": "^0.2.1",
+    "@openzeppelin/contracts": "^4.3.2",
     "@pancakeswap/pancake-swap-lib": "^0.0.4",
     "@truffle/hdwallet-provider": "1.2.6",
+    "truffle": "^5.4.10",
     "web3": "^1.3.5"
   },
   "devDependencies": {
