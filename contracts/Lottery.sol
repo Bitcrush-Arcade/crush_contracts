@@ -4,7 +4,7 @@ pragma solidity ^0.8.0;
 // VRF
 import "@chainlink/contracts/src/v0.8/VRFConsumerBase.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "./CrushCoin.sol";
 
 
 contract BitcrushLottery is VRFConsumerBase {
@@ -13,7 +13,7 @@ contract BitcrushLottery is VRFConsumerBase {
     using SafeMath for uint256;
     
     // Contracts
-    ERC20 public crush;
+    CRUSHToken public crush;
     address public devAddress; //Address to send Ticket cut to.
     
     // Data Structures
@@ -36,6 +36,7 @@ contract BitcrushLottery is VRFConsumerBase {
     bool public currentIsActive = false;
     uint256 public currentRound = 0;
     uint256 public duration; // ROUND DURATION
+    uint256 public roundStart; //Timestamp of roundstart
     uint256 public ticketValue = 30 ; //Value of Ticket
     uint256 public devTicketCut = 10000; // This is 10% of ticket sales taken on ticket sale
     
@@ -51,8 +52,9 @@ contract BitcrushLottery is VRFConsumerBase {
     uint256 public burn =   18000;
     
     // Mappings
-    mapping( uint256 => uint256 ) public roundPool;
-    mapping( uint256 => uint256 ) public winnerNumbers;
+    mapping( uint256 => uint256 ) public totalTickets; //Total Tickets emmited per round
+    mapping( uint256 => uint256 ) public roundPool; // Winning Pool
+    mapping( uint256 => uint256 ) public winnerNumbers; // record of winner Number per round
     mapping( uint256 => mapping( uint256 => uint256 ) ) public holders; // ROUND => DIGITS => #OF HOLDERS
     mapping( uint256 => mapping( uint256 => uint256 ) ) public claimed; // ROUND => DIGITS => #OF Digits Claimed
     mapping( uint256 => mapping( address => Ticket[] ) )public userTickets; // User Bought Tickets
@@ -64,6 +66,8 @@ contract BitcrushLottery is VRFConsumerBase {
     event OperatorChanged ( address indexed operators, bool active_status );
     event RoundStarted(uint256 indexed _round, address indexed _starter, uint256 _timestamp );
     event TicketBought(uint256 indexed _round, address indexed _user, uint256 _ticketsEmmited , Ticket[] tickets );
+    event SelectionStarted( uint256 indexed _round, address _caller, bytes32 _requestId);
+    event WinnerPicked(uint256 indexed _round, uint256 _winner, bytes32 _requestId);
     
     // MODIFIERS
     modifier operatorOnly {
@@ -105,7 +109,6 @@ contract BitcrushLottery is VRFConsumerBase {
         uint userCrushBalance = crush.balanceOf( msg.sender );
         uint ticketCost = ticketValue.mul( _ticketNumbers.length ).mul( 10 **18 );
         require( userCrushBalance >= ticketCost, "Not enough funds to purchase Tickets" );
-        uint256 ticketsEmmited = 0;
         
         // Add Tickets to respective Mappings
         for( uint i = 0; i < _ticketNumbers.length; i++ ){
@@ -120,14 +123,14 @@ contract BitcrushLottery is VRFConsumerBase {
             }
             Ticket memory ticket = Ticket(currentTicket, false);
             userTickets[ currentRound ][ msg.sender ].push( ticket );
-            ticketsEmmited += 1;
         }
         
         uint devCut = getFraction( ticketCost, devTicketCut, PERCENT_BASE );
         crush.transferFrom( msg.sender, address(this), ticketCost.sub(devCut) );
         crush.transferFrom( msg.sender, devAddress, devCut );
+        totalTickets[currentRound] += _ticketNumbers.length;
 
-        emit TicketBought( currentRound, msg.sender, ticketsEmmited, userTickets[ currentRound ][ msg.sender ] );
+        emit TicketBought( currentRound, msg.sender, _ticketNumbers.length, userTickets[ currentRound ][ msg.sender ] );
         
     }
     // Get Tickets for a specific round
@@ -144,17 +147,72 @@ contract BitcrushLottery is VRFConsumerBase {
     // @dev only applies if current Round is over
     function startRound() public operatorOnly{
         require( currentIsActive == false, "Current Round is not over");
-        // Add new Round
-        currentRound += 1;
-        currentIsActive = true;
         
+        // Check if previous Winner Number has already been given, if First round hasn't started, set default value
+        uint currentRoundWinner;
+        if( currentRound == 0) currentRoundWinner = 1000000;
+        else currentRoundWinner = winnerNumbers[currentRound];
+        require( currentRoundWinner > 0, "No winner yet, can't start a new Round");
+
+        // Add new Round
+        currentRound ++;
+        currentIsActive = true;
+        roundStart = block.timestamp;
         emit RoundStarted( currentRound, msg.sender, block.timestamp);
     }
     
-    // Ends current round and calculates rollover
+    // Ends current round This will always be 12pm GMT -6 (6pm UTC)
     // TODO!!!!
     function endRound() public operatorOnly{
+
+        require( LINK.balanceOf(address(this)) >= feeVRF, "Not enough LINK - please add funds to contract" );
+
         require( currentIsActive == true, "Current Round is over");
+        require ( block.timestamp > roundStart + 3600, "Can't end round immediately");
+        uint endHour = getHour(block.timestamp);
+        uint sec = getSecond(block.timestamp);
+        require( endHour >= 18 && sec > 0, "End Time hasn't been reached" );
+
+        currentIsActive = false;
+        // Request Random Number for Winner
+        bytes32 rqId = requestRandomness( keyHashVRF, feeVRF);
+        emit SelectionStarted(currentRound, msg.sender, rqId);
+    }
+
+    function distributeCrush() external operatorOnly{
+        require( currentIsActive == false, "Round in progress");
+        uint256 rollOver;
+        uint256 burnAmount;
+
+        (rollOver, burnAmount) = calculateRollover();
+        crush.burn( burnAmount );
+        roundPool[ currentRound + 1 ] = rollOver;
+    }
+
+    function calculateRollover() internal view returns( uint256 _rollover, uint256 _burn ) {
+        uint totalPool = roundPool[currentRound];
+        _rollover = 0;
+        // for zero match winners
+        uint roundTickets = totalTickets[currentRound];
+        uint256 currentWinner = winnerNumbers[currentRound];
+        uint256[6] memory winnerDigits = getDigits(currentWinner);
+        uint256[6] memory matchPercents = [ match6, match5, match4, match3, match2, match1 ];
+        
+        for( uint8 i = 0; i < 6; i ++){
+            uint digitHolders = winnerDigits[i];
+            if( digitHolders > 0){
+                roundTickets = roundTickets.sub(digitHolders);
+                _rollover += getFraction(totalPool, matchPercents[i], PERCENT_BASE );
+            }
+        }
+        // Are there any noMatch tickets
+        if( roundTickets > 0 ){
+            _rollover += getFraction(totalPool, noMatch, PERCENT_BASE);
+        }
+        _burn = getFraction( totalPool, burn, PERCENT_BASE);
+        
+        _rollover += _burn;
+        _rollover = totalPool.sub( _rollover );
     }
     
     // Add or remove operator
@@ -172,7 +230,9 @@ contract BitcrushLottery is VRFConsumerBase {
     // GET Verifiable RandomNumber from VRF
     // This gets called by VRF Contract only
     function fulfillRandomness(bytes32 requestId, uint256 randomness) internal override {
-        winnerNumbers[currentRound] = randomness.add(1000000);
+        uint winnerNumber = randomness.add(1000000);
+        winnerNumbers[currentRound] = winnerNumber;
+        emit WinnerPicked(currentRound, winnerNumber, requestId);
     }
     
     // PURE FUNCTIONS
@@ -191,5 +251,33 @@ contract BitcrushLottery is VRFConsumerBase {
         digits[4] = _ticketNumber.div(100);
         digits[5] = _ticketNumber.div(10);
         return destructuredNumber;
+    }
+
+    // -------------------------------------------------------------------
+    // Timestamp fns taken from BokkyPooBah's DateTime Library
+    //
+    // Gas efficient Solidity date and time library
+    //
+    // https://github.com/bokkypoobah/BokkyPooBahsDateTimeLibrary
+    //
+    // Enjoy. (c) BokkyPooBah / Bok Consulting Pty Ltd 2018.
+    //
+    // GNU Lesser General Public License 3.0
+    // https://www.gnu.org/licenses/lgpl-3.0.en.html
+    // ----------------------------------------------------------------------------
+    uint constant SECONDS_PER_DAY = 24 * 60 * 60;
+    uint constant SECONDS_PER_HOUR = 60 * 60;
+    uint constant SECONDS_PER_MINUTE = 60;
+
+    function getHour(uint timestamp) internal pure returns (uint hour) {
+        uint secs = timestamp % SECONDS_PER_DAY;
+        hour = secs / SECONDS_PER_HOUR;
+    }
+    function getMinute(uint timestamp) internal pure returns (uint minute) {
+        uint secs = timestamp % SECONDS_PER_HOUR;
+        minute = secs / SECONDS_PER_MINUTE;
+    }
+    function getSecond(uint timestamp) internal pure returns (uint second) {
+        second = timestamp % SECONDS_PER_MINUTE;
     }
 }
