@@ -91,7 +91,7 @@ contract BitcrushLottery is VRFConsumerBase {
         keyHashVRF = 0xcaf3c3727e033261d383b315559476f48034c13b18f8cafed4d871abe5049186; //TESTNET HASH
         // fee = 0.2 * 10 ** 18; // 0.2 LINK (MAINNET)
         feeVRF = 0.1 * 10 ** 18; // 0.1 LINK (TESTNET)
-        crush = ERC20(_crush);
+        crush = CRUSHToken(_crush);
         devAddress = msg.sender;
         operators[msg.sender] = true;
         owner = msg.sender;
