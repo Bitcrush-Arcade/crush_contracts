@@ -373,7 +373,7 @@ contract BitcrushStaking is Ownable {
                 if(profits[0].remaining > 0){
                 uint256 profitShareUser = profits[0].total.mul(stakings[addressIndexes[i]].stakedAmount).div(totalStaked);
                 if(profitShareUser >= profits[0].remaining){
-                 profitShare = profits[0].remaining;
+                 profitShareUser = profits[0].remaining;
                 }
                 uint256 compounderShare = profitShareUser.mul(profitShare).div(divisor);
                 profits[0].remaining = profits[0].remaining.sub(profitShareUser);
