@@ -64,6 +64,7 @@ contract BitcrushLottery is VRFConsumerBase {
     
     
     // EVENTS
+    event FundPool( uint256 indexed _round, uint256 _amount);
     event OperatorChanged ( address indexed operators, bool active_status );
     event RoundStarted(uint256 indexed _round, address indexed _starter, uint256 _timestamp );
     event TicketBought(uint256 indexed _round, address indexed _user, uint256 _ticketsEmmited , Ticket[] tickets );
@@ -201,8 +202,13 @@ contract BitcrushLottery is VRFConsumerBase {
         emit TicketClaimed(_round, msg.sender, ownedTickets[ ticketIndex ] );
     }
     // AddToPool
-    // AddLink (?)
-    
+    function addToPool(uint256 _amount) external{
+        uint256 userBalance = crush.balanceOf( msg.sender );
+        require( userBalance >= _amount, "Insufficient Funds to Send to Pool");
+        crush.transferFrom( msg.sender, address(this), _amount);
+        roundPool[ currentRound ] = roundPool[ currentRound ].add( _amount );
+        emit FundPool( currentRound, _amount);
+    }
     // OPERATOR FUNCTIONS
     // Starts a new Round
     // @dev only applies if current Round is over
