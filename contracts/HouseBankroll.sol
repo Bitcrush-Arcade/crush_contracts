@@ -7,11 +7,10 @@ import "./staking.sol";
 import "./HouseBankroll.sol";
 import "./LiveWallet.sol";
 contract BitcrushBankroll is Ownable {
+    
     using SafeMath for uint256;
 
     uint256 public totalBankroll;
-    uint256 public allTimeHigh;
-    uint256 public availableProfit;
     bool poolDepleted = false;
     uint256 negativeBankroll;
     //address of the crush token
@@ -22,16 +21,23 @@ contract BitcrushBankroll is Ownable {
     address public lottery;
     
     uint256 public constant DIVISOR = 10000;
-    uint256 public constant burnRate = 100;
+    uint256 public constant BURN_RATE = 100;
     uint256 public profitThreshold = 0;
     
     //consistent 1% burn
-
-        uint256 public profitShare;
-        uint256 public houseBankrollShare;
-        uint256 public lotteryShare;
-        uint256 public reserveShare;
+    uint256 public profitShare;
+    uint256 public houseBankrollShare;
+    uint256 public lotteryShare;
+    uint256 public reserveShare;
     
+    //profit tracking
+    uint256 public brSinceCompound;
+    uint256 public negativeBrSinceCompound;
+
+    //tracking historical winnings and profits
+    uint256 public totalWinnings = 0;
+    uint256 public totalProfit = 0;
+
     constructor(
         CRUSHToken _crush,
         BitcrushStaking _stakingPool,
@@ -87,7 +93,7 @@ contract BitcrushBankroll is Ownable {
                 poolDepleted = false;
                 crush.transferFrom(msg.sender, address(this), remainder);
                 totalBankroll = totalBankroll.add(remainder);
-                checkForRewardPayOut();
+                addToBrSinceCompound(remainder);
             } else {
                 crush.transferFrom(msg.sender, address(stakingPool), _amount);
                 stakingPool.unfreezeStaking(_amount);
@@ -96,8 +102,9 @@ contract BitcrushBankroll is Ownable {
         } else {
             crush.transferFrom(msg.sender, address(this), _amount);
             totalBankroll = totalBankroll.add(_amount);
-            checkForRewardPayOut();
+            addToBrSinceCompound(_amount);
         }
+        totalProfit = totalProfit.add(_amount);
     }
 
     function payOutUserWinning(
@@ -125,6 +132,8 @@ contract BitcrushBankroll is Ownable {
             totalBankroll = totalBankroll.sub(_amount);
             transferWinnings(_amount, _winner);
         }
+        removeFromBrSinceCompound(_amount);
+        totalWinnings = totalWinnings.add(_amount);
     }
 
     function transferWinnings(
@@ -135,39 +144,32 @@ contract BitcrushBankroll is Ownable {
         liveWallet.addToUserWinnings(_amount, _winner);
     }
 
-    function checkForRewardPayOut()
-        internal
-    {
-        if (totalBankroll > allTimeHigh) {
-            //payout winning
-            //handle calculation
-            //calculate share
-            //update all time high
 
-            uint256 difference = totalBankroll.sub(allTimeHigh);
-            if(profitShare > 0 ){
-                uint256 stakingBakrollProfit = difference.mul(profitShare).div(DIVISOR);
-                availableProfit = availableProfit.add(stakingBakrollProfit);
+    function addToBrSinceCompound (uint256 _amount) internal{
+        if(negativeBrSinceCompound > 0){
+            if(_amount > negativeBrSinceCompound){
+                uint256 difference = _amount.sub(negativeBrSinceCompound);
+                negativeBrSinceCompound = 0;
+                brSinceCompound = brSinceCompound.add(difference);
+            }else {
+                negativeBrSinceCompound = negativeBrSinceCompound.sub(_amount);
             }
-            if(reserveShare > 0 ){
-                uint256 reserveCrush = difference.mul(reserveShare).div(DIVISOR);
-                crush.transfer(reserve, reserveCrush);
-            }
-            if(lotteryShare > 0){
-                uint256 lotteryCrush = difference.mul(lotteryShare).div(DIVISOR);
-                crush.transfer(lottery, lotteryCrush);
-            }
-            if(houseBankrollShare > 0){
-                uint256 bankrollShare = difference.mul(houseBankrollShare).div(DIVISOR);
-                //todo dont add again, optimize
-                totalBankroll = totalBankroll.add(bankrollShare);
-            }
-            uint256 burn = difference.mul(burnRate).div(DIVISOR);
-            crush.burn(burn); 
- 
-            allTimeHigh = totalBankroll;
-            totalBankroll = totalBankroll.sub(difference);
+        }else {
+            brSinceCompound = brSinceCompound.add(_amount);
+        }
+    }
+    function removeFromBrSinceCompound (uint256 _amount) internal{
+        if(negativeBrSinceCompound > 0 ){
+            negativeBrSinceCompound = negativeBrSinceCompound.add(_amount);
             
+        }else {
+            if(_amount > brSinceCompound){
+                uint256 difference = _amount.sub(brSinceCompound);
+                brSinceCompound = 0;
+                negativeBrSinceCompound = negativeBrSinceCompound.add(difference);
+            }else {
+                negativeBrSinceCompound = negativeBrSinceCompound.add(_amount);
+            }
         }
     }
 
@@ -176,10 +178,34 @@ contract BitcrushBankroll is Ownable {
             msg.sender == address(stakingPool),
             "Caller must be staking pool"
         );
-        if (availableProfit >= profitThreshold) {
-            crush.transfer(address(stakingPool), availableProfit);
-            uint256 profit = availableProfit;
-            availableProfit = 0;
+        if (brSinceCompound >= profitThreshold) {
+
+            //-----
+            uint256 profit = 0;
+            if(profitShare > 0 ){
+                uint256 stakingBakrollProfit = brSinceCompound.mul(profitShare).div(DIVISOR);
+                profit = profit.add(stakingBakrollProfit);
+            }
+            if(reserveShare > 0 ){
+                uint256 reserveCrush = brSinceCompound.mul(reserveShare).div(DIVISOR);
+                crush.transfer(reserve, reserveCrush);
+            }
+            if(lotteryShare > 0){
+                uint256 lotteryCrush = brSinceCompound.mul(lotteryShare).div(DIVISOR);
+                crush.transfer(lottery, lotteryCrush);
+            }
+            
+            uint256 burn = brSinceCompound.mul(BURN_RATE).div(DIVISOR);
+            crush.burn(burn); 
+
+            if(houseBankrollShare > 0){
+                uint256 bankrollShare = brSinceCompound.mul(houseBankrollShare).div(DIVISOR);
+                brSinceCompound = brSinceCompound.sub(bankrollShare);
+            }
+
+            totalBankroll = totalBankroll.sub(brSinceCompound);
+            //-----
+            crush.transfer(address(stakingPool), profit);
             return profit;
         } else {
             return 0;
@@ -211,8 +237,4 @@ contract BitcrushBankroll is Ownable {
         totalBankroll = 0;
     }
 
-    function EmergencyWithdrawAvailableProfit () public onlyOwner {
-        crush.transfer(msg.sender, availableProfit);
-        availableProfit = 0;
-    }
 }

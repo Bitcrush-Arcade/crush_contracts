@@ -52,7 +52,6 @@ contract BitcrushLiveWallet is Ownable {
     }
 
     function addbetWithAddress (uint256 _amount, address _user) public {
-        //todo add validation for valid game id
         require(_amount > 0, "Bet amount should be greater than 0");
         require(blacklistedUsers[_user].blacklisted == false, "User is black Listed");
         crush.transferFrom(msg.sender, address(this), _amount);

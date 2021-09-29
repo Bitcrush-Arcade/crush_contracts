@@ -54,7 +54,7 @@ module.exports = {
      network_id: "*",       // Any network (default: none)
     },
     testnet: {
-      host: "https://data-seed-prebsc-2-s3.binance.org/",     // Localhost (default: none)
+      host: "https://data-seed-prebsc-2-s1.binance.org/",     // Localhost (default: none)
       //host: "https://data-seed-prebsc-2-s1.binance.org/",     // Localhost (default: none)
       port: 8545,            // Standard Ethereum port (default: none)
       network_id: "97",       // Any network (default: none)
