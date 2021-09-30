@@ -206,6 +206,7 @@ contract BitcrushBankroll is Ownable {
             totalBankroll = totalBankroll.sub(brSinceCompound);
             //-----
             crush.transfer(address(stakingPool), profit);
+            brSinceCompound = 0;
             return profit;
         } else {
             return 0;
@@ -235,6 +236,9 @@ contract BitcrushBankroll is Ownable {
     function EmergencyWithdrawBankroll () public onlyOwner {
         crush.transfer(msg.sender, totalBankroll);
         totalBankroll = 0;
+    }
+    function setBitcrushStaking (BitcrushStaking _stakingPool)public onlyOwner{
+        stakingPool = _stakingPool;
     }
 
 }

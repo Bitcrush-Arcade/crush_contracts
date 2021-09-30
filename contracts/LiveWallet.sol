@@ -156,5 +156,8 @@ contract BitcrushLiveWallet is Ownable {
     function setEarlyWithdrawFee (uint256 _earlyWithdrawFee ) public onlyOwner {
         earlyWithdrawFee = _earlyWithdrawFee;
     }
+    function setBitcrushBankroll (BitcrushBankroll _bankRoll) public onlyOwner {
+        bankroll = _bankRoll;
+    }
 
 }
