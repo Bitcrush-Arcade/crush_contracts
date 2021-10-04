@@ -3,6 +3,7 @@ pragma solidity >=0.6.2;
 import "@pancakeswap/pancake-swap-lib/contracts/access/Ownable.sol";
 import "./CrushCoin.sol";
 import "./HouseBankroll.sol";
+import "./staking.sol";
 
 import "@pancakeswap/pancake-swap-lib/contracts/math/SafeMath.sol";
 contract BitcrushLiveWallet is Ownable {
@@ -23,6 +24,7 @@ contract BitcrushLiveWallet is Ownable {
     //address of the crush token
     CRUSHToken public crush;
     BitcrushBankroll public bankroll;
+    BitcrushStaking public stakingPool;
     
     uint256 public lossBurn = 10;
     uint256 constant public DIVISOR = 10000;
@@ -82,11 +84,11 @@ contract BitcrushLiveWallet is Ownable {
     }
 
     function transferToBankroll (uint256 _amount) internal {
-        uint256 burnShare = _amount.mul(lossBurn).div(DIVISOR);
-        crush.burn(burnShare);
-        uint256 remainingAmount = _amount.sub(burnShare);
-        crush.approve(address(bankroll), remainingAmount);
-        bankroll.addUserLoss(remainingAmount);       
+        //uint256 burnShare = _amount.mul(lossBurn).div(DIVISOR);
+        //crush.burn(burnShare);
+        //uint256 remainingAmount = _amount.sub(burnShare);
+        crush.approve(address(bankroll), _amount);
+        bankroll.addUserLoss(_amount);       
     }
 
     function withdrawBet(uint256 _amount) public {
@@ -111,7 +113,7 @@ contract BitcrushLiveWallet is Ownable {
 
 
     function addToUserWinnings (uint256 _amount, address _user) public {
-        require(msg.sender == address(bankroll),"Caller must be bankroll");
+        require(msg.sender == address(bankroll)  || msg.sender == address(stakingPool) ,"Caller must be bankroll or staking pool");
         betAmounts[_user].balance = betAmounts[_user].balance.add(_amount);
 
     }
@@ -158,6 +160,9 @@ contract BitcrushLiveWallet is Ownable {
     }
     function setBitcrushBankroll (BitcrushBankroll _bankRoll) public onlyOwner {
         bankroll = _bankRoll;
+    }
+    function setStakingPool (BitcrushStaking _stakingPool) public onlyOwner {
+        stakingPool = _stakingPool;
     }
 
 }

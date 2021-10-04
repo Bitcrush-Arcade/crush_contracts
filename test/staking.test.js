@@ -6,38 +6,90 @@ const BitcrushStaking = artifacts.require('BitcrushStaking');
 const BitcrushBankroll = artifacts.require('BitcrushBankroll');
 const BitcrushLiveWallet = artifacts.require('BitcrushLiveWallet');
 
-contract('MasterChef', ([alice, bob, carol, dev, minter]) => {
+contract('Bitcrush', ([alice, bob, carol, dev ,minter]) => {
     beforeEach(async () => {
         this.crush = await CrushToken.new({ from: minter });
-        this.staking = await BitcrushStaking.new(this.crush.address,10,dev, { from: minter },);
-        this.bankroll = await BitcrushBankroll.new(this.crush.address,this.staking.address,dev,carol, { from: minter });
+        this.staking = await BitcrushStaking.new(this.crush.address,0,dev, { from: minter },);
+        this.bankroll = await BitcrushBankroll.new(this.crush.address,this.staking.address,dev,carol,6000,1000,200,2700, { from: minter });
         
         await this.staking.setBankroll(this.bankroll.address,{from : minter});
-        this.liveWallet = await BitcrushLiveWallet.new(this.crush.address,this.bankroll.address, { from: minter });
+        this.liveWallet = await BitcrushLiveWallet.new(this.crush.address,this.bankroll.address,minter ,{ from: minter });
         await this.staking.setLiveWallet(this.liveWallet.address, {from : minter});
 
 
         await this.bankroll.setLiveWallet(this.liveWallet.address, {from : minter});
-        await this.bankroll.addGame(6000,web3.utils.asciiToHex("DI"),1000,200,2600,100,dev, {from : minter});
+        await this.bankroll.setBitcrushStaking(this.staking.address, {from : minter});
+        //await this.bankroll.addGame(6000,web3.utils.asciiToHex("DI"),1000,200,2600,100,dev, {from : minter});
         
-        await this.crush.mint(minter,10000, {from : minter});
-        await this.crush.mint(alice,10000, {from : minter});
-        await this.crush.mint(bob,10000, {from : minter});
-        await this.crush.mint(carol,10000, {from : minter});
-        await this.crush.approve(this.bankroll.address,1000, {from : minter});
-        await this.bankroll.addToBankroll(1000, {from : minter});
+        await this.staking.setBankroll(this.bankroll.address, {from : minter});
+
+        await this.liveWallet.setBitcrushBankroll(this.bankroll.address, {from : minter});
+        await this.liveWallet.setStakingPool(this.staking.address, {from : minter});
+
+        await this.crush.mint(minter,10000000000000000000000n, {from : minter});
+        await this.crush.mint(alice,10000000000000000000000n, {from : minter});
+        await this.crush.mint(bob,10000000000000000000000n, {from : minter});
+        await this.crush.mint(carol,10000000000000000000000n, {from : minter});
+        await this.crush.approve(this.bankroll.address,1000000000000000000000n, {from : minter});
+        await this.bankroll.addToBankroll(1000000000000000000000n, {from : minter});
         
-        await this.crush.approve(this.staking.address,1000, {from : minter});
-        await this.staking.addRewardToPool(1000, {from : minter});
+        await this.crush.approve(this.staking.address,1000000000000000000000n, {from : minter});
+        await this.staking.addRewardToPool(1000000000000000000000n, {from : minter});
+
+        await this.staking.setAutoCompoundLimit(1, {from : minter});
+        await this.bankroll.setProfitThreshold(100000000000000000000n, {from : minter});
         
     });
-    it("total pool added",async () => {
+    /* it("total pool added",async () => {
         let totalPool = await this.staking.totalPool();
         console.log("total Pool is:"+totalPool);
-        assert.equal(totalPool,1000);
+        assert.equal(totalPool,1000000000000000000000n);
     })
+    it("staking batches", async ()=>{
+        await this.crush.approve(this.staking.address,100000000000000000000n,{from : alice});
+        await this.staking.enterStaking(100000000000000000000n, {from : alice});
+        await this.crush.approve(this.staking.address,100000000000000000000n,{from : bob});
+        await this.staking.enterStaking(100000000000000000000n, {from : bob});
+        await this.crush.approve(this.staking.address,100000000000000000000n,{from : carol});
+        await this.staking.enterStaking(100000000000000000000n, {from : carol});
+        await this.crush.approve(this.liveWallet.address,1000000000000000000000n,{from : alice});
+        await this.liveWallet.addbet(1000000000000000000000n, {from : alice});
+        await this.liveWallet.registerLoss([200000000000000000000n],[alice],{from : minter});
+        //await time.advanceBlockTo((await web3.eth.getBlock("latest")).number+10);
 
-    it("register win",async () => {
+        console.log("bounty after compound:"+(await this.crush.balanceOf(minter)).toString());
+        console.log("Batch starting index is:"+(await this.staking.batchStartingIndex()).toString());
+        console.log("Alice staked amount is:" + (await this.staking.stakings(alice)).stakedAmount.toString());
+        await this.staking.compoundAll({from : minter});
+        console.log("Alice staked amount is:" + (await this.staking.stakings(alice)).stakedAmount.toString());
+        console.log("profit to be distributed is:"+(await this.staking.profits(0)).total.toString())
+        console.log("bounty after compound:"+(await this.crush.balanceOf(minter)).toString());
+
+        console.log("Batch starting index is:"+(await this.staking.batchStartingIndex()).toString());
+        console.log("Bob staked amount is:" + (await this.staking.stakings(bob)).stakedAmount.toString());
+        await this.staking.compoundAll({from : minter});
+        console.log("Bob staked amount is:" + (await this.staking.stakings(bob)).stakedAmount.toString());
+        console.log("bounty after compound:"+(await this.crush.balanceOf(minter)).toString());
+
+        console.log("Batch starting index is:"+(await this.staking.batchStartingIndex()).toString());
+        console.log("Carol staked amount is:" + (await this.staking.stakings(carol)).stakedAmount.toString());
+        await this.staking.compoundAll({from : minter});
+        console.log("Carol staked amount is:" + (await this.staking.stakings(carol)).stakedAmount.toString());
+        console.log("bounty after compound:"+(await this.crush.balanceOf(minter)).toString());
+        console.log("Batch starting index is:"+(await this.staking.batchStartingIndex()).toString());
+
+        console.log("profit remaining is:"+(await this.staking.profits(0)).remaining.toString());
+        
+        //await this.staking.setEarlyWithdrawFeeTime(5,{from : alice})
+    }) */
+    it("Black list test",async () => {
+        await this.liveWallet.blacklistSelf({from : carol});
+        await this.liveWallet.whitelistUser(carol,{from : minter});
+        await this.crush.approve(this.liveWallet.address,1000000000000000000000n,{from : carol});
+        await this.liveWallet.addbet(1000000000000000000000n, {from : carol});
+
+    })
+   /*  it("register win",async () => {
         await this.crush.approve(this.liveWallet.address,100,{from : bob});
         await this.liveWallet.addbet(100,1,{from : bob});
         await this.liveWallet.registerLoss([1],[20],[bob],{from : minter});
@@ -186,5 +238,5 @@ contract('MasterChef', ([alice, bob, carol, dev, minter]) => {
         assert.equal((await this.staking.totalPool()).toString(),'0');
     })
 
-
+ */
 });

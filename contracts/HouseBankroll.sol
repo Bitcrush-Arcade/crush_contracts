@@ -11,8 +11,8 @@ contract BitcrushBankroll is Ownable {
     using SafeMath for uint256;
 
     uint256 public totalBankroll;
-    bool poolDepleted = false;
-    uint256 negativeBankroll;
+    bool public poolDepleted = false;
+    uint256 public negativeBankroll;
     //address of the crush token
     CRUSHToken public crush;
     BitcrushStaking public stakingPool;
@@ -93,7 +93,7 @@ contract BitcrushBankroll is Ownable {
                 poolDepleted = false;
                 crush.transferFrom(msg.sender, address(this), remainder);
                 totalBankroll = totalBankroll.add(remainder);
-                addToBrSinceCompound(remainder);
+                
             } else {
                 crush.transferFrom(msg.sender, address(stakingPool), _amount);
                 stakingPool.unfreezeStaking(_amount);
@@ -102,9 +102,9 @@ contract BitcrushBankroll is Ownable {
         } else {
             crush.transferFrom(msg.sender, address(this), _amount);
             totalBankroll = totalBankroll.add(_amount);
-            addToBrSinceCompound(_amount);
+            
         }
-        totalProfit = totalProfit.add(_amount);
+        addToBrSinceCompound(_amount);
     }
 
     function payOutUserWinning(
@@ -206,6 +206,7 @@ contract BitcrushBankroll is Ownable {
             totalBankroll = totalBankroll.sub(brSinceCompound);
             //-----
             crush.transfer(address(stakingPool), profit);
+            totalProfit= totalProfit.add(profit);
             brSinceCompound = 0;
             return profit;
         } else {

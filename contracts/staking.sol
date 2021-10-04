@@ -58,8 +58,9 @@ contract BitcrushStaking is Ownable {
     
     uint256 public autoCompoundLimit = 10;
 
+    uint256 public deploymentTimeStamp;
     event RewardPoolUpdated (uint256 indexed _totalPool);
-    event CompoundAll (uint256 indexed _totalRewarded);
+    
     event StakeUpdated (address indexed recipeint, uint256 indexed _amount);
     
     constructor (CRUSHToken _crush, uint256 _crushPerBlock, address _reserveAddress) public{
@@ -67,6 +68,7 @@ contract BitcrushStaking is Ownable {
         crushPerBlock = _crushPerBlock;
         reserveAddress = _reserveAddress;
         lastAutoCompoundBlock = 0;
+        deploymentTimeStamp = block.timestamp;
         
     }
 
@@ -260,7 +262,7 @@ contract BitcrushStaking is Ownable {
         require(totalStaked > 0, "No Staked rewards to claim" );
         uint256 crushToBurn = 0;
         uint256 performanceFee = 0;
-        uint256 totalRewarded = 0;
+        
         uint256 compounderReward = 0;
         uint totalPoolDeducted = 0;
         
@@ -270,63 +272,64 @@ contract BitcrushStaking is Ownable {
         }else {
             batchLimit = batchStartingIndex.add(autoCompoundLimit);
         }
-        for(uint256 i=batchStartingIndex; i < batchLimit; i++){
-            uint256 stakerReward = getReward(addressIndexes[i]);
-            if(stakerReward > 0){
-                totalRewarded = totalRewarded.add(stakerReward);
-            totalPoolDeducted = totalPoolDeducted.add(stakerReward);
-            
-            uint256 stakerBurn = stakerReward.mul(performanceFeeBurn).div(divisor);
-            crushToBurn = crushToBurn.add(stakerBurn);
-            
-            uint256 cpAllReward = stakerReward.mul(performanceFeeCompounder).div(divisor);
-            compounderReward = compounderReward.add(cpAllReward);
-            
-            uint256 feeReserve = stakerReward.mul(performanceFeeReserve).div(divisor);
-            performanceFee = performanceFee.add(feeReserve);
-            
-
-            stakerReward = stakerReward.sub(stakerBurn);
-            stakerReward = stakerReward.sub(cpAllReward);
-            stakerReward = stakerReward.sub(feeReserve);
-            
-            totalStaked = totalStaked.add(stakerReward);
-            stakings[addressIndexes[i]].stakedAmount = stakings[addressIndexes[i]].stakedAmount.add(stakerReward);
-            stakings[addressIndexes[i]].lastBlockCompounded = block.number;
-            }
-            if(profits.length > 0){
-                if(profits[0].remaining > 0){
-                uint256 profitShareUser = profits[0].total.mul(stakings[addressIndexes[i]].stakedAmount).div(totalStaked);
-                if(profitShareUser >= profits[0].remaining){
-                 profitShareUser = profits[0].remaining;
-                }
-                uint256 compounderShare = profitShareUser.mul(profitShare).div(divisor);
-                profits[0].remaining = profits[0].remaining.sub(profitShareUser);
-                profitShareUser = profitShareUser.sub(compounderShare);
-                stakings[addressIndexes[i]].profit = stakings[addressIndexes[i]].profit.add(profitShareUser); 
-                compounderReward = compounderReward.add(compounderShare);   
-                }
-            }
-                        
-        }
-        if(batchStartingIndex.add(batchLimit) >= addressIndexes.length){
-            if(profits.length > 0){
-                if(profits[0].remaining == 0 && profits[0].total > 0 && profits.length > 0 ){
-                //rearrange array
-                profits[0] = profits[profits.length - 1];
-                profits.pop;
-
-                }
-            }
-            
-            batchStartingIndex = 0;
-            uint256 newProfit = bankroll.transferProfit();
+        uint256 newProfit = bankroll.transferProfit();
             if(newProfit > 0){
                 //profit deduction
                 profit memory prof = profit(newProfit,newProfit);
                 profits.push(prof);
                 totalProfitDistributed = totalProfitDistributed.add(newProfit);
             }
+        for(uint256 i=batchStartingIndex; i < batchLimit; i++){
+            uint256 stakerReward = getReward(addressIndexes[i]);
+            
+            if(stakerReward > 0){
+                totalClaimed = totalClaimed.add(stakerReward);
+                totalPoolDeducted = totalPoolDeducted.add(stakerReward);
+ 
+            }
+            if(profits.length > 0){
+                if(profits[0].remaining > 0){
+                    uint256 profitShareUser = profits[0].total.mul(stakings[addressIndexes[i]].stakedAmount).div(totalStaked);
+                        if(profitShareUser > profits[0].remaining){
+                            profitShareUser = profits[0].remaining;
+                        }
+                    profits[0].remaining = profits[0].remaining.sub(profitShareUser);
+                    stakerReward = stakerReward.add(profitShareUser); 
+                }
+            }
+            if(stakerReward > 0){
+                uint256 stakerBurn = stakerReward.mul(performanceFeeBurn).div(divisor);
+                crushToBurn = crushToBurn.add(stakerBurn);
+            
+                uint256 cpAllReward = stakerReward.mul(performanceFeeCompounder).div(divisor);
+                compounderReward = compounderReward.add(cpAllReward);
+            
+                uint256 feeReserve = stakerReward.mul(performanceFeeReserve).div(divisor);
+                performanceFee = performanceFee.add(feeReserve);
+                stakerReward = stakerReward.sub(stakerBurn);
+                stakerReward = stakerReward.sub(cpAllReward);
+                stakerReward = stakerReward.sub(feeReserve);
+                stakings[addressIndexes[i]].stakedAmount = stakings[addressIndexes[i]].stakedAmount.add(stakerReward);
+                totalStaked = totalStaked.add(stakerReward);
+            }    
+            stakings[addressIndexes[i]].lastBlockCompounded = block.number;
+            batchStartingIndex = batchStartingIndex.add(1);
+                        
+        }
+        if(batchStartingIndex >= addressIndexes.length){
+            if(profits.length > 0){
+                if(profits.length > 1){
+                    profits[profits.length - 1].total = profits[profits.length - 1].total.add(profits[0].remaining); 
+                    profits[0] = profits[profits.length - 1];
+                    profits.pop();
+                }
+                
+                /* if(profits[0].remaining == 0 && profits[0].total > 0){
+                //rearrange array
+                
+                } */
+            }
+            batchStartingIndex = 0;
         }
         totalPool = totalPool.sub(totalPoolDeducted);
         lastAutoCompoundBlock = block.number;
