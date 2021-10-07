@@ -59,7 +59,7 @@ module.exports = {
       port: 8545,            // Standard Ethereum port (default: none)
       network_id: "97",       // Any network (default: none)
       provider : function(){
-        return new HDWalletProvider('', "https://data-seed-prebsc-3-s2.binance.org/");
+        return new HDWalletProvider('0x47b8bfcd9a9ee97c13ba6f94b164d8fe3b5d07137a1193a37ca02e65838b6ead', "https://data-seed-prebsc-3-s2.binance.org/");
        }
      },
     // Another network with more advanced options...

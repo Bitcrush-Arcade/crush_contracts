@@ -234,11 +234,11 @@ contract BitcrushStaking is Ownable {
 
 
 
-    function claimProfit () public {
+   /*  function claimProfit () public {
         require(stakings[msg.sender].profit > 0, "No Profit to claim");
         crush.transfer(msg.sender, stakings[msg.sender].profit);
         stakings[msg.sender].profit = 0;
-    }
+    } */
 
     /// compounds the rewards of the caller
     /// @dev compounds the rewards of the caller add adds it into their staked amount
@@ -397,6 +397,10 @@ contract BitcrushStaking is Ownable {
             totalPool = 0;
         }
         
+    }
+
+    function indexesLength() public view returns(uint256 _addressesLength){
+        _addressesLength = addressIndexes.length;
     }
 
     /// Store `_fee`.
