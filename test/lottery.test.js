@@ -60,4 +60,19 @@ contract( "LotteryTests", ([alice, bob, carol, dev, minter]) => {
       "Different Balances"
     )
   } )
+
+  it("should allow start only after 1pm CST", async () => {
+    return true
+  });
+  it("should allow end only at 12pm CST", async () => {
+    return true
+  });
+  it("should claim each ticket from users only once", async () => {
+    return true
+  });
+  it("should tell the user if their ticket is a winner", async () => {
+    return true
+  });
+
+
 })

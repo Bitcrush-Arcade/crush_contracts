@@ -1,12 +1,12 @@
 //SPDX-License-Identifier: MIT
 
-pragma solidity >=0.6.2;
+pragma solidity ^0.8.0;
 
-import "@pancakeswap/pancake-swap-lib/contracts/token/BEP20/BEP20.sol";
-import "@pancakeswap/pancake-swap-lib/contracts/access/Ownable.sol";
-import "@pancakeswap/pancake-swap-lib/contracts/math/SafeMath.sol";
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
-contract CRUSHToken is BEP20 ("Crush Coin", "CRUSH") {
+contract CRUSHToken is ERC20 ("Crush Coin", "CRUSH"), Ownable {
 
   using SafeMath for uint256;
   // Constants
@@ -14,8 +14,6 @@ contract CRUSHToken is BEP20 ("Crush Coin", "CRUSH") {
   
   // Variables
   uint256 public tokensBurned = 0;
-
-  constructor() public {}
 
   function mint(address _benefactor,uint256 _amount) public onlyOwner {
     uint256 draftSupply = _amount.add( totalSupply() );
