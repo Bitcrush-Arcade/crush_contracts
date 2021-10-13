@@ -62,6 +62,7 @@ contract BitcrushLottery is VRFConsumerBase {
     mapping( uint256 => mapping( uint256 => uint256 ) ) public holders; // ROUND => DIGITS => #OF HOLDERS
     mapping( uint256 => mapping( uint256 => uint256 ) ) public claimed; // ROUND => DIGITS => #OF Digits Claimed
     mapping( uint256 => mapping( address => Ticket[] ) )public userTickets; // User Bought Tickets
+    mapping( address => uint256 ) public exchangeableTickets;
     
     mapping( address => bool ) public operators; //Operators allowed to execute certain functions
     
@@ -118,15 +119,7 @@ contract BitcrushLottery is VRFConsumerBase {
         
         // Add Tickets to respective Mappings
         for( uint i = 0; i < _ticketNumbers.length; i++ ){
-            
-            uint256 currentTicket = standardTicketNumber( _ticketNumbers[i], WINNER_BASE, MAX_BASE );
-            
-            uint[6] memory digits = getDigits( currentTicket );
-            for( uint j = 0; j < digits.length; j ++){
-                holders[ currentRound ][ digits[j] ] += 1;
-            }
-            Ticket memory ticket = Ticket(currentTicket, false);
-            userTickets[ currentRound ][ msg.sender ].push( ticket );
+            createTicket(msg.sender, _ticketNumbers[i], currentRound);
         }
         
         uint devCut = getFraction( ticketCost, devTicketCut, PERCENT_BASE );
@@ -136,6 +129,22 @@ contract BitcrushLottery is VRFConsumerBase {
 
         emit TicketBought( currentRound, msg.sender, _ticketNumbers.length, userTickets[ currentRound ][ msg.sender ] );
     }
+
+    function createTicket( address _owner, uint256 _ticketNumber, uint256 _round) internal returns (uint256 ticketCreated) {
+        uint256 currentTicket = standardTicketNumber(_ticketNumber, WINNER_BASE, MAX_BASE);
+        uint[6] memory digits = getDigits( currentTicket );
+        
+        for( uint digit = 0; digit < digits.length; digit++){
+            holders[ _round ][ digits[digit] ] += 1;
+        }
+        Ticket memory ticket = Ticket( currentTicket, false);
+        userTickets[ currentRound ][ _owner ].push(ticket);
+        return 1;
+    }
+
+    // GIVE EXCHANGEABLE TICKETS TO ADDRESS
+
+    // EXCHANGE TICKET FOR THIS ROUND
 
     // Get Tickets for a specific round
     function getRoundTickets(uint256 _round) public view returns( Ticket[] memory tickets) {
