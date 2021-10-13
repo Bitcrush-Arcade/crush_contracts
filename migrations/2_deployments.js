@@ -1,10 +1,11 @@
-// const CRUSHToken = artifacts.require('CRUSHToken');
+const CRUSHToken = artifacts.require('CRUSHToken');
 // const BitcrushStaking = artifacts.require("BitcrushStaking");
 // const Timelock = artifacts.require("Timelock");
-const Lottery = artifacts.require('Lottery');
+const Lottery = artifacts.require('BitcrushLottery');
 
 module.exports = async function ( deployer ) {
-   //deployer.deploy(CRUSHToken)
-   deployer.deploy(Lottery, "0xa3ca5df2938126baE7c0Df74D3132b5f72bdA0b6");
+   await deployer.deploy(CRUSHToken)
+   const token = await CRUSHToken.deployed()
+   deployer.deploy(Lottery, token.address );
    
 }
