@@ -71,7 +71,7 @@ contract BitcrushLottery is VRFConsumerBase {
     event FundPool( uint256 indexed _round, uint256 _amount);
     event OperatorChanged ( address indexed operators, bool active_status );
     event RoundStarted(uint256 indexed _round, address indexed _starter, uint256 _timestamp );
-    event TicketBought(uint256 indexed _round, address indexed _user, uint256 _ticketsEmmited , Ticket[] tickets );
+    event TicketBought(uint256 indexed _round, address indexed _user, uint256 _ticketStandardNumber );
     event SelectionStarted( uint256 indexed _round, address _caller, bytes32 _requestId);
     event WinnerPicked(uint256 indexed _round, uint256 _winner, bytes32 _requestId);
     event TicketClaimed( uint256 indexed _round, address winner, Ticket ticketClaimed );
@@ -109,7 +109,7 @@ contract BitcrushLottery is VRFConsumerBase {
     // @args takes in an array of uint values as the ticket IDs to buy
     // @dev max bought tickets at any given time shouldn't be more than 10
     function buyTickets( uint256[] calldata _ticketNumbers ) external {
-        require(_ticketNumbers.length > 0, "Can't buy zero tickets");
+        require(_ticketNumbers.length > 0, "Cant buy zero tickets");
         require(currentIsActive == true, "Round not active");
         
         // Check if User has funds for ticket
@@ -123,14 +123,12 @@ contract BitcrushLottery is VRFConsumerBase {
         }
         
         uint devCut = getFraction( ticketCost, devTicketCut, PERCENT_BASE );
-        crush.transferFrom( msg.sender, address(this), ticketCost.sub(devCut) );
+        addToPool(ticketCost.sub(devCut));
         crush.transferFrom( msg.sender, devAddress, devCut );
         totalTickets[currentRound] += _ticketNumbers.length;
-
-        emit TicketBought( currentRound, msg.sender, _ticketNumbers.length, userTickets[ currentRound ][ msg.sender ] );
     }
 
-    function createTicket( address _owner, uint256 _ticketNumber, uint256 _round) internal returns (uint256 ticketCreated) {
+    function createTicket( address _owner, uint256 _ticketNumber, uint256 _round) internal {
         uint256 currentTicket = standardTicketNumber(_ticketNumber, WINNER_BASE, MAX_BASE);
         uint[6] memory digits = getDigits( currentTicket );
         
@@ -138,8 +136,8 @@ contract BitcrushLottery is VRFConsumerBase {
             holders[ _round ][ digits[digit] ] += 1;
         }
         Ticket memory ticket = Ticket( currentTicket, false);
-        userTickets[ currentRound ][ _owner ].push(ticket);
-        return 1;
+        userTickets[ _round ][ _owner ].push(ticket);
+        emit TicketBought( _round, _owner, currentTicket );
     }
 
     // GIVE EXCHANGEABLE TICKETS TO ADDRESS
@@ -192,7 +190,7 @@ contract BitcrushLottery is VRFConsumerBase {
         uint256[6] memory matches = [ match1, match2, match3, match4, match5, match6];
         (bool isWinner, uint amountMatch) = isNumberWinner(_round, luckyTicket);
         uint256 claimAmount = 0;
-        uint[6] memory digits = getDigits( luckyTicket );
+        uint[6] memory digits = getDigits( ticketCheck );
         
         if(isWinner){
             uint256 matchAmount = getFraction( roundPool[_round], matches[ amountMatch - 1 ], PERCENT_BASE);
@@ -218,7 +216,7 @@ contract BitcrushLottery is VRFConsumerBase {
         nonWinners = ticketsSold.sub( totalPlayers );
     }
     // AddToPool
-    function addToPool(uint256 _amount) external {
+    function addToPool(uint256 _amount) public {
         uint256 userBalance = crush.balanceOf( msg.sender );
         require( userBalance >= _amount, "Insufficient Funds to Send to Pool");
         crush.transferFrom( msg.sender, address(this), _amount);
@@ -246,10 +244,9 @@ contract BitcrushLottery is VRFConsumerBase {
     }
     
     // Ends current round This will always be after 12pm GMT -6 (6pm UTC)
-    function endRound() public operatorOnly{
+    function endRound() public{
 
         require( LINK.balanceOf(address(this)) >= feeVRF, "Not enough LINK - please add funds to contract" );
-
         require( currentIsActive == true, "Current Round is over");
         require ( block.timestamp > roundStart + 3600, "Can't end round immediately");
         uint endHour = getHour(block.timestamp);
@@ -271,7 +268,7 @@ contract BitcrushLottery is VRFConsumerBase {
         roundPool[ currentRound + 1 ] = rollOver;
     }
 
-    function calculateRollover() internal returns( uint256 _rollover, uint256 _burn ) {
+    function calculateRollover() public returns( uint256 _rollover, uint256 _burn ) {
         uint totalPool = roundPool[currentRound];
         _rollover = 0;
         // for zero match winners
@@ -283,7 +280,7 @@ contract BitcrushLottery is VRFConsumerBase {
         uint256 totalMatchHolders;
         uint256 bonusRollOver = 0;
         uint256 bonusTotal;
-        if( bonusCoins[ currentRound ] != address(0)){
+        if( bonusCoins[ currentRound ] != address(0) ){
             bonusTotal = ERC20(bonusCoins[currentRound]).balanceOf( address(this) );
         }
         for( uint8 i = 0; i < 6; i ++){
@@ -343,6 +340,12 @@ contract BitcrushLottery is VRFConsumerBase {
         distributeCrush();
         emit WinnerPicked(currentRound, winnerNumber, requestId);
     }
+
+    function setWinner( uint256 randomness ) public operatorOnly{
+        uint winnerNumber = standardTicketNumber(randomness, WINNER_BASE, MAX_BASE);
+        winnerNumbers[currentRound] = winnerNumber;
+        emit WinnerPicked(currentRound, winnerNumber, "ADMIN_SET_WINNER");
+    }
     
     // PURE FUNCTIONS
     // Function to get the fraction amount from a value
@@ -351,15 +354,13 @@ contract BitcrushLottery is VRFConsumerBase {
     }
    
     // Get all participating digits from number
-    function getDigits( uint256 _ticketNumber ) internal pure returns(uint256[6] memory digits){
-        uint256[6] memory destructuredNumber;
-        digits[0] = _ticketNumber.div(1000000); // WINNER_BASE
-        digits[1] = _ticketNumber.div(100000);
-        digits[2] = _ticketNumber.div(10000);
-        digits[3] = _ticketNumber.div(1000);
-        digits[4] = _ticketNumber.div(100);
-        digits[5] = _ticketNumber.div(10);
-        return destructuredNumber;
+    function getDigits( uint256 _ticketNumber ) public pure returns(uint256[6] memory digits){
+        digits[0] = _ticketNumber.div(100000); // WINNER_BASE
+        digits[1] = _ticketNumber.div(10000);
+        digits[2] = _ticketNumber.div(1000);
+        digits[3] = _ticketNumber.div(100);
+        digits[4] = _ticketNumber.div(10);
+        digits[5] = _ticketNumber.div(1);
     }
     // Get the requested ticketNumber from the defined range
     function standardTicketNumber( uint256 _ticketNumber, uint256 _base, uint256 maxBase) internal pure returns( uint256 ){
