@@ -21,8 +21,8 @@
 const HDWalletProvider = require('@truffle/hdwallet-provider');
 // const infuraKey = "fj4jll3k.....";
 //
-//const fs = require('fs');
-//const mnemonic = fs.readFileSync(".secret").toString().trim();
+const fs = require('fs');
+const env = require('./env.json')
 
 module.exports = {
   /**
@@ -34,7 +34,6 @@ module.exports = {
    *
    * $ truffle test --network <network-name>
    */
-
   networks: {
     // Useful for testing. The `development` name is special - truffle uses it by default
     // if it's defined here and no other network is specified at the command line.
@@ -61,20 +60,20 @@ module.exports = {
       port: 8545,            // Standard Ethereum port (default: none)
       network_id: "*",       // Any network (default: none)
       provider : function(){
-        return new HDWalletProvider('', "https://data-seed-prebsc-1-s1.binance.org:8545/");
+        return new HDWalletProvider( env.mnemonic, "https://data-seed-prebsc-1-s1.binance.org:8545/");
        }
      },
-     mainnet : {
-      host: "https://bsc-dataseed1.binance.org",     // Localhost (default: none)
-      port: 8545,            // Standard Ethereum port (default: none)
-      network_id: 56,        // Any network (default: none)
-      confirmations: 10,
-      timeoutBlocks: 200,
-      skipDryRun: true,       
-      provider : function(){
-        return new HDWalletProvider('', "https://bsc-dataseed1.binance.org");
-       }
-     }
+    //  mainnet : {
+    //   host: "https://bsc-dataseed1.binance.org",     // Localhost (default: none)
+    //   port: 8545,            // Standard Ethereum port (default: none)
+    //   network_id: 56,        // Any network (default: none)
+    //   confirmations: 10,
+    //   timeoutBlocks: 200,
+    //   skipDryRun: true,       
+    //   provider : function(){
+    //     return new HDWalletProvider('', "https://bsc-dataseed1.binance.org");
+    //    }
+    //  }
     // Another network with more advanced options...
     // advanced: {
     // port: 8777,             // Custom port
@@ -101,7 +100,12 @@ module.exports = {
     // production: true    // Treats this network as if it was a public net. (default: false)
     // }
   },
-
+  plugins: [
+    'truffle-plugin-verify'
+  ],
+  api_keys:{
+    bscscan: env.BSC_KEY
+  },
   // Set default mocha options here, use special reporters etc.
   mocha: {
     // timeout: 100000
