@@ -58,9 +58,13 @@ module.exports = {
     testnet: {
       host: "https://data-seed-prebsc-1-s1.binance.org/",     // Localhost (default: none)
       port: 8545,            // Standard Ethereum port (default: none)
-      network_id: "*",       // Any network (default: none)
+      network_id: "97",       // Any network (default: none)
       provider : function(){
-        return new HDWalletProvider( env.mnemonic, "https://data-seed-prebsc-1-s1.binance.org:8545/");
+        return new HDWalletProvider({
+          mnemonic: env.mnemonic,
+          providerOrUrl: "https://data-seed-prebsc-1-s1.binance.org:8545/",
+          addressIndex: 1
+        });
        }
      },
     //  mainnet : {
