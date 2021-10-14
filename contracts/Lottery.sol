@@ -60,7 +60,6 @@ contract BitcrushLottery is VRFConsumerBase {
     mapping( uint256 => uint256 ) public winnerNumbers; // record of winner Number per round
     mapping( uint256 => address ) public bonusCoins; //Track bonus partner coins to distribute
     mapping( uint256 => mapping( uint256 => uint256 ) ) public holders; // ROUND => DIGITS => #OF HOLDERS
-    mapping( uint256 => mapping( uint256 => uint256 ) ) public claimed; // ROUND => DIGITS => #OF Digits Claimed
     mapping( uint256 => mapping( address => Ticket[] ) )public userTickets; // User Bought Tickets
     mapping( address => uint256 ) public exchangeableTickets;
     
@@ -227,15 +226,13 @@ contract BitcrushLottery is VRFConsumerBase {
     // OPERATOR FUNCTIONS
     // Starts a new Round
     // @dev only applies if current Round is over
-    function startRound() public operatorOnly{
-        require( currentIsActive == false, "Current Round is not over");
-        
-        // Check if previous Winner Number has already been given, if First round hasn't started, set default value
-        uint currentRoundWinner;
-        if( currentRound == 0) currentRoundWinner = WINNER_BASE;
-        else currentRoundWinner = winnerNumbers[currentRound];
-        require( currentRoundWinner > 0, "No winner yet, can't start a new Round");
+    function firstStart() public operatorOnly{
+        require(currentRound == 0, "First Round only");
+        startRound();
+    }
 
+    function startRound() internal {
+        require( currentIsActive == false, "Current Round is not over");
         // Add new Round
         currentRound ++;
         currentIsActive = true;
@@ -245,8 +242,7 @@ contract BitcrushLottery is VRFConsumerBase {
     
     // Ends current round This will always be after 12pm GMT -6 (6pm UTC)
     function endRound() public{
-
-        require( LINK.balanceOf(address(this)) >= feeVRF, "Not enough LINK - please add funds to contract" );
+        require( LINK.balanceOf(address(this)) >= feeVRF, "Not enough LINK - please contact mod to fund to contract" );
         require( currentIsActive == true, "Current Round is over");
         require ( block.timestamp > roundStart + 3600, "Can't end round immediately");
         uint endHour = getHour(block.timestamp);
@@ -259,7 +255,7 @@ contract BitcrushLottery is VRFConsumerBase {
         emit SelectionStarted(currentRound, msg.sender, rqId);
     }
     // BURN AND ROLLOVER
-    function distributeCrush() internal{
+    function distributeCrush() internal {
         uint256 rollOver;
         uint256 burnAmount;
 
@@ -268,7 +264,7 @@ contract BitcrushLottery is VRFConsumerBase {
         roundPool[ currentRound + 1 ] = rollOver;
     }
 
-    function calculateRollover() public returns( uint256 _rollover, uint256 _burn ) {
+    function calculateRollover() internal returns( uint256 _rollover, uint256 _burn ) {
         uint totalPool = roundPool[currentRound];
         _rollover = 0;
         // for zero match winners
@@ -277,7 +273,7 @@ contract BitcrushLottery is VRFConsumerBase {
         uint256[6] memory winnerDigits = getDigits(currentWinner);
         uint256[6] memory matchPercents = [ match6, match5, match4, match3, match2, match1 ];
         uint256[6] memory matchHolders;
-        uint256 totalMatchHolders;
+        uint256 totalMatchHolders = 0;
         uint256 bonusRollOver = 0;
         uint256 bonusTotal;
         if( bonusCoins[ currentRound ] != address(0) ){
@@ -286,16 +282,19 @@ contract BitcrushLottery is VRFConsumerBase {
         for( uint8 i = 0; i < 6; i ++){
             uint256 digitToCheck = winnerDigits[i];
             matchHolders[i] = holders[currentRound][digitToCheck];
-            if(i == 0){
-                totalMatchHolders = matchHolders[i];
+            if( matchHolders[i] > 0 ){
+                if(i == 0){
+                    totalMatchHolders = matchHolders[i];
+                }
+                else{
+                    matchHolders[i] = matchHolders[i].sub(totalMatchHolders);
+                    totalMatchHolders = totalMatchHolders.add( matchHolders[i] );
+                    holders[currentRound][digitToCheck] = matchHolders[i];
+                }
             }
-            else{
-                matchHolders[i] = matchHolders[i].sub( totalMatchHolders );
-                totalMatchHolders = totalMatchHolders.add( matchHolders[i] );
-                holders[currentRound][digitToCheck] = matchHolders[i];
-            }
-            if( matchHolders[i] > 0){
-                _rollover += getFraction(totalPool, matchPercents[i], PERCENT_BASE );
+            // single check to remove duplicate code
+            if(matchHolders[i] == 0){
+                _rollover = _rollover.add( getFraction(totalPool, matchPercents[i], PERCENT_BASE) );
                 if( bonusCoins[ currentRound ] != address(0) ){
                     bonusRollOver += getFraction( bonusTotal, matchPercents[i], PERCENT_BASE);
                 }
@@ -303,7 +302,7 @@ contract BitcrushLottery is VRFConsumerBase {
         }
         uint256 nonWinners = roundTickets.sub(totalMatchHolders);
         // Are there any noMatch tickets
-        if( nonWinners > 0 ){
+        if( nonWinners == 0 ){
             _rollover += getFraction(totalPool, noMatch, PERCENT_BASE);
             if( bonusCoins[ currentRound ] != address(0) ){
                 bonusRollOver += getFraction( bonusTotal, noMatch, PERCENT_BASE);
@@ -316,8 +315,6 @@ contract BitcrushLottery is VRFConsumerBase {
         }
         _burn = getFraction( totalPool, burn, PERCENT_BASE);
         
-        _rollover += _burn;
-        _rollover = totalPool.sub( _rollover );
     }
     
     // Add or remove operator
@@ -340,7 +337,8 @@ contract BitcrushLottery is VRFConsumerBase {
         distributeCrush();
         emit WinnerPicked(currentRound, winnerNumber, requestId);
     }
-
+    
+    // HELPFUL FUNCTION TO TEST WITHOUT GOING LIVE
     function setWinner( uint256 randomness ) public operatorOnly{
         uint winnerNumber = standardTicketNumber(randomness, WINNER_BASE, MAX_BASE);
         winnerNumbers[currentRound] = winnerNumber;
@@ -354,13 +352,13 @@ contract BitcrushLottery is VRFConsumerBase {
     }
    
     // Get all participating digits from number
-    function getDigits( uint256 _ticketNumber ) public pure returns(uint256[6] memory digits){
-        digits[0] = _ticketNumber.div(100000); // WINNER_BASE
-        digits[1] = _ticketNumber.div(10000);
-        digits[2] = _ticketNumber.div(1000);
-        digits[3] = _ticketNumber.div(100);
-        digits[4] = _ticketNumber.div(10);
-        digits[5] = _ticketNumber.div(1);
+    function getDigits( uint256 _ticketNumber ) internal pure returns(uint256[6] memory digits){
+        digits[5] = _ticketNumber.div(100000); // WINNER_BASE
+        digits[4] = _ticketNumber.div(10000);
+        digits[3] = _ticketNumber.div(1000);
+        digits[2] = _ticketNumber.div(100);
+        digits[1] = _ticketNumber.div(10);
+        digits[0] = _ticketNumber.div(1);
     }
     // Get the requested ticketNumber from the defined range
     function standardTicketNumber( uint256 _ticketNumber, uint256 _base, uint256 maxBase) internal pure returns( uint256 ){
