@@ -152,7 +152,6 @@ contract BitcrushLottery is VRFConsumerBase {
             createTicket( msg.sender, _ticketNumbers[ exchange ], currentRound);
             exchangeableTickets[msg.sender] -= 1;
         }
-        emit TicketBought(currentRound, msg.sender, _ticketNumbers.length, userTickets[ currentRound ][ msg.sender ]);
     }
 
     // Get Tickets for a specific round
