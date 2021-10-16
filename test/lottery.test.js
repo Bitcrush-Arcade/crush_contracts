@@ -30,36 +30,44 @@ contract( "LotteryTests", ([alice, bob, carol, dev, minter]) => {
       await this.crush.mint(bob, numberToWei(3000)     , {from : minter});
       await this.crush.mint(carol, numberToWei(3000)   , {from : minter});
 
-      await this.lottery.startRound({ from: minter });
+      await this.lottery.firstStart({ from: minter });
       await this.crush.approve( this.lottery.address, numberToWei(3000) ,{ from: minter });
       await this.lottery.addToPool( numberToWei(1000), {from: minter}  )
   });
 
-  it("should give the appropriate winner match value", async () => {
-    const sentWinner = 445568
-    await this.lottery.setWinner( sentWinner,{ from: minter });
-    const { _winner, _match } = await this.lottery.isNumberWinner(1, 123456)
-    const { _winner: win1, _match: match1 } = await this.lottery.isNumberWinner(1, 433333)
-    const { _winner: win2, _match: match2 } = await this.lottery.isNumberWinner(1, 443333)
-    const { _winner: win3, _match: match3 } = await this.lottery.isNumberWinner(1, 445333)
-    const { _winner: win4, _match: match4 } = await this.lottery.isNumberWinner(1, 445555)
-    const { _winner: win5, _match: match5 } = await this.lottery.isNumberWinner(1, 445565)
-    const { _winner: win6, _match: match6 } = await this.lottery.isNumberWinner(1, 2445568)
-    assert.equal( _winner, false, "Shouldn't have been a winner")
-    assert.equal( win1, true, "1 Should have been a winner")
-    assert.equal( win2, true, "2 Should have been a winner")
-    assert.equal( win3, true, "3 Should have been a winner")
-    assert.equal( win4, true, "4 Should have been a winner")
-    assert.equal( win5, true, "5 Should have been a winner")
-    assert.equal( win6, true, "6 Should have been a winner")
-    assert.equal( _match.toString(), "0", "0 Didn't match same amount")
-    assert.equal( match1.toString(), "1", "1 Didn't match same amount")
-    assert.equal( match2.toString(), "2", "2 Didn't match same amount")
-    assert.equal( match3.toString(), "3", "3 Didn't match same amount")
-    assert.equal( match4.toString(), "4", "4 Didn't match same amount")
-    assert.equal( match5.toString(), "5", "5 Didn't match same amount")
-    assert.equal( match6.toString(), "6", "6 Didn't match same amount")
-  })
+  // it("should set next end time", async () => {
+  //   const currentTimestamp = await this.lottery.roundEnd();
+  //   await this.lottery.setNextRoundEndTime({ from: bob });
+  //   const newEndTime = await this.lottery.roundEnd();
+  //   console.log( new Date( parseInt(currentTimestamp.toString())* 1000 ), new Date(parseInt(newEndTime.toString())*1000))
+  //   return true
+  // })
+
+  // it("should give the appropriate winner match value", async () => {
+  //   const sentWinner = 445568
+  //   await this.lottery.setWinner( sentWinner,{ from: minter });
+  //   const { _winner, _match } = await this.lottery.isNumberWinner(1, 123456)
+  //   const { _winner: win1, _match: match1 } = await this.lottery.isNumberWinner(1, 433333)
+  //   const { _winner: win2, _match: match2 } = await this.lottery.isNumberWinner(1, 443333)
+  //   const { _winner: win3, _match: match3 } = await this.lottery.isNumberWinner(1, 445333)
+  //   const { _winner: win4, _match: match4 } = await this.lottery.isNumberWinner(1, 445555)
+  //   const { _winner: win5, _match: match5 } = await this.lottery.isNumberWinner(1, 445565)
+  //   const { _winner: win6, _match: match6 } = await this.lottery.isNumberWinner(1, 2445568)
+  //   assert.equal( _winner, false, "Shouldn't have been a winner")
+  //   assert.equal( win1, true, "1 Should have been a winner")
+  //   assert.equal( win2, true, "2 Should have been a winner")
+  //   assert.equal( win3, true, "3 Should have been a winner")
+  //   assert.equal( win4, true, "4 Should have been a winner")
+  //   assert.equal( win5, true, "5 Should have been a winner")
+  //   assert.equal( win6, true, "6 Should have been a winner")
+  //   assert.equal( _match.toString(), "0", "0 Didn't match same amount")
+  //   assert.equal( match1.toString(), "1", "1 Didn't match same amount")
+  //   assert.equal( match2.toString(), "2", "2 Didn't match same amount")
+  //   assert.equal( match3.toString(), "3", "3 Didn't match same amount")
+  //   assert.equal( match4.toString(), "4", "4 Didn't match same amount")
+  //   assert.equal( match5.toString(), "5", "5 Didn't match same amount")
+  //   assert.equal( match6.toString(), "6", "6 Didn't match same amount")
+  // })
 
   /* it("should calculate the rollover", async () => {
 

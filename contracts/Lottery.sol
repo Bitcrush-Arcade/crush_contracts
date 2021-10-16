@@ -40,8 +40,10 @@ contract BitcrushLottery is VRFConsumerBase {
     uint256 public currentRound = 0;
     uint256 public duration; // ROUND DURATION
     uint256 public roundStart; //Timestamp of roundstart
+    uint256 public roundEnd;
     uint256 public ticketValue = 30 ; //Value of Ticket
     uint256 public devTicketCut = 10000; // This is 10% of ticket sales taken on ticket sale
+    uint256 public endHour= 18; // Time when Lottery ends. Default time is 18:00Z = 12:00 GMT-6
     
     // Fee Distributions
     // @dev these are all percentages so should always be divided by 100 when used
@@ -256,6 +258,7 @@ contract BitcrushLottery is VRFConsumerBase {
     function firstStart() public operatorOnly{
         require(currentRound == 0, "First Round only");
         startRound();
+        roundEnd = setNextRoundEndTime( block.timestamp, endHour);
     }
 
     function startRound() internal {
@@ -271,11 +274,9 @@ contract BitcrushLottery is VRFConsumerBase {
     function endRound() public{
         require( LINK.balanceOf(address(this)) >= feeVRF, "Not enough LINK - please contact mod to fund to contract" );
         require( currentIsActive == true, "Current Round is over");
-        require ( block.timestamp > roundStart + 3600, "Can't end round immediately");
-        uint endHour = getHour(block.timestamp);
-        uint sec = getSecond(block.timestamp);
-        require( endHour >= 18 && sec > 0, "End Time hasn't been reached" );
+        require ( block.timestamp > roundEnd, "Can't end round immediately");
 
+        roundEnd = setNextRoundEndTime( block.timestamp, endHour);
         currentIsActive = false;
         // Request Random Number for Winner
         bytes32 rqId = requestRandomness( keyHashVRF, feeVRF);
@@ -365,6 +366,10 @@ contract BitcrushLottery is VRFConsumerBase {
         emit WinnerPicked(currentRound, winnerNumber, requestId);
         startRound();
     }
+    // HOUR SETTER
+    function setEndHour(uint256 _newHour) external operatorOnly{
+        endHour = _newHour;
+    }
     
     // HELPFUL FUNCTION TO TEST WITHOUT GOING LIVE
     // function setWinner( uint256 randomness ) public operatorOnly{
@@ -402,8 +407,12 @@ contract BitcrushLottery is VRFConsumerBase {
         }
         return ticketNumber;
     }
-
-    
+    // Get timestamp end for next round to be at the specified _hour
+    function setNextRoundEndTime(uint256 _currentTimestamp, uint256 _hour) internal pure returns (uint256 _endTimestamp ) {
+        uint nextDay = SECONDS_PER_DAY.add(_currentTimestamp);
+        (uint year, uint month, uint day) = timestampToDateTime(nextDay);
+        _endTimestamp = timestampFromDateTime(year, month, day, _hour, 0, 0);
+    }
 
     // -------------------------------------------------------------------
     // Timestamp fns taken from BokkyPooBah's DateTime Library
@@ -420,6 +429,7 @@ contract BitcrushLottery is VRFConsumerBase {
     uint constant SECONDS_PER_DAY = 24 * 60 * 60;
     uint constant SECONDS_PER_HOUR = 60 * 60;
     uint constant SECONDS_PER_MINUTE = 60;
+    int constant OFFSET19700101 = 2440588;
 
     function getHour(uint timestamp) internal pure returns (uint hour) {
         uint secs = timestamp % SECONDS_PER_DAY;
@@ -431,5 +441,44 @@ contract BitcrushLottery is VRFConsumerBase {
     }
     function getSecond(uint timestamp) internal pure returns (uint second) {
         second = timestamp % SECONDS_PER_MINUTE;
+    }
+    function timestampToDateTime(uint timestamp) internal pure returns (uint year, uint month, uint day) {
+        (year, month, day) = _daysToDate(timestamp / SECONDS_PER_DAY);
+    }
+    function timestampFromDateTime(uint year, uint month, uint day, uint hour, uint minute, uint second) internal pure returns (uint timestamp) {
+        timestamp = _daysFromDate(year, month, day) * SECONDS_PER_DAY + hour * SECONDS_PER_HOUR + minute * SECONDS_PER_MINUTE + second;
+    }
+    function _daysToDate(uint _days) internal pure returns (uint year, uint month, uint day) {
+        int __days = int(_days);
+
+        int L = __days + 68569 + OFFSET19700101;
+        int N = 4 * L / 146097;
+        L = L - (146097 * N + 3) / 4;
+        int _year = 4000 * (L + 1) / 1461001;
+        L = L - 1461 * _year / 4 + 31;
+        int _month = 80 * L / 2447;
+        int _day = L - 2447 * _month / 80;
+        L = _month / 11;
+        _month = _month + 2 - 12 * L;
+        _year = 100 * (N - 49) + _year + L;
+
+        year = uint(_year);
+        month = uint(_month);
+        day = uint(_day);
+    }
+    function _daysFromDate(uint year, uint month, uint day) internal pure returns (uint _days) {
+        require(year >= 1970);
+        int _year = int(year);
+        int _month = int(month);
+        int _day = int(day);
+
+        int __days = _day
+          - 32075
+          + 1461 * (_year + 4800 + (_month - 14) / 12) / 4
+          + 367 * (_month - 2 - (_month - 14) / 12 * 12) / 12
+          - 3 * ((_year + 4900 + (_month - 14) / 12) / 100) / 4
+          - OFFSET19700101;
+
+        _days = uint(__days);
     }
 }
