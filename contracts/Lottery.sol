@@ -5,11 +5,12 @@ pragma solidity ^0.8.0;
 import "@chainlink/contracts/src/v0.8/VRFConsumerBase.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 
 import "./CrushCoin.sol";
 
 
-contract BitcrushLottery is VRFConsumerBase {
+contract BitcrushLottery is VRFConsumerBase, Ownable {
     
     // Libraries
     using SafeMath for uint256;
@@ -23,6 +24,11 @@ contract BitcrushLottery is VRFConsumerBase {
         uint256 ticketNumber;
         bool    claimed;
     }
+
+    struct Claimer {
+        address claimer;
+        uint256 percent;
+    }
     
     // VRF Specific
     bytes32 internal keyHashVRF;
@@ -34,11 +40,8 @@ contract BitcrushLottery is VRFConsumerBase {
     uint256 constant MAX_BASE = 2000000; //6 digits are necessary
     // Variables
     
-    address public owner;
-    
     bool public currentIsActive = false;
     uint256 public currentRound = 0;
-    uint256 public duration; // ROUND DURATION
     uint256 public roundStart; //Timestamp of roundstart
     uint256 public roundEnd;
     uint256 public ticketValue = 30 ; //Value of Ticket
@@ -55,7 +58,7 @@ contract BitcrushLottery is VRFConsumerBase {
     uint256 public match1 =  2000;
     uint256 public noMatch = 2000;
     uint256 public burn =   18000;
-    
+    uint256 public claimFee = 750;
     // Mappings
     mapping( uint256 => uint256 ) public totalTickets; //Total Tickets emmited per round
     mapping( uint256 => uint256 ) public roundPool; // Winning Pool
@@ -65,6 +68,8 @@ contract BitcrushLottery is VRFConsumerBase {
     mapping( uint256 => mapping( uint256 => uint256 ) ) public holders; // ROUND => DIGITS => #OF HOLDERS
     mapping( uint256 => mapping( address => Ticket[] ) )public userTickets; // User Bought Tickets
     mapping( address => uint256 ) public exchangeableTickets;
+
+    mapping( uint256 => Claimer ) private claimers; // Track claimers to autosend claiming Bounty
     
     mapping( address => bool ) public operators; //Operators allowed to execute certain functions
     
@@ -78,10 +83,11 @@ contract BitcrushLottery is VRFConsumerBase {
     event WinnerPicked(uint256 indexed _round, uint256 _winner, bytes32 _requestId);
     event TicketClaimed( uint256 indexed _round, address winner, Ticket ticketClaimed );
     event TicketsRewarded( address _rewardee, uint256 _ticketAmount );
+    event UpdateTicketValue( uint256  _timeOfUpdate, uint256 _newValue );
     
     // MODIFIERS
     modifier operatorOnly {
-        require( operators[msg.sender] == true || msg.sender == owner, 'Sorry Only Operators');
+        require( operators[msg.sender] == true || msg.sender == owner(), 'Sorry Only Operators');
         _;
     }
     
@@ -104,7 +110,6 @@ contract BitcrushLottery is VRFConsumerBase {
         crush = CRUSHToken(_crush);
         devAddress = msg.sender;
         operators[msg.sender] = true;
-        owner = msg.sender;
     }
     
     // USER FUNCTIONS
@@ -213,8 +218,9 @@ contract BitcrushLottery is VRFConsumerBase {
             transferBonus( msg.sender, _round, matches[ amountMatch - 1 ] );
         }
         else{
-            uint256 matchAmount = getFraction( currentPool, noMatch, PERCENT_BASE);
-            transferBonus( msg.sender, _round, noMatch);
+            uint256 matchReduction = noMatch.sub(claimers[_round].percent);
+            uint256 matchAmount = getFraction( currentPool, matchReduction, PERCENT_BASE);
+            transferBonus( msg.sender, _round, matchReduction );
             // matchAmount / nonWinners
             claimAmount = matchAmount.div( calcNonWinners( _round ) );
         }
@@ -274,10 +280,11 @@ contract BitcrushLottery is VRFConsumerBase {
     function endRound() public{
         require( LINK.balanceOf(address(this)) >= feeVRF, "Not enough LINK - please contact mod to fund to contract" );
         require( currentIsActive == true, "Current Round is over");
-        require ( block.timestamp > roundEnd, "Can't end round immediately");
+        require ( block.timestamp > roundEnd, "Can't end round just yet");
 
         roundEnd = setNextRoundEndTime( block.timestamp, endHour);
         currentIsActive = false;
+        claimers[ currentRound ] = Claimer( msg.sender, 0);
         // Request Random Number for Winner
         bytes32 rqId = requestRandomness( keyHashVRF, feeVRF);
         emit SelectionStarted(currentRound, msg.sender, rqId);
@@ -286,13 +293,19 @@ contract BitcrushLottery is VRFConsumerBase {
     function distributeCrush() internal {
         uint256 rollOver;
         uint256 burnAmount;
+        uint256 forClaimer;
 
-        (rollOver, burnAmount) = calculateRollover();
+        (rollOver, burnAmount, forClaimer) = calculateRollover();
+        // Transfer Amount to Claimer
+        Claimer memory roundClaimer = claimers[currentRound];
+        crush.transfer( roundClaimer.claimer, forClaimer );
+        transferBonus( roundClaimer.claimer, currentRound, roundClaimer.percent );
+        // BURN AMOUNT
         crush.burn( burnAmount );
         roundPool[ currentRound + 1 ] = rollOver;
     }
 
-    function calculateRollover() internal returns( uint256 _rollover, uint256 _burn ) {
+    function calculateRollover() internal returns( uint256 _rollover, uint256 _burn, uint256 _forClaimer ) {
         uint totalPool = roundPool[currentRound];
         _rollover = 0;
         // for zero match winners
@@ -327,11 +340,15 @@ contract BitcrushLottery is VRFConsumerBase {
                     bonusRollOver += getFraction( bonusTotal[currentRound], matchPercents[i], PERCENT_BASE);
                 }
             }
+            else{
+                _forClaimer = _forClaimer.add( matchPercents[i] );
+            }
         }
+        _forClaimer = _forClaimer.mul(claimFee).div(PERCENT_BASE);
         uint256 nonWinners = roundTickets.sub(totalMatchHolders);
         // Are there any noMatch tickets
         if( nonWinners == 0 ){
-            _rollover += getFraction(totalPool, noMatch, PERCENT_BASE);
+            _rollover += getFraction(totalPool, noMatch.sub(_forClaimer ), PERCENT_BASE);
             if( bonusCoins[ currentRound ] != address(0) ){
                 bonusRollOver += getFraction( bonusTotal[currentRound], noMatch, PERCENT_BASE);
             }
@@ -343,6 +360,8 @@ contract BitcrushLottery is VRFConsumerBase {
         }
         _burn = getFraction( totalPool, burn, PERCENT_BASE);
         
+        claimers[currentRound].percent = _forClaimer;
+        _forClaimer = getFraction(totalPool, _forClaimer, PERCENT_BASE);
     }
     
     // Add or remove operator
@@ -366,16 +385,33 @@ contract BitcrushLottery is VRFConsumerBase {
         emit WinnerPicked(currentRound, winnerNumber, requestId);
         startRound();
     }
-    // HOUR SETTER
-    function setEndHour(uint256 _newHour) external operatorOnly{
+    // SETTERS
+    function setEndHour(uint256 _newHour) external onlyOwner{
         endHour = _newHour;
+    }
+
+    function setClaimerFee( uint256 _fee ) external onlyOwner{
+        require(_fee < 2000 && _fee > 0, "Invalid fee amount");
+        claimFee = _fee;
+    }
+
+    function setBonusCoin( address _partnerToken, uint256 _round ) external operatorOnly{
+        require( _partnerToken != address(0),"Cant set bonus Token" );
+        bonusCoins[ _round ] = _partnerToken;
     }
     
     // HELPFUL FUNCTION TO TEST WITHOUT GOING LIVE
+    // REMEMBER TO COMMENT IT OUT
     // function setWinner( uint256 randomness ) public operatorOnly{
     //     uint winnerNumber = standardTicketNumber(randomness, WINNER_BASE, MAX_BASE);
     //     winnerNumbers[currentRound] = winnerNumber;
     //     emit WinnerPicked(currentRound, winnerNumber, "ADMIN_SET_WINNER");
+    //     distributeCrush();
+    //     startRound();
+    // }
+
+    // function rewriteCurrentEndTime(uint256 _endedTime) public operatorOnly{
+    //     roundEnd = setNextRoundEndTime( _endedTime , endHour);
     // }
     
     // PURE FUNCTIONS
@@ -413,8 +449,13 @@ contract BitcrushLottery is VRFConsumerBase {
         (uint year, uint month, uint day) = timestampToDateTime(nextDay);
         _endTimestamp = timestampFromDateTime(year, month, day, _hour, 0, 0);
     }
+    //SET TICKET VALUE03
+    function setTicketValue( uint256 _newValue ) external onlyOwner{
+        ticketValue = _newValue;
+        emit UpdateTicketValue( block.timestamp, _newValue );
+    }
 
-    // -------------------------------------------------------------------
+    // -------------------------------------------------------------------`
     // Timestamp fns taken from BokkyPooBah's DateTime Library
     //
     // Gas efficient Solidity date and time library
