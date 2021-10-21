@@ -274,12 +274,22 @@ contract BitcrushStaking is Ownable {
             batchLimit = batchStartingIndex.add(autoCompoundLimit);
         }
         uint256 newProfit = bankroll.transferProfit();
-            if(newProfit > 0){
-                //profit deduction
-                profit memory prof = profit(newProfit,newProfit);
-                profits.push(prof);
-                totalProfitDistributed = totalProfitDistributed.add(newProfit);
+        if(newProfit > 0){
+            //profit deduction
+            profit memory prof = profit(newProfit,newProfit);
+            profits.push(prof);
+            totalProfitDistributed = totalProfitDistributed.add(newProfit);
+        }
+        if(batchStartingIndex == 0){
+            if(profits.length > 0){
+                if(profits.length > 1){
+                    profits[profits.length - 1].total = profits[profits.length - 1].total.add(profits[0].remaining); 
+                    profits[0] = profits[profits.length - 1];
+                    profits.pop();
+                }
             }
+        }
+
         for(uint256 i=batchStartingIndex; i < batchLimit; i++){
             uint256 stakerReward = getReward(addressIndexes[i]);
             
@@ -318,13 +328,6 @@ contract BitcrushStaking is Ownable {
                         
         }
         if(batchStartingIndex >= addressIndexes.length){
-            if(profits.length > 0){
-                if(profits.length > 1){
-                    profits[profits.length - 1].total = profits[profits.length - 1].total.add(profits[0].remaining); 
-                    profits[0] = profits[profits.length - 1];
-                    profits.pop();
-                }
-            }
             batchStartingIndex = 0;
         }
         totalPool = totalPool.sub(totalPoolDeducted);
