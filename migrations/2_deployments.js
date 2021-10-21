@@ -7,10 +7,10 @@ const CRUSHToken = artifacts.require("CRUSHToken");
 module.exports = async function (deployer) {
     //for bitcrush
     //deployer.deploy(BitcrushStaking, "0xa3ca5df2938126bae7c0df74d3132b5f72bda0b6",500000000000000000n,"0x49B7c429C7B45656580143653C5438862266469f");
-    await deployer.deploy(CRUSHToken);
-    let crushInstance = await CRUSHToken.deployed();
+    //await deployer.deploy(CRUSHToken);
+    //let crushInstance = await CRUSHToken.deployed();
 
-     await deployer.deploy(BitcrushStaking, "0xa3ca5df2938126bae7c0df74d3132b5f72bda0b6",10,"0x0E5De84bFC1A9799a0FdA4eF0Bd13b6A20e97d89");
+    /*  await deployer.deploy(BitcrushStaking, "0xa3ca5df2938126bae7c0df74d3132b5f72bda0b6",10,"0x0E5De84bFC1A9799a0FdA4eF0Bd13b6A20e97d89");
     let stakingInstance = await BitcrushStaking.deployed();
     
     await deployer.deploy(BitcrushBankroll, "0xa3ca5df2938126bae7c0df74d3132b5f72bda0b6", stakingInstance.address, "0x0E5De84bFC1A9799a0FdA4eF0Bd13b6A20e97d89", "0x0E5De84bFC1A9799a0FdA4eF0Bd13b6A20e97d89", 6000,1000,200,2700 );
@@ -29,16 +29,16 @@ module.exports = async function (deployer) {
     await liveWalletInstance.setStakingPool(stakingInstance.address);
 
     
-    //await bankrollInstance.addGame(6000,web3.utils.asciiToHex("DI"),1000,200,2600,100,"0x0E5De84bFC1A9799a0FdA4eF0Bd13b6A20e97d89");
     
-     /* let crush = await CRUSHToken.at("0xa3ca5df2938126bae7c0df74d3132b5f72bda0b6");
+    
+      let crush = await CRUSHToken.at("0xa3ca5df2938126bae7c0df74d3132b5f72bda0b6");
     await crush.approve(bankrollInstance.address,150000000000000000000n);
     await bankrollInstance.addToBankroll(150000000000000000000n);
     await crush.approve(stakingInstance.address,100000000000000000000n);
     await stakingInstance.addRewardToPool(100000000000000000000n); 
-    await staking.setAutoCompoundLimit(1);
-    await bankrollInstance.setProfitThreshold(100); */
-
+    await stakingInstance.setAutoCompoundLimit(1);
+    await bankrollInstance.setProfitThreshold(100); 
+ */
     //---------------------
     //for live wallet update
    /*  let stakingInstance = await BitcrushStaking.at("0x83f47386e243461AAcE9Fd60cCbdF64D8c96731E");
@@ -50,14 +50,18 @@ module.exports = async function (deployer) {
     await bankrollInstance.setLiveWallet(liveWalletInstance.address); */
     
     //staking pool update
-/*await deployer.deploy(BitcrushStaking, "0xa3ca5df2938126bae7c0df74d3132b5f72bda0b6",10,"0x0E5De84bFC1A9799a0FdA4eF0Bd13b6A20e97d89");
+await deployer.deploy(BitcrushStaking, "0xa3ca5df2938126bae7c0df74d3132b5f72bda0b6",1000000000000000000n,"0x0E5De84bFC1A9799a0FdA4eF0Bd13b6A20e97d89");
     let stakingInstance = await BitcrushStaking.deployed();
-    let bankrollInstance = await BitcrushBankroll.at("0xAB9de4ca854952213B577912BF798595EB018c23");
+    let bankrollInstance = await BitcrushBankroll.at("0x22aD94BDbBB783Ab14b6AbB220693629C1B3cA95");
     bankrollInstance.setBitcrushStaking(stakingInstance.address);
-    stakingInstance.setBankroll("0xAB9de4ca854952213B577912BF798595EB018c23");
-    stakingInstance.setLiveWallet("0x7a1636a10017e1d8bC89dcFaf4c187295723E812");
+    let liveWalletInstance = await BitcrushLiveWallet.at("0xea2DdD23b80540bAE757a7a45286FF862851B178");
+    await liveWalletInstance.setStakingPool(stakingInstance.address);
+
+
+    stakingInstance.setBankroll("0x22aD94BDbBB783Ab14b6AbB220693629C1B3cA95");
+    stakingInstance.setLiveWallet("0xea2DdD23b80540bAE757a7a45286FF862851B178");
     let crush = await CRUSHToken.at("0xa3ca5df2938126bae7c0df74d3132b5f72bda0b6");
     await crush.approve(stakingInstance.address,1000000000000000000000n);
     await stakingInstance.addRewardToPool(1000000000000000000000n);
-    */
+    //await stakingInstance.setCrushPerBlock(1000000000000000000n);
 };

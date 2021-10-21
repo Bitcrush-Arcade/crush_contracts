@@ -55,11 +55,13 @@ module.exports = {
     },
     testnet: {
       //host: "https://speedy-nodes-nyc.moralis.io/5cf08c3fc7c53c13465dc18e/bsc/testnet/archive",     // Localhost (default: none)
-      host: "https://data-seed-prebsc-3-s2.binance.org/",     // Localhost (default: none)
+      host: "https://data-seed-prebsc-1-s1.binance.org/",     // Localhost (default: none)
       port: 8545,            // Standard Ethereum port (default: none)
       network_id: "97",       // Any network (default: none)
+      networkCheckTimeout: 1000000000,
+      timeoutBlocks: 200000, 
       provider : function(){
-        return new HDWalletProvider('0x47b8bfcd9a9ee97c13ba6f94b164d8fe3b5d07137a1193a37ca02e65838b6ead', "https://data-seed-prebsc-3-s2.binance.org/");
+        return new HDWalletProvider('0x47b8bfcd9a9ee97c13ba6f94b164d8fe3b5d07137a1193a37ca02e65838b6ead', "https://data-seed-prebsc-1-s1.binance.org/");
        }
      },
     // Another network with more advanced options...
