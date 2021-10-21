@@ -65,10 +65,23 @@ contract BitcrushBankroll is Ownable {
     /// Store `_liveWallet`.
     /// @param _liveWallet the new value to store
     /// @dev stores the _liveWallet address in the state variable `liveWallet`
-    function setLiveWallet(BitcrushLiveWallet _liveWallet) public {
+    function setLiveWallet(BitcrushLiveWallet _liveWallet) public onlyOwner{
         liveWallet = _liveWallet;
     }
 
+    /// authorize address to register wins and losses
+    /// @param _address the address to be authorized
+    /// @dev updates the authorizedAddresses mapping to true for given address
+    function authorizeAddress (address _address) public onlyOwner {
+        authorizedAddresses[_address] = true;
+    }
+
+    /// remove authorization of an address from register wins and losses
+    /// @param _address the address to be removed
+    /// @dev updates the authorizedAddresses mapping by deleting entry for given address
+    function removeAuthorization (address _address) public onlyOwner {
+        delete authorizedAddresses[_address];
+    }
     
     /// Add funds to the bankroll
     /// @param _amount the amount to add
