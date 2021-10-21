@@ -38,6 +38,9 @@ contract BitcrushBankroll is Ownable {
     uint256 public totalWinnings = 0;
     uint256 public totalProfit = 0;
 
+    //authorized addresses
+    mapping (address => bool) public authorizedAddresses;
+
     constructor(
         CRUSHToken _crush,
         BitcrushStaking _stakingPool,
@@ -59,21 +62,29 @@ contract BitcrushBankroll is Ownable {
 
     }
 
+    /// Store `_liveWallet`.
+    /// @param _liveWallet the new value to store
+    /// @dev stores the _liveWallet address in the state variable `liveWallet`
     function setLiveWallet(BitcrushLiveWallet _liveWallet) public {
         liveWallet = _liveWallet;
     }
 
     
-
+    /// Add funds to the bankroll
+    /// @param _amount the amount to add
+    /// @dev adds funds to the bankroll
     function addToBankroll(uint256 _amount) public onlyOwner {
         crush.transferFrom(msg.sender, address(this), _amount);
         totalBankroll = totalBankroll.add(_amount);
     }
 
+    /// Add users loss to the bankroll
+    /// @param _amount the amount to add
+    /// @dev adds funds to the bankroll if bankroll is in positive, otherwise its transfered to the staking pool to recover frozen funds
     function addUserLoss(uint256 _amount) public {
         require(
-            msg.sender == address(liveWallet),
-            "Caller must be bitcrush live wallet"
+            authorizedAddresses[msg.sender] == true,
+            "Caller must be authorized"
         );
         //make game specific
         //check if bankroll is in negative
@@ -107,13 +118,18 @@ contract BitcrushBankroll is Ownable {
         addToBrSinceCompound(_amount);
     }
 
+
+
+    /// Deduct users win from the bankroll
+    /// @param _amount the amount to deduct
+    /// @dev deducts funds from the bankroll if bankroll is in positive, otherwise theyre pulled from staking pool and bankroll marked as negative
     function payOutUserWinning(
         uint256 _amount,
         address _winner
     ) public {
         require(
-            msg.sender == address(liveWallet),
-            "Caller must be bitcrush live wallet"
+            authorizedAddresses[msg.sender] == true,
+            "Caller must be authorized"
         );
         
         
@@ -136,6 +152,10 @@ contract BitcrushBankroll is Ownable {
         totalWinnings = totalWinnings.add(_amount);
     }
 
+    /// transfer winnings from bankroll contract to live wallet
+    /// @param _amount the amount to tranfer
+    /// @param _winner the winners address
+    /// @dev transfers funds from the bankroll to the live wallet as users winnings
     function transferWinnings(
         uint256 _amount,
         address _winner
@@ -144,7 +164,9 @@ contract BitcrushBankroll is Ownable {
         liveWallet.addToUserWinnings(_amount, _winner);
     }
 
-
+    /// track funds added since last compound and profit transfer
+    /// @param _amount the amount to add
+    /// @dev add funds to the variable brSinceCompound
     function addToBrSinceCompound (uint256 _amount) internal{
         if(negativeBrSinceCompound > 0){
             if(_amount > negativeBrSinceCompound){
@@ -158,6 +180,10 @@ contract BitcrushBankroll is Ownable {
             brSinceCompound = brSinceCompound.add(_amount);
         }
     }
+
+    /// track funds remvoed since last compound and profit transfer
+    /// @param _amount the amount to remove
+    /// @dev deduct funds to the variable brSinceCompound
     function removeFromBrSinceCompound (uint256 _amount) internal{
         if(negativeBrSinceCompound > 0 ){
             negativeBrSinceCompound = negativeBrSinceCompound.add(_amount);
@@ -173,6 +199,8 @@ contract BitcrushBankroll is Ownable {
         }
     }
 
+    /// transfer profits to staking pool to be ditributed to stakers.
+    /// @dev transfer profits since last compound to the staking pool while taking out necessary fees.
     function transferProfit() public returns (uint256) {
         require(
             msg.sender == address(stakingPool),
@@ -214,30 +242,51 @@ contract BitcrushBankroll is Ownable {
         }
     }
 
+    /// Store `_threshold`.
+    /// @param _threshold the new value to store
+    /// @dev stores the _threshold address in the state variable `profitThreshold`
     function setProfitThreshold(uint256 _threshold) public onlyOwner {
         profitThreshold = _threshold;
     }
 
+    /// Store `_houseBankrollShare`.
+    /// @param _houseBankrollShare the new value to store
+    /// @dev stores the _houseBankrollShare address in the state variable `houseBankrollShare`
     function setHouseBankrollShare (uint256 _houseBankrollShare) public onlyOwner {
         houseBankrollShare = _houseBankrollShare;
     }
 
+    /// Store `_profitShare`.
+    /// @param _profitShare the new value to store
+    /// @dev stores the _profitShare address in the state variable `profitShare`
     function setProfitShare (uint256 _profitShare) public onlyOwner {
         profitShare = _profitShare;
     }
 
+    /// Store `_lotteryShare`.
+    /// @param _lotteryShare the new value to store
+    /// @dev stores the _lotteryShare address in the state variable `lotteryShare`
     function setLotteryShare (uint256 _lotteryShare) public onlyOwner {
         lotteryShare = _lotteryShare;
     }
 
+    /// Store `_reserveShare`.
+    /// @param _reserveShare the new value to store
+    /// @dev stores the _reserveShare address in the state variable `reserveShare`
     function setReserveShare (uint256 _reserveShare) public onlyOwner {
         reserveShare = _reserveShare;
     }
 
+    /// withdraws the total bankroll in case of emergency.
+    /// @dev drains the total bankroll and sets the state variable `totalBankroll` to 0
     function EmergencyWithdrawBankroll () public onlyOwner {
         crush.transfer(msg.sender, totalBankroll);
         totalBankroll = 0;
     }
+
+    /// Store `_stakingPool`.
+    /// @param _stakingPool the new value to store
+    /// @dev stores the _stakingPool address in the state variable `stakingPool`
     function setBitcrushStaking (BitcrushStaking _stakingPool)public onlyOwner{
         stakingPool = _stakingPool;
     }
