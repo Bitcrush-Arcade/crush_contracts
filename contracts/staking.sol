@@ -71,10 +71,16 @@ contract BitcrushStaking is Ownable {
         deploymentTimeStamp = block.timestamp;
         
     }
-
+    /// Store `_bankroll`.
+    /// @param _bankroll the new value to store
+    /// @dev stores the _bankroll address in the state variable `bankroll`
     function setBankroll (BitcrushBankroll _bankroll) public {
         bankroll = _bankroll;
     }
+
+    /// Store `_liveWallet`.
+    /// @param _liveWallet the new value to store
+    /// @dev stores the _liveWallet address in the state variable `liveWallet`
     function setLiveWallet (BitcrushLiveWallet _liveWallet) public{
         liveWallet = _liveWallet;
     }
@@ -234,12 +240,7 @@ contract BitcrushStaking is Ownable {
 
 
 
-   /*  function claimProfit () public {
-        require(stakings[msg.sender].profit > 0, "No Profit to claim");
-        crush.transfer(msg.sender, stakings[msg.sender].profit);
-        stakings[msg.sender].profit = 0;
-    } */
-
+  
     /// compounds the rewards of the caller
     /// @dev compounds the rewards of the caller add adds it into their staked amount
     function singleCompound () public  {
@@ -323,11 +324,6 @@ contract BitcrushStaking is Ownable {
                     profits[0] = profits[profits.length - 1];
                     profits.pop();
                 }
-                
-                /* if(profits[0].remaining == 0 && profits[0].total > 0){
-                //rearrange array
-                
-                } */
             }
             batchStartingIndex = 0;
         }
@@ -339,7 +335,8 @@ contract BitcrushStaking is Ownable {
         
     }
 
-
+    /// freeze certain funds in the staking pool and transfer them to the live wallet address
+    /// @dev adds the provided amount to the total frozen variablle
     function freezeStaking (uint256 _amount, address _recipient) public {
         //divide amount over users
         //update user mapping to reflect frozen amount
@@ -348,7 +345,9 @@ contract BitcrushStaking is Ownable {
          liveWallet.addToUserWinnings(_amount, _recipient);
          crush.transfer(address(liveWallet), _amount);
     }
-
+    
+    /// unfreeze previously frozen funds from the staking pool
+    /// @dev deducts the provided amount from the total frozen variablle
     function unfreezeStaking (uint256 _amount) public {
        //divide amount over users
         //update user mapping to reflect deducted frozen amount
@@ -399,6 +398,8 @@ contract BitcrushStaking is Ownable {
         
     }
 
+    /// returns the total count of users in the staking pool.
+    /// @dev returns the total stakers in the staking pool by reading length of addressIndexes array
     function indexesLength() public view returns(uint256 _addressesLength){
         _addressesLength = addressIndexes.length;
     }
@@ -447,12 +448,16 @@ contract BitcrushStaking is Ownable {
         require(_time > 0, "Time must be greater than 0");
         earlyWithdrawFeeTime = _time;
     }
-
+    /// Store `_limit`.
+    /// @param _limit the new value to store
+    /// @dev stores the limit in the state variable `autoCompoundLimit`
     function setAutoCompoundLimit (uint256 _limit) public onlyOwner {
         require(_limit > 0, "Limit can not be 0");
         autoCompoundLimit = _limit;
     }
-
+    /// Store `_profitShare`.
+    /// @param _profitShare the new value to store
+    /// @dev stores the profitShare in the state variable `profitShare`
     function setProfitShare (uint256 _profitShare) public onlyOwner {
         require(_profitShare > 0, "Profit share can not be 0");
         profitShare = _profitShare;
