@@ -21,6 +21,8 @@ contract BitcrushStaking is Ownable {
     uint256 public profitShare = 10;
     uint256 public blockPerSecond = 3;
     uint256 public earlyWithdrawFeeTime = 72 * 60 * 60 / blockPerSecond;
+
+    uint256 public pendingStakedValue = 0;
     
     //address of the crush token
     CRUSHToken public crush;
@@ -145,7 +147,14 @@ contract BitcrushStaking is Ownable {
             availableStaked = stakings[msg.sender].stakedAmount;
         }
         require(availableStaked >= _amount, "Withdraw amount can not be greater than available staked amount");
-        totalStaked = totalStaked.sub(_amount);
+        if(pendingStakedValue >= _amount){
+            pendingStakedValue = pendingStakedValue.sub(_amount);
+        }else {
+            uint256 difference = _amount.sub(pendingStakedValue);
+            pendingStakedValue = 0;
+            totalStaked = totalStaked.sub(difference);
+        }
+        
         stakings[msg.sender].stakedAmount = stakings[msg.sender].stakedAmount.sub(_amount);
         if(block.number < stakings[msg.sender].lastBlockStaked.add(earlyWithdrawFeeTime)){
             //apply fee
@@ -281,13 +290,14 @@ contract BitcrushStaking is Ownable {
             totalProfitDistributed = totalProfitDistributed.add(newProfit);
         }
         if(batchStartingIndex == 0){
-            if(profits.length > 0){
-                if(profits.length > 1){
-                    profits[profits.length - 1].total = profits[profits.length - 1].total.add(profits[0].remaining); 
-                    profits[0] = profits[profits.length - 1];
-                    profits.pop();
-                }
+            if(profits.length > 1){
+                profits[profits.length - 1].total = profits[profits.length - 1].total.add(profits[0].remaining); 
+                profits[profits.length - 1].remaining = profits[profits.length - 1].total;
+                profits[0] = profits[profits.length - 1];
+                profits.pop();
             }
+            totalStaked = totalStaked.add(pendingStakedValue);
+            pendingStakedValue = 0;
         }
 
         for(uint256 i=batchStartingIndex; i < batchLimit; i++){
@@ -321,7 +331,8 @@ contract BitcrushStaking is Ownable {
                 stakerReward = stakerReward.sub(cpAllReward);
                 stakerReward = stakerReward.sub(feeReserve);
                 stakings[addressIndexes[i]].stakedAmount = stakings[addressIndexes[i]].stakedAmount.add(stakerReward);
-                totalStaked = totalStaked.add(stakerReward);
+                pendingStakedValue = pendingStakedValue.add(stakerReward);
+                //totalStaked = totalStaked.add(stakerReward);
             }    
             stakings[addressIndexes[i]].lastBlockCompounded = block.number;
             batchStartingIndex = batchStartingIndex.add(1);
