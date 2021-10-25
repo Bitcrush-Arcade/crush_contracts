@@ -207,7 +207,7 @@ contract BitcrushBankroll is Ownable {
                 brSinceCompound = 0;
                 negativeBrSinceCompound = negativeBrSinceCompound.add(difference);
             }else {
-                negativeBrSinceCompound = negativeBrSinceCompound.add(_amount);
+                brSinceCompound = brSinceCompound.sub(_amount);
             }
         }
     }

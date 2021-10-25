@@ -296,8 +296,7 @@ contract BitcrushStaking is Ownable {
                 profits[0] = profits[profits.length - 1];
                 profits.pop();
             }
-            totalStaked = totalStaked.add(pendingStakedValue);
-            pendingStakedValue = 0;
+            
         }
 
         for(uint256 i=batchStartingIndex; i < batchLimit; i++){
@@ -340,6 +339,8 @@ contract BitcrushStaking is Ownable {
         }
         if(batchStartingIndex >= addressIndexes.length){
             batchStartingIndex = 0;
+            totalStaked = totalStaked.add(pendingStakedValue);
+            pendingStakedValue = 0;
         }
         totalPool = totalPool.sub(totalPoolDeducted);
         lastAutoCompoundBlock = block.number;
