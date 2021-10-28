@@ -3,13 +3,14 @@ pragma solidity >=0.6.2;
 import "@pancakeswap/pancake-swap-lib/contracts/access/Ownable.sol";
 import "./CrushCoin.sol";
 import "@pancakeswap/pancake-swap-lib/contracts/math/SafeMath.sol";
+import "@pancakeswap/pancake-swap-lib/contracts/token/BEP20/SafeBEP20.sol";
 import "./staking.sol";
 import "./HouseBankroll.sol";
 import "./LiveWallet.sol";
 contract BitcrushBankroll is Ownable {
     
     using SafeMath for uint256;
-
+    using SafeBEP20 for CRUSHToken;
     uint256 public totalBankroll;
     bool public poolDepleted = false;
     uint256 public negativeBankroll;
@@ -37,10 +38,11 @@ contract BitcrushBankroll is Ownable {
     //tracking historical winnings and profits
     uint256 public totalWinnings = 0;
     uint256 public totalProfit = 0;
+    
 
     //authorized addresses
     mapping (address => bool) public authorizedAddresses;
-
+    event SharesUpdated (uint256  _houseBankrollShare, uint256  _profitShare, uint256  _lotteryShare,  uint256  _reserveShare);
     constructor(
         CRUSHToken _crush,
         BitcrushStaking _stakingPool,
@@ -87,7 +89,7 @@ contract BitcrushBankroll is Ownable {
     /// @param _amount the amount to add
     /// @dev adds funds to the bankroll
     function addToBankroll(uint256 _amount) public onlyOwner {
-        crush.transferFrom(msg.sender, address(this), _amount);
+        crush.safeTransferFrom(msg.sender, address(this), _amount);
         totalBankroll = totalBankroll.add(_amount);
     }
 
@@ -107,7 +109,7 @@ contract BitcrushBankroll is Ownable {
         if (poolDepleted == true) {
             if (_amount >= negativeBankroll) {
                 uint256 remainder = _amount.sub(negativeBankroll);
-                crush.transferFrom(
+                crush.safeTransferFrom(
                     msg.sender,
                     address(stakingPool),
                     negativeBankroll
@@ -115,22 +117,40 @@ contract BitcrushBankroll is Ownable {
                 stakingPool.unfreezeStaking(negativeBankroll);
                 negativeBankroll = 0;
                 poolDepleted = false;
-                crush.transferFrom(msg.sender, address(this), remainder);
+                crush.safeTransferFrom(msg.sender, address(this), remainder);
                 totalBankroll = totalBankroll.add(remainder);
                 
             } else {
-                crush.transferFrom(msg.sender, address(stakingPool), _amount);
+                crush.safeTransferFrom(msg.sender, address(stakingPool), _amount);
                 stakingPool.unfreezeStaking(_amount);
                 negativeBankroll = negativeBankroll.sub(_amount);
             }
         } else {
-            crush.transferFrom(msg.sender, address(this), _amount);
+            crush.safeTransferFrom(msg.sender, address(this), _amount);
             totalBankroll = totalBankroll.add(_amount);
             
         }
         addToBrSinceCompound(_amount);
     }
 
+
+    function recoverBankroll (uint256 _amount) public {
+        require(
+            msg.sender == address(stakingPool),
+            "Caller must be staking pool"
+        );
+        if (_amount >= negativeBankroll) {
+                uint256 remainder = _amount.sub(negativeBankroll);
+                negativeBankroll = 0;
+                poolDepleted = false;
+                crush.safeTransferFrom(msg.sender, address(this), remainder);
+                totalBankroll = totalBankroll.add(remainder);
+                
+            } else {
+                
+                negativeBankroll = negativeBankroll.sub(_amount);
+            }
+    }
 
 
     /// Deduct users win from the bankroll
@@ -152,14 +172,14 @@ contract BitcrushBankroll is Ownable {
         if (_amount > totalBankroll) {
             uint256 remainder = _amount.sub(totalBankroll);
             poolDepleted = true;
-            stakingPool.freezeStaking(remainder, _winner);
+            stakingPool.freezeStaking(remainder, _winner, msg.sender);
             negativeBankroll = negativeBankroll.add(remainder);
-            transferWinnings(totalBankroll, _winner);
+            transferWinnings(totalBankroll, _winner, msg.sender);
 
             totalBankroll = 0;
         } else {
             totalBankroll = totalBankroll.sub(_amount);
-            transferWinnings(_amount, _winner);
+            transferWinnings(_amount, _winner, msg.sender);
         }
         removeFromBrSinceCompound(_amount);
         totalWinnings = totalWinnings.add(_amount);
@@ -171,10 +191,12 @@ contract BitcrushBankroll is Ownable {
     /// @dev transfers funds from the bankroll to the live wallet as users winnings
     function transferWinnings(
         uint256 _amount,
-        address _winner
+        address _winner,
+        address _lwAddress
     ) internal {
-        crush.transfer(address(liveWallet), _amount);
-        liveWallet.addToUserWinnings(_amount, _winner);
+        crush.safeTransfer(_lwAddress, _amount);
+        BitcrushLiveWallet currentLw = BitcrushLiveWallet( _lwAddress);
+        currentLw.addToUserWinnings(_amount, _winner);
     }
 
     /// track funds added since last compound and profit transfer
@@ -229,11 +251,11 @@ contract BitcrushBankroll is Ownable {
             }
             if(reserveShare > 0 ){
                 uint256 reserveCrush = brSinceCompound.mul(reserveShare).div(DIVISOR);
-                crush.transfer(reserve, reserveCrush);
+                crush.safeTransfer(reserve, reserveCrush);
             }
             if(lotteryShare > 0){
                 uint256 lotteryCrush = brSinceCompound.mul(lotteryShare).div(DIVISOR);
-                crush.transfer(lottery, lotteryCrush);
+                crush.safeTransfer(lottery, lotteryCrush);
             }
             
             uint256 burn = brSinceCompound.mul(BURN_RATE).div(DIVISOR);
@@ -246,7 +268,7 @@ contract BitcrushBankroll is Ownable {
 
             totalBankroll = totalBankroll.sub(brSinceCompound);
             //-----
-            crush.transfer(address(stakingPool), profit);
+            crush.safeTransfer(address(stakingPool), profit);
             totalProfit= totalProfit.add(profit);
             brSinceCompound = 0;
             return profit;
@@ -259,42 +281,29 @@ contract BitcrushBankroll is Ownable {
     /// @param _threshold the new value to store
     /// @dev stores the _threshold address in the state variable `profitThreshold`
     function setProfitThreshold(uint256 _threshold) public onlyOwner {
+        require(_threshold < 100000000000000000000000, "Max profit threshold cant be greater than 100k Crush");
         profitThreshold = _threshold;
     }
 
-    /// Store `_houseBankrollShare`.
+    /// updates all share percentage values
     /// @param _houseBankrollShare the new value to store
-    /// @dev stores the _houseBankrollShare address in the state variable `houseBankrollShare`
-    function setHouseBankrollShare (uint256 _houseBankrollShare) public onlyOwner {
-        houseBankrollShare = _houseBankrollShare;
-    }
-
-    /// Store `_profitShare`.
     /// @param _profitShare the new value to store
-    /// @dev stores the _profitShare address in the state variable `profitShare`
-    function setProfitShare (uint256 _profitShare) public onlyOwner {
-        profitShare = _profitShare;
-    }
-
-    /// Store `_lotteryShare`.
     /// @param _lotteryShare the new value to store
-    /// @dev stores the _lotteryShare address in the state variable `lotteryShare`
-    function setLotteryShare (uint256 _lotteryShare) public onlyOwner {
-        lotteryShare = _lotteryShare;
-    }
-
-    /// Store `_reserveShare`.
     /// @param _reserveShare the new value to store
-    /// @dev stores the _reserveShare address in the state variable `reserveShare`
-    function setReserveShare (uint256 _reserveShare) public onlyOwner {
+    /// @dev stores the _houseBankrollShare address in the state variable `houseBankrollShare`
+    function setShares (uint256 _houseBankrollShare, uint256 _profitShare, uint256 _lotteryShare,  uint256 _reserveShare) public onlyOwner {
+        require(
+            _houseBankrollShare
+            .add(_profitShare)
+            .add(_lotteryShare)
+            .add(_reserveShare) == DIVISOR,
+            "Sum of all shares should add up to 100%"
+            );
+        houseBankrollShare = _houseBankrollShare;   
+        profitShare = _profitShare;
+        lotteryShare = _lotteryShare;
         reserveShare = _reserveShare;
-    }
-
-    /// withdraws the total bankroll in case of emergency.
-    /// @dev drains the total bankroll and sets the state variable `totalBankroll` to 0
-    function EmergencyWithdrawBankroll () public onlyOwner {
-        crush.transfer(msg.sender, totalBankroll);
-        totalBankroll = 0;
+        emit SharesUpdated(_houseBankrollShare, _profitShare, _lotteryShare,  _reserveShare);
     }
 
     /// Store `_stakingPool`.

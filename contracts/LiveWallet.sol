@@ -4,10 +4,11 @@ import "@pancakeswap/pancake-swap-lib/contracts/access/Ownable.sol";
 import "./CrushCoin.sol";
 import "./HouseBankroll.sol";
 import "./staking.sol";
-
+import "@pancakeswap/pancake-swap-lib/contracts/token/BEP20/SafeBEP20.sol";
 import "@pancakeswap/pancake-swap-lib/contracts/math/SafeMath.sol";
 contract BitcrushLiveWallet is Ownable {
     using SafeMath for uint256;
+    using SafeBEP20 for CRUSHToken;
     struct wallet {
         //rename to balance
         uint256 balance;
@@ -45,7 +46,7 @@ contract BitcrushLiveWallet is Ownable {
     function addbet (uint256 _amount) public {
         require(_amount > 0, "Bet amount should be greater than 0");
         require(blacklistedUsers[msg.sender] == false, "User is black Listed");
-        crush.transferFrom(msg.sender, address(this), _amount);
+        crush.safeTransferFrom(msg.sender, address(this), _amount);
         betAmounts[msg.sender].balance = betAmounts[msg.sender].balance.add(_amount);
         betAmounts[msg.sender].lockTimeStamp = block.timestamp;
         emit Deposit(msg.sender, _amount);
@@ -57,7 +58,7 @@ contract BitcrushLiveWallet is Ownable {
     function addbetWithAddress (uint256 _amount, address _user) public {
         require(_amount > 0, "Bet amount should be greater than 0");
         require(blacklistedUsers[_user] == false, "User is black Listed");
-        crush.transferFrom(msg.sender, address(this), _amount);
+        crush.safeTransferFrom(msg.sender, address(this), _amount);
         betAmounts[_user].balance = betAmounts[_user].balance.add(_amount);
         
     }
@@ -103,7 +104,7 @@ contract BitcrushLiveWallet is Ownable {
         require(betAmounts[msg.sender].balance >= _amount, "bet less than amount withdraw");
         require(betAmounts[msg.sender].lockTimeStamp == 0 || betAmounts[msg.sender].lockTimeStamp.add(lockPeriod) < block.timestamp, "Bet Amount locked, please try again later");
         betAmounts[msg.sender].balance = betAmounts[msg.sender].balance.sub(_amount);
-        crush.transfer(msg.sender, _amount);
+        crush.safeTransfer(msg.sender, _amount);
         emit Withdraw(msg.sender, _amount);
     }
 
@@ -115,8 +116,8 @@ contract BitcrushLiveWallet is Ownable {
         emit Withdraw(_user, _amount);
         uint256 withdrawalFee = _amount.mul(earlyWithdrawFee).div(DIVISOR);
         _amount = _amount.sub(withdrawalFee);
-        crush.transfer(reserveAddress, withdrawalFee);
-        crush.transfer(_user, _amount);
+        crush.safeTransfer(reserveAddress, withdrawalFee);
+        crush.safeTransfer(_user, _amount);
         
         
     }
