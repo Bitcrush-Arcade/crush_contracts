@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: MIT
-pragma solidity >=0.6.2;
+pragma solidity >=0.6.5;
 
 import "@pancakeswap/pancake-swap-lib/contracts/access/Ownable.sol";
 import "./CrushCoin.sol";
@@ -30,7 +30,7 @@ contract BitcrushStaking is Ownable {
 
     
     //address of the crush token
-    CRUSHToken public crush;
+    CRUSHToken public immutable crush;
     BitcrushBankroll public bankroll;
     BitcrushLiveWallet public liveWallet;
     struct staked {

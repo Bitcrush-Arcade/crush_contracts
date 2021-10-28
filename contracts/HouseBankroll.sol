@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: MIT
-pragma solidity >=0.6.2;
+pragma solidity >=0.6.5;
 import "@pancakeswap/pancake-swap-lib/contracts/access/Ownable.sol";
 import "./CrushCoin.sol";
 import "@pancakeswap/pancake-swap-lib/contracts/math/SafeMath.sol";
@@ -12,10 +12,10 @@ contract BitcrushBankroll is Ownable {
     using SafeMath for uint256;
     using SafeBEP20 for CRUSHToken;
     uint256 public totalBankroll;
-    bool public poolDepleted = false;
+    bool public poolDepleted;
     uint256 public negativeBankroll;
     //address of the crush token
-    CRUSHToken public crush;
+    CRUSHToken public immutable crush;
     BitcrushStaking public stakingPool;
     BitcrushLiveWallet public liveWallet;
     address public reserve;
@@ -23,7 +23,7 @@ contract BitcrushBankroll is Ownable {
     
     uint256 public constant DIVISOR = 10000;
     uint256 public constant BURN_RATE = 100;
-    uint256 public profitThreshold = 0;
+    uint256 public profitThreshold ;
     
     //consistent 1% burn
     uint256 public profitShare;
@@ -36,8 +36,8 @@ contract BitcrushBankroll is Ownable {
     uint256 public negativeBrSinceCompound;
 
     //tracking historical winnings and profits
-    uint256 public totalWinnings = 0;
-    uint256 public totalProfit = 0;
+    uint256 public totalWinnings;
+    uint256 public totalProfit;
     
 
     //authorized addresses

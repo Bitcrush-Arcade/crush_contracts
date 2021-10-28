@@ -1,5 +1,5 @@
 //SPDX-License-Identifier: MIT
-pragma solidity >=0.6.2;
+pragma solidity >=0.6.5;
 import "@pancakeswap/pancake-swap-lib/contracts/access/Ownable.sol";
 import "./CrushCoin.sol";
 import "./HouseBankroll.sol";
@@ -21,11 +21,11 @@ contract BitcrushLiveWallet is Ownable {
     mapping (address => wallet) public betAmounts;
     
     //address of the crush token
-    CRUSHToken public crush;
+    CRUSHToken public immutable crush;
     BitcrushBankroll public bankroll;
     BitcrushStaking public stakingPool;
     
-    uint256 public lossBurn = 10;
+    
     uint256 constant public DIVISOR = 10000;
     uint256 public lockPeriod = 10800;
     address public reserveAddress;
@@ -35,7 +35,7 @@ contract BitcrushLiveWallet is Ownable {
     event Deposit (address indexed _address, uint256 indexed _amount);
     event LockPeriodUpdated (uint256 indexed _lockPeriod);
 
-    constructor (CRUSHToken _crush, BitcrushBankroll _bankroll, address _reserveAddress) public{
+    constructor (CRUSHToken _crush, BitcrushBankroll _bankroll, address _reserveAddress) public {
         crush = _crush;
         bankroll = _bankroll;
         reserveAddress = _reserveAddress;
@@ -60,7 +60,8 @@ contract BitcrushLiveWallet is Ownable {
         require(blacklistedUsers[_user] == false, "User is black Listed");
         crush.safeTransferFrom(msg.sender, address(this), _amount);
         betAmounts[_user].balance = betAmounts[_user].balance.add(_amount);
-        
+        betAmounts[_user].lockTimeStamp = block.timestamp;
+        emit Deposit(_user, _amount);
     }
 
     /// return the current balance of user in the live wallet
@@ -164,18 +165,12 @@ contract BitcrushLiveWallet is Ownable {
         blacklistedUsers[msg.sender] = true;
     }
 
-    /// Store `_lossBurn`.
-    /// @param _lossBurn the new value to store
-    /// @dev stores the _lossBurn in the state variable `lossBurn`
-    function setLossBurn(uint256 _lossBurn) public onlyOwner {
-        require(_lossBurn > 0, "Loss burn cant be 0");
-        lossBurn = _lossBurn;
-    }
 
     /// Store `_lockPeriod`.
     /// @param _lockPeriod the new value to store
     /// @dev stores the _lockPeriod in the state variable `lockPeriod`
     function setLockPeriod (uint256 _lockPeriod) public onlyOwner {
+        require(_lockPeriod <= 604800, "Lock period cannot be greater than 1 week");
         lockPeriod = _lockPeriod;
         emit LockPeriodUpdated(lockPeriod);
     }
@@ -191,6 +186,7 @@ contract BitcrushLiveWallet is Ownable {
     /// @param _earlyWithdrawFee the new value to store
     /// @dev stores the _earlyWithdrawFee in the state variable `earlyWithdrawFee`
     function setEarlyWithdrawFee (uint256 _earlyWithdrawFee ) public onlyOwner {
+        require(_earlyWithdrawFee < 4000, "Early withdraw fee must be less than 40%");
         earlyWithdrawFee = _earlyWithdrawFee;
     }
 
