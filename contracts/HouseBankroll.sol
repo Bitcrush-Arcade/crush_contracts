@@ -89,8 +89,37 @@ contract BitcrushBankroll is Ownable {
     /// @param _amount the amount to add
     /// @dev adds funds to the bankroll
     function addToBankroll(uint256 _amount) public onlyOwner {
-        crush.safeTransferFrom(msg.sender, address(this), _amount);
-        totalBankroll = totalBankroll.add(_amount);
+
+        
+        if (poolDepleted == true) {
+            if (_amount >= negativeBankroll) {
+                uint256 remainder = _amount.sub(negativeBankroll);
+                crush.safeTransferFrom(
+                    msg.sender,
+                    address(stakingPool),
+                    negativeBankroll
+                );
+                stakingPool.unfreezeStaking(negativeBankroll);
+                negativeBankroll = 0;
+                poolDepleted = false;
+                crush.safeTransferFrom(msg.sender, address(this), remainder);
+                totalBankroll = totalBankroll.add(remainder);
+                
+            } else {
+                crush.safeTransferFrom(msg.sender, address(stakingPool), _amount);
+                stakingPool.unfreezeStaking(_amount);
+                negativeBankroll = negativeBankroll.sub(_amount);
+            }
+        } else {
+            crush.safeTransferFrom(msg.sender, address(this), _amount);
+            totalBankroll = totalBankroll.add(_amount);
+            
+        }
+
+
+
+
+        
     }
 
     /// Add users loss to the bankroll
