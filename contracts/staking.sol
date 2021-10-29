@@ -246,7 +246,7 @@ contract BitcrushStaking is Ownable {
                     totalReward = blocks.mul(crushPerBlock);    
                 }
                 uint256 fundsStaked = 0;
-                if(stakings[_address].lastBlockCompounded > lastAutoCompoundBlock){
+                if(stakings[_address].lastStaking > 0 && stakings[_address].lastBlockCompounded > lastAutoCompoundBlock && batchStartingIndex > 0 ){
                     fundsStaked = stakings[_address].lastStaking;
                 }else {
                     fundsStaked = stakings[_address].stakedAmount;
@@ -337,7 +337,7 @@ contract BitcrushStaking is Ownable {
                     }else {
                         profitShareUser = profits[0].total.mul(stakings[addressIndexes[i]].stakedAmount).div(totalStaked);
                     }
-                    //uint256 profitShareUser = profits[0].total.mul(stakings[addressIndexes[i]].stakedAmount).div(totalStaked);
+                    
                         if(profitShareUser > profits[0].remaining){
                             profitShareUser = profits[0].remaining;
                         }
@@ -364,10 +364,12 @@ contract BitcrushStaking is Ownable {
                 stakings[msg.sender].claimedAmount = stakings[msg.sender].claimedAmount.add(stakerReward);
                 stakings[addressIndexes[i]].stakedAmount = stakings[addressIndexes[i]].stakedAmount.add(stakerReward);
                 pendingStakedValue = pendingStakedValue.add(stakerReward);
-                //totalStaked = totalStaked.add(stakerReward);
+                
             }    
             stakings[addressIndexes[i]].lastBlockCompounded = block.number;
-            
+            if(stakings[addressIndexes[i]].lastStaking > 0){
+                stakings[addressIndexes[i]].lastStaking = 0;
+            }
             batchStartingIndex = batchStartingIndex.add(1);
                         
         }
