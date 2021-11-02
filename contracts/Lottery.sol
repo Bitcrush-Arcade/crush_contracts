@@ -10,9 +10,9 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "./CrushCoin.sol";
 
 /**
- * @title Bitcrush's lottery game
+ * @title  Bitcrush's lottery game
  * @author Bitcrush Devs
- * @
+ * @notice Simple Lottery contract, matches winning numbers from left to right.
  *
  *
  *
@@ -118,8 +118,10 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
         devAddress = msg.sender;
         operators[msg.sender] = true;
     }
-    
-    /// USER FUNCTIONS
+
+    // External functions
+    // ...
+
     /// Buy Tickets to participate in current Round
     /// @param _ticketNumbers takes in an array of uint values as the ticket numebers to buy
     /// @dev max bought tickets at any given time shouldn't be more than 10
@@ -143,17 +145,6 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
         totalTickets[currentRound] += _ticketNumbers.length;
     }
 
-    function createTicket( address _owner, uint256 _ticketNumber, uint256 _round) internal {
-        uint256 currentTicket = standardTicketNumber(_ticketNumber, WINNER_BASE, MAX_BASE);
-        uint[6] memory digits = getDigits( currentTicket );
-        
-        for( uint digit = 0; digit < digits.length; digit++){
-            holders[ _round ][ digits[digit] ] += 1;
-        }
-        Ticket memory ticket = Ticket( currentTicket, false);
-        userTickets[ _round ][ _owner ].push(ticket);
-        emit TicketBought( _round, _owner, currentTicket );
-    }
     // Reward Tickets to a particular user
     function rewardTicket( address _rewardee, uint256 ticketAmount ) external operatorOnly{
         exchangeableTickets[_rewardee] += ticketAmount;
@@ -169,32 +160,7 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
         }
     }
 
-    // Get Tickets for a specific round
-    function getRoundTickets(uint256 _round) public view returns( Ticket[] memory tickets) {
-      return userTickets[ _round ][ msg.sender ];
-    }
-
-    // ClaimReward
-    function isNumberWinner( uint256 _round, uint256 luckyTicket ) public view returns( bool _winner, uint8 _match){
-        uint256 roundWinner = winnerNumbers[ _round ];
-        require( roundWinner > 0 , "Winner not yet determined" );
-        _match = 0;
-        uint256 luckyNumber = standardTicketNumber( luckyTicket, WINNER_BASE, MAX_BASE);
-        uint[6] memory winnerDigits = getDigits( roundWinner );
-        uint[6] memory luckyDigits = getDigits( luckyNumber );
-        for( uint8 i = 0; i < 6; i++){
-            if( !_winner ){
-                if( winnerDigits[i] == luckyDigits[i] ){
-                    _match = 6 - i;
-                    _winner = true;
-                }
-            }
-        }
-        if(!_winner)
-            _match = 0;
-    }
-
-    function claimNumber(uint256 _round, uint256 luckyTicket) public {
+    function claimNumber(uint256 _round, uint256 luckyTicket) external {
         // Check if round is over
         require( winnerNumbers[_round] > 0, "Round not done yet");
         // check if Number belongs to caller
@@ -236,6 +202,110 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
         emit TicketClaimed(_round, msg.sender, ownedTickets[ ticketIndex ] );
     }
 
+    // Starts a new Round
+    // @dev only applies if current Round is over
+    function firstStart() external operatorOnly{
+        require(currentRound == 0, "First Round only");
+        startRound();
+        roundEnd = setNextRoundEndTime( block.timestamp, endHour);
+    }
+
+    // Ends current round This will always be after 12pm GMT -6 (6pm UTC)
+    function endRound() external {
+        require( LINK.balanceOf(address(this)) >= feeVRF, "Not enough LINK - please contact mod to fund to contract" );
+        require( currentIsActive == true, "Current Round is over");
+        require ( block.timestamp > roundEnd, "Can't end round just yet");
+
+        roundEnd = setNextRoundEndTime( block.timestamp, endHour);
+        currentIsActive = false;
+        claimers[ currentRound ] = Claimer( msg.sender, 0);
+        // Request Random Number for Winner
+        bytes32 rqId = requestRandomness( keyHashVRF, feeVRF);
+        emit SelectionStarted(currentRound, msg.sender, rqId);
+    }
+
+    // Add or remove operator
+    function toggleOperator( address _operator) external operatorOnly{
+        bool operatorIsActive = operators[ _operator ];
+        if(operatorIsActive){
+            operators[ _operator ] = false;
+        }
+        else {
+            operators[ _operator ] = true;
+        }
+        emit OperatorChanged(_operator, operators[msg.sender] );
+    }
+
+    // SETTERS
+    function setEndHour(uint256 _newHour) external onlyOwner{
+        endHour = _newHour;
+    }
+
+    function setClaimerFee( uint256 _fee ) external onlyOwner{
+        require(_fee < 2000 && _fee > 0, "Invalid fee amount");
+        claimFee = _fee;
+    }
+
+    function setBonusCoin( address _partnerToken, uint256 _round ) external operatorOnly{
+        require( _partnerToken != address(0),"Cant set bonus Token" );
+        bonusCoins[ _round ] = _partnerToken;
+    }
+
+    // External functions that are view
+    // ...
+    // Get Tickets for a specific round
+    function getRoundTickets(uint256 _round) external view returns( Ticket[] memory tickets) {
+      return userTickets[ _round ][ msg.sender ];
+    }
+
+    // External functions that are pure
+    // ...
+
+    // Public functions
+    // ...
+    // Check if number is the winning number
+    function isNumberWinner( uint256 _round, uint256 luckyTicket ) public view returns( bool _winner, uint8 _match){
+        uint256 roundWinner = winnerNumbers[ _round ];
+        require( roundWinner > 0 , "Winner not yet determined" );
+        _match = 0;
+        uint256 luckyNumber = standardTicketNumber( luckyTicket, WINNER_BASE, MAX_BASE);
+        uint[6] memory winnerDigits = getDigits( roundWinner );
+        uint[6] memory luckyDigits = getDigits( luckyNumber );
+        for( uint8 i = 0; i < 6; i++){
+            if( !_winner ){
+                if( winnerDigits[i] == luckyDigits[i] ){
+                    _match = 6 - i;
+                    _winner = true;
+                }
+            }
+        }
+        if(!_winner)
+            _match = 0;
+    }
+
+    // AddToPool
+    function addToPool(uint256 _amount) public {
+        uint256 userBalance = crush.balanceOf( msg.sender );
+        require( userBalance >= _amount, "Insufficient Funds to Send to Pool");
+        crush.transferFrom( msg.sender, address(this), _amount);
+        roundPool[ currentRound ] = roundPool[ currentRound ].add( _amount );
+        emit FundPool( currentRound, _amount);
+    }
+
+    // Internal functions
+    // ...
+    function createTicket( address _owner, uint256 _ticketNumber, uint256 _round) internal {
+        uint256 currentTicket = standardTicketNumber(_ticketNumber, WINNER_BASE, MAX_BASE);
+        uint[6] memory digits = getDigits( currentTicket );
+        
+        for( uint digit = 0; digit < digits.length; digit++){
+            holders[ _round ][ digits[digit] ] += 1;
+        }
+        Ticket memory ticket = Ticket( currentTicket, false);
+        userTickets[ _round ][ _owner ].push(ticket);
+        emit TicketBought( _round, _owner, currentTicket );
+    }
+
     function calcNonWinners( uint256 _round) internal view returns (uint256 nonWinners){
         uint256[6] memory winnerDigits = getDigits( winnerNumbers[_round] );
         uint256 winners=0;
@@ -244,14 +314,6 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
         }
         uint256 ticketsSold = totalTickets[ _round ];
         nonWinners = ticketsSold.sub( winners );
-    }
-    // AddToPool
-    function addToPool(uint256 _amount) public {
-        uint256 userBalance = crush.balanceOf( msg.sender );
-        require( userBalance >= _amount, "Insufficient Funds to Send to Pool");
-        crush.transferFrom( msg.sender, address(this), _amount);
-        roundPool[ currentRound ] = roundPool[ currentRound ].add( _amount );
-        emit FundPool( currentRound, _amount);
     }
 
     // Transfer bonus to
@@ -265,15 +327,6 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
         }
     }
 
-    // OPERATOR FUNCTIONS
-    // Starts a new Round
-    // @dev only applies if current Round is over
-    function firstStart() public operatorOnly{
-        require(currentRound == 0, "First Round only");
-        startRound();
-        roundEnd = setNextRoundEndTime( block.timestamp, endHour);
-    }
-
     function startRound() internal {
         require( currentIsActive == false, "Current Round is not over");
         // Add new Round
@@ -282,20 +335,7 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
         roundStart = block.timestamp;
         emit RoundStarted( currentRound, msg.sender, block.timestamp);
     }
-    
-    // Ends current round This will always be after 12pm GMT -6 (6pm UTC)
-    function endRound() public{
-        require( LINK.balanceOf(address(this)) >= feeVRF, "Not enough LINK - please contact mod to fund to contract" );
-        require( currentIsActive == true, "Current Round is over");
-        require ( block.timestamp > roundEnd, "Can't end round just yet");
 
-        roundEnd = setNextRoundEndTime( block.timestamp, endHour);
-        currentIsActive = false;
-        claimers[ currentRound ] = Claimer( msg.sender, 0);
-        // Request Random Number for Winner
-        bytes32 rqId = requestRandomness( keyHashVRF, feeVRF);
-        emit SelectionStarted(currentRound, msg.sender, rqId);
-    }
     // BURN AND ROLLOVER
     function distributeCrush() internal {
         uint256 rollOver;
@@ -370,19 +410,7 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
         claimers[currentRound].percent = _forClaimer;
         _forClaimer = getFraction(totalPool, _forClaimer, PERCENT_BASE);
     }
-    
-    // Add or remove operator
-    function toggleOperator( address _operator) public operatorOnly{
-        bool operatorIsActive = operators[ _operator ];
-        if(operatorIsActive){
-            operators[ _operator ] = false;
-        }
-        else {
-            operators[ _operator ] = true;
-        }
-        emit OperatorChanged(_operator, operators[msg.sender] );
-    }
-    
+
     // GET Verifiable RandomNumber from VRF
     // This gets called by VRF Contract only
     function fulfillRandomness(bytes32 requestId, uint256 randomness) internal override {
@@ -392,20 +420,10 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
         emit WinnerPicked(currentRound, winnerNumber, requestId);
         startRound();
     }
-    // SETTERS
-    function setEndHour(uint256 _newHour) external onlyOwner{
-        endHour = _newHour;
-    }
 
-    function setClaimerFee( uint256 _fee ) external onlyOwner{
-        require(_fee < 2000 && _fee > 0, "Invalid fee amount");
-        claimFee = _fee;
-    }
-
-    function setBonusCoin( address _partnerToken, uint256 _round ) external operatorOnly{
-        require( _partnerToken != address(0),"Cant set bonus Token" );
-        bonusCoins[ _round ] = _partnerToken;
-    }
+    // Private functions
+    // ...
+    
     
     // HELPFUL FUNCTION TO TEST WITHOUT GOING LIVE
     // REMEMBER TO COMMENT IT OUT
