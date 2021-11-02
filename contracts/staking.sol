@@ -139,13 +139,6 @@ contract BitcrushStaking is Ownable {
         crush.safeTransfer(msg.sender, getReward(msg.sender));
         
         totalStaked = totalStaked.add(_amount);
-
-        // if(user.lastBlockCompounded <= lastAutoCompoundBlock && batchStartingIndex > 0){
-        //     user.lastStaking = user.stakedAmount; 
-        //     pendingStakedValue = pendingStakedValue.add(_amount);
-        // }else {
-        //     totalStaked = totalStaked.add(_amount);
-        // }
         uint256 currentShares = 0;
         if (totalShares != 0) {
             currentShares = (_amount.mul(totalShares)).div(totalStaked);
