@@ -9,7 +9,14 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 
 import "./CrushCoin.sol";
 
-
+/**
+ * @title Bitcrush's lottery game
+ * @author Bitcrush Devs
+ * @
+ *
+ *
+ *
+ */
 contract BitcrushLottery is VRFConsumerBase, Ownable {
     
     // Libraries
@@ -112,10 +119,10 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
         operators[msg.sender] = true;
     }
     
-    // USER FUNCTIONS
-    // Buy Tickets to participate in current Round
-    // @args takes in an array of uint values as the ticket IDs to buy
-    // @dev max bought tickets at any given time shouldn't be more than 10
+    /// USER FUNCTIONS
+    /// Buy Tickets to participate in current Round
+    /// @param _ticketNumbers takes in an array of uint values as the ticket numebers to buy
+    /// @dev max bought tickets at any given time shouldn't be more than 10
     function buyTickets( uint256[] calldata _ticketNumbers ) external {
         require(_ticketNumbers.length > 0, "Cant buy zero tickets");
         require(currentIsActive == true, "Round not active");
