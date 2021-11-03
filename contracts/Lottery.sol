@@ -40,65 +40,69 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
     // VRF Specific
     bytes32 internal keyHashVRF;
     uint256 internal feeVRF;
-    
+
+    /// Timestamp Specific
+    uint constant SECONDS_PER_DAY = 24 * 60 * 60;
+    uint constant SECONDS_PER_HOUR = 60 * 60;
+    uint constant SECONDS_PER_MINUTE = 60;
+    int constant OFFSET19700101 = 2440588;
     // CONSTANTS
     uint256 constant PERCENT_BASE = 100000;
     uint256 constant WINNER_BASE = 1000000; //6 digits are necessary
     uint256 constant MAX_BASE = 2000000; //6 digits are necessary
     // Variables
-    
     bool public currentIsActive = false;
     uint256 public currentRound = 0;
     uint256 public roundStart; //Timestamp of roundstart
     uint256 public roundEnd;
-    uint256 public ticketValue = 30 ; //Value of Ticket
+    uint256 public ticketValue = 30 * 10**18 ; //Value of Ticket value in WEI
     uint256 public devTicketCut = 10000; // This is 10% of ticket sales taken on ticket sale
     uint256 public endHour= 18; // Time when Lottery ends. Default time is 18:00Z = 12:00 GMT-6
     
     // Fee Distributions
-    // @dev these are all percentages so should always be divided by 100 when used
+    /// @dev these values are used with PERCENT_BASE as 100%
     uint256 public match6 = 40000;
     uint256 public match5 = 20000;
     uint256 public match4 = 10000;
-    uint256 public match3 =  5000;
-    uint256 public match2 =  3000;
-    uint256 public match1 =  2000;
+    uint256 public match3 = 5000;
+    uint256 public match2 = 3000;
+    uint256 public match1 = 2000;
     uint256 public noMatch = 2000;
-    uint256 public burn =   18000;
+    uint256 public burn = 18000;
     uint256 public claimFee = 750;
     // Mappings
-    mapping( uint256 => uint256 ) public totalTickets; //Total Tickets emmited per round
-    mapping( uint256 => uint256 ) public roundPool; // Winning Pool
-    mapping( uint256 => uint256 ) public winnerNumbers; // record of winner Number per round
-    mapping( uint256 => address ) public bonusCoins; //Track bonus partner coins to distribute
-    mapping( uint256 => uint256 ) public bonusTotal; //Track bonus partner coins to distribute
-    mapping( uint256 => mapping( uint256 => uint256 ) ) public holders; // ROUND => DIGITS => #OF HOLDERS
-    mapping( uint256 => mapping( address => Ticket[] ) )public userTickets; // User Bought Tickets
-    mapping( address => uint256 ) public exchangeableTickets;
+    mapping(uint256 => uint256) public totalTickets; //Total Tickets emmited per round
+    mapping(uint256 => uint256) public roundPool; // Winning Pool
+    mapping(uint256 => uint256) public winnerNumbers; // record of winner Number per round
+    mapping(uint256 => address) public bonusCoins; //Track bonus partner coins to distribute
+    mapping(uint256 => uint256) public bonusTotal; //Track bonus partner coins to distribute
+    mapping(uint256 => mapping(uint256 => uint256)) public holders; // ROUND => DIGITS => #OF HOLDERS
+    mapping(uint256 => mapping(address => Ticket[]))public userTickets; // User Bought Tickets
+    mapping(address => uint256) public exchangeableTickets;
 
-    mapping( uint256 => Claimer ) private claimers; // Track claimers to autosend claiming Bounty
+    mapping(uint256 => Claimer) private claimers; // Track claimers to autosend claiming Bounty
     
-    mapping( address => bool ) public operators; //Operators allowed to execute certain functions
+    mapping(address => bool) public operators; //Operators allowed to execute certain functions
     
     
     // EVENTS
-    event FundPool( uint256 indexed _round, uint256 _amount);
-    event OperatorChanged ( address indexed operators, bool active_status );
-    event RoundStarted(uint256 indexed _round, address indexed _starter, uint256 _timestamp );
-    event TicketBought(uint256 indexed _round, address indexed _user, uint256 _ticketStandardNumber );
-    event SelectionStarted( uint256 indexed _round, address _caller, bytes32 _requestId);
+    event FundPool(uint256 indexed _round, uint256 _amount);
+    event OperatorChanged (address indexed operators, bool active_status);
+    event RoundStarted(uint256 indexed _round, address indexed _starter, uint256 _timestamp);
+    event TicketBought(uint256 indexed _round, address indexed _user, uint256 _ticketStandardNumber);
+    event SelectionStarted(uint256 indexed _round, address _caller, bytes32 _requestId);
     event WinnerPicked(uint256 indexed _round, uint256 _winner, bytes32 _requestId);
-    event TicketClaimed( uint256 indexed _round, address winner, Ticket ticketClaimed );
-    event TicketsRewarded( address _rewardee, uint256 _ticketAmount );
-    event UpdateTicketValue( uint256  _timeOfUpdate, uint256 _newValue );
+    event TicketClaimed(uint256 indexed _round, address winner, Ticket ticketClaimed);
+    event TicketsRewarded(address _rewardee, uint256 _ticketAmount);
+    event UpdateTicketValue(uint256  _timeOfUpdate, uint256 _newValue);
     
     // MODIFIERS
     modifier operatorOnly {
-        require( operators[msg.sender] == true || msg.sender == owner(), 'Sorry Only Operators');
+        require(operators[msg.sender] == true || msg.sender == owner(), 'Sorry Only Operators');
         _;
     }
     
-    // CONSTRUCTOR
+    /// @dev Select the appropriate VRF Coordinator and LINK Token addresses
     constructor (address _crush)
         VRFConsumerBase(
             // BSC MAINNET
@@ -120,120 +124,124 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
     }
 
     // External functions
-    // ...
-
-    /// Buy Tickets to participate in current Round
+    /// @notice Buy Tickets to participate in current Round
     /// @param _ticketNumbers takes in an array of uint values as the ticket numebers to buy
     /// @dev max bought tickets at any given time shouldn't be more than 10
-    function buyTickets( uint256[] calldata _ticketNumbers ) external {
+    function buyTickets(uint256[] calldata _ticketNumbers) external {
         require(_ticketNumbers.length > 0, "Cant buy zero tickets");
         require(currentIsActive == true, "Round not active");
         
         // Check if User has funds for ticket
-        uint userCrushBalance = crush.balanceOf( msg.sender );
-        uint ticketCost = ticketValue.mul( _ticketNumbers.length ).mul( 10 **18 );
-        require( userCrushBalance >= ticketCost, "Not enough funds to purchase Tickets" );
+        uint userCrushBalance = crush.balanceOf(msg.sender);
+        uint ticketCost = ticketValue.mul(_ticketNumbers.length);
+        require(userCrushBalance >= ticketCost, "Not enough funds to purchase Tickets");
         
         // Add Tickets to respective Mappings
-        for( uint i = 0; i < _ticketNumbers.length; i++ ){
+        for(uint i = 0; i < _ticketNumbers.length; i++){
             createTicket(msg.sender, _ticketNumbers[i], currentRound);
         }
         
-        uint devCut = getFraction( ticketCost, devTicketCut, PERCENT_BASE );
+        uint devCut = getFraction(ticketCost, devTicketCut, PERCENT_BASE);
         addToPool(ticketCost.sub(devCut));
-        crush.transferFrom( msg.sender, devAddress, devCut );
+        crush.transferFrom(msg.sender, devAddress, devCut);
         totalTickets[currentRound] += _ticketNumbers.length;
     }
 
-    // Reward Tickets to a particular user
-    function rewardTicket( address _rewardee, uint256 ticketAmount ) external operatorOnly{
+    /// @notice Reward Tickets to a particular user
+    /// @param _rewardee Address the tickets will be awarded to
+    /// @param ticketAmount number of tickets awarded
+    function rewardTicket(address _rewardee, uint256 ticketAmount) external operatorOnly {
         exchangeableTickets[_rewardee] += ticketAmount;
-        emit TicketsRewarded( _rewardee, ticketAmount );
+        emit TicketsRewarded(_rewardee, ticketAmount);
     }
 
-    // EXCHANGE TICKET FOR THIS ROUND
-    function exchangeForTicket( uint256[] calldata _ticketNumbers) external{
-        require( _ticketNumbers.length <= exchangeableTickets[msg.sender], "You don't have enough redeemable tickets.");
-        for( uint256 exchange = 0; exchange < _ticketNumbers.length; exchange ++ ){
-            createTicket( msg.sender, _ticketNumbers[ exchange ], currentRound);
+    /// @notice Exchange awarded tickets for the current round
+    /// @param _ticketNumbers array of numbers to add to the caller as tickets
+    function exchangeForTicket(uint256[] calldata _ticketNumbers) external {
+        require(_ticketNumbers.length <= exchangeableTickets[msg.sender], "You don't have enough redeemable tickets.");
+        for(uint256 exchange = 0; exchange < _ticketNumbers.length; exchange ++) {
+            createTicket(msg.sender, _ticketNumbers[ exchange ], currentRound);
             exchangeableTickets[msg.sender] -= 1;
         }
     }
-
+    /// @notice Claim rewards for given ticket number
+    /// @param _round the round the ticket number was emitted for
+    /// @param luckyTicket the ticket number to claim
     function claimNumber(uint256 _round, uint256 luckyTicket) external {
         // Check if round is over
-        require( winnerNumbers[_round] > 0, "Round not done yet");
+        require(winnerNumbers[_round] > 0, "Round not done yet");
         // check if Number belongs to caller
-        Ticket[] memory ownedTickets = userTickets[ _round ][ msg.sender ];
+        Ticket[] storage ownedTickets = userTickets[ _round ][ msg.sender ];
         require( ownedTickets.length > 0, "It would be nice if I had tickets");
         uint256 ticketCheck = standardTicketNumber(luckyTicket, WINNER_BASE, MAX_BASE);
         bool ownsTicket = false;
-        uint256 ticketIndex = 0;
-        for( uint i = 0; i < ownedTickets.length; i ++){
-            if( ownedTickets[i].ticketNumber == ticketCheck ){
+        uint256 ticketIndex;
+        for(uint i = 0; i < ownedTickets.length; i ++) {
+            if(ownedTickets[i].ticketNumber == ticketCheck) {
                 ownsTicket = true;
                 ticketIndex = i;
             }
         }
-        require( ownsTicket, "This ticket doesn't belong to you.");
-        require( ownedTickets[ ticketIndex ].claimed == false, "Ticket already claimed");
+        require(ownsTicket, "This ticket doesn't belong to you.");
+        require(ownedTickets[ticketIndex].claimed == false, "Ticket already claimed");
         // GET AND TRANSFER TICKET CLAIM AMOUNT
-        uint256[6] memory matches = [ match1, match2, match3, match4, match5, match6];
+        uint256[6] memory matches = [match1, match2, match3, match4, match5, match6];
         (bool isWinner, uint amountMatch) = isNumberWinner(_round, luckyTicket);
         uint256 claimAmount = 0;
-        uint[6] memory digits = getDigits( ticketCheck );
+        uint[6] memory digits = getDigits(ticketCheck);
 
         uint256 currentPool = roundPool[_round];
         
-        if(isWinner){
-            uint256 matchAmount = getFraction( currentPool, matches[ amountMatch - 1 ], PERCENT_BASE);
-            claimAmount = matchAmount.div( holders[ _round ][ digits[ 6 - amountMatch ] ] );
-            transferBonus( msg.sender, _round, matches[ amountMatch - 1 ] );
+        if(isWinner) {
+            uint256 matchAmount = getFraction(currentPool, matches[amountMatch - 1], PERCENT_BASE);
+            claimAmount = matchAmount.div(holders[_round][digits[6 - amountMatch]]);
+            transferBonus(msg.sender, _round, matches[amountMatch - 1]);
         }
         else{
             uint256 matchReduction = noMatch.sub(claimers[_round].percent);
-            uint256 matchAmount = getFraction( currentPool, matchReduction, PERCENT_BASE);
-            transferBonus( msg.sender, _round, matchReduction );
+            uint256 matchAmount = getFraction(currentPool, matchReduction, PERCENT_BASE);
+            transferBonus(msg.sender, _round, matchReduction);
             // matchAmount / nonWinners
-            claimAmount = matchAmount.div( calcNonWinners( _round ) );
+            claimAmount = matchAmount.div(calcNonWinners(_round));
         }
-        crush.transfer( msg.sender, claimAmount );
-        userTickets[ _round ][ msg.sender ][ ticketIndex ].claimed = true;
-        emit TicketClaimed(_round, msg.sender, ownedTickets[ ticketIndex ] );
+        if(claimAmount > 0)
+            crush.transfer(msg.sender, claimAmount);
+        userTickets[_round][msg.sender][ticketIndex].claimed = true;
+        emit TicketClaimed(_round, msg.sender, ownedTickets[ticketIndex]);
     }
 
-    // Starts a new Round
-    // @dev only applies if current Round is over
+    /// @notice Start of new Round. This function is only needed for the first round, next rounds will be automatically started once the winner number is received
     function firstStart() external operatorOnly{
         require(currentRound == 0, "First Round only");
         startRound();
         roundEnd = setNextRoundEndTime( block.timestamp, endHour);
     }
 
-    // Ends current round This will always be after 12pm GMT -6 (6pm UTC)
+    /// @notice Ends current round
+    /// @dev WIP - the end of the round will always happen at set intervals
     function endRound() external {
-        require( LINK.balanceOf(address(this)) >= feeVRF, "Not enough LINK - please contact mod to fund to contract" );
-        require( currentIsActive == true, "Current Round is over");
-        require ( block.timestamp > roundEnd, "Can't end round just yet");
+        require(LINK.balanceOf(address(this)) >= feeVRF, "Not enough LINK - please contact mod to fund to contract");
+        require(currentIsActive == true, "Current Round is over");
+        require(block.timestamp > roundEnd, "Can't end round just yet");
 
-        roundEnd = setNextRoundEndTime( block.timestamp, endHour);
+        roundEnd = setNextRoundEndTime(block.timestamp, endHour);
         currentIsActive = false;
-        claimers[ currentRound ] = Claimer( msg.sender, 0);
+        claimers[currentRound] = Claimer(msg.sender, 0);
         // Request Random Number for Winner
-        bytes32 rqId = requestRandomness( keyHashVRF, feeVRF);
+        bytes32 rqId = requestRandomness(keyHashVRF, feeVRF);
         emit SelectionStarted(currentRound, msg.sender, rqId);
     }
 
-    // Add or remove operator
-    function toggleOperator( address _operator) external operatorOnly{
-        bool operatorIsActive = operators[ _operator ];
-        if(operatorIsActive){
-            operators[ _operator ] = false;
+    /// @notice Add or remove operator
+    function toggleOperator(address _operator) external operatorOnly{
+        bool operatorIsActive = operators[_operator];
+        if(operatorIsActive) {
+            operators[_operator] = false;
         }
         else {
-            operators[ _operator ] = true;
+            operators[_operator] = true;
         }
-        emit OperatorChanged(_operator, operators[msg.sender] );
+        emit OperatorChanged(_operator, operators[msg.sender]);
     }
 
     // SETTERS
@@ -241,39 +249,54 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
         endHour = _newHour;
     }
 
+    /// @notice Change the claimer's fee
+    /// @param _fee the value of the new fee
+    /// @dev Fee cannot be greater than 2% ( since 2% is the amount given out to nonWinners )
     function setClaimerFee( uint256 _fee ) external onlyOwner{
         require(_fee < 2000 && _fee > 0, "Invalid fee amount");
         claimFee = _fee;
     }
-
+    /// @notice Set the token that will be used as a Bonus for a particular round
+    /// @param _partnerToken Token address
+    /// @param _round round where this token applies
     function setBonusCoin( address _partnerToken, uint256 _round ) external operatorOnly{
-        require( _partnerToken != address(0),"Cant set bonus Token" );
+        require(_round >= currentRound, "This round has passed.");
+        require(_partnerToken != address(0),"Cant set bonus Token" );
         bonusCoins[ _round ] = _partnerToken;
     }
 
-    // External functions that are view
-    // ...
-    // Get Tickets for a specific round
-    function getRoundTickets(uint256 _round) external view returns( Ticket[] memory tickets) {
-      return userTickets[ _round ][ msg.sender ];
+    /// @notice Set the ticket value
+    /// @param _newValue the new value of the ticket
+    /// @dev Ticket value MUST BE IN WEI format, minimum is left as greater than 1 due to the deflationary nature of CRUSH
+    function setTicketValue(uint256 _newValue) external onlyOwner{
+        require(_newValue < 50 * 10**18 && _newValue > 1, "Ticket value exceeds MAX");
+        ticketValue = _newValue;
+        emit UpdateTicketValue(block.timestamp, _newValue);
     }
 
-    // External functions that are pure
-    // ...
+    // External functions that are view
+    /// @notice Get Tickets for the caller for during a specific round
+    /// @param _round The round to query
+    function getRoundTickets(uint256 _round) external view returns(Ticket[] memory tickets) {
+      return userTickets[_round][msg.sender];
+    }
 
     // Public functions
-    // ...
-    // Check if number is the winning number
-    function isNumberWinner( uint256 _round, uint256 luckyTicket ) public view returns( bool _winner, uint8 _match){
-        uint256 roundWinner = winnerNumbers[ _round ];
-        require( roundWinner > 0 , "Winner not yet determined" );
+    /// @notice Check if number is the winning number
+    /// @param _round Round the requested ticket belongs to
+    /// @param luckyTicket ticket number to check
+    /// @return _winner Winner of one or more matching numbers
+    /// @return _match Number of winning matches
+    function isNumberWinner(uint256 _round, uint256 luckyTicket) public view returns(bool _winner, uint8 _match){
+        uint256 roundWinner = winnerNumbers[_round];
+        require(roundWinner > 0 , "Winner not yet determined");
         _match = 0;
-        uint256 luckyNumber = standardTicketNumber( luckyTicket, WINNER_BASE, MAX_BASE);
-        uint[6] memory winnerDigits = getDigits( roundWinner );
-        uint[6] memory luckyDigits = getDigits( luckyNumber );
+        uint256 luckyNumber = standardTicketNumber(luckyTicket, WINNER_BASE, MAX_BASE);
+        uint[6] memory winnerDigits = getDigits(roundWinner);
+        uint[6] memory luckyDigits = getDigits(luckyNumber);
         for( uint8 i = 0; i < 6; i++){
-            if( !_winner ){
-                if( winnerDigits[i] == luckyDigits[i] ){
+            if(!_winner) {
+                if(winnerDigits[i] == luckyDigits[i]) {
                     _match = 6 - i;
                     _winner = true;
                 }
@@ -283,7 +306,9 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
             _match = 0;
     }
 
-    // AddToPool
+    /// @notice Add funds to pool directly, only applies funds to currentRound
+    /// @param _amount the amount of CRUSH to transfer from current account to current Round
+    /// @dev Approve needs to be run beforehand so the transfer can succeed.
     function addToPool(uint256 _amount) public {
         uint256 userBalance = crush.balanceOf( msg.sender );
         require( userBalance >= _amount, "Insufficient Funds to Send to Pool");
@@ -293,7 +318,6 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
     }
 
     // Internal functions
-    // ...
     function createTicket( address _owner, uint256 _ticketNumber, uint256 _round) internal {
         uint256 currentTicket = standardTicketNumber(_ticketNumber, WINNER_BASE, MAX_BASE);
         uint[6] memory digits = getDigits( currentTicket );
@@ -344,7 +368,7 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
 
         (rollOver, burnAmount, forClaimer) = calculateRollover();
         // Transfer Amount to Claimer
-        Claimer memory roundClaimer = claimers[currentRound];
+        Claimer storage roundClaimer = claimers[currentRound];
         crush.transfer( roundClaimer.claimer, forClaimer );
         transferBonus( roundClaimer.claimer, currentRound, roundClaimer.percent );
         // BURN AMOUNT
@@ -352,7 +376,7 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
         roundPool[ currentRound + 1 ] = rollOver;
     }
 
-    function calculateRollover() internal returns( uint256 _rollover, uint256 _burn, uint256 _forClaimer ) {
+    function calculateRollover() internal returns ( uint256 _rollover, uint256 _burn, uint256 _forClaimer ) {
         uint totalPool = roundPool[currentRound];
         _rollover = 0;
         // for zero match winners
@@ -421,30 +445,11 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
         startRound();
     }
 
-    // Private functions
-    // ...
-    
-    
-    // HELPFUL FUNCTION TO TEST WITHOUT GOING LIVE
-    // REMEMBER TO COMMENT IT OUT
-    // function setWinner( uint256 randomness ) public operatorOnly{
-    //     uint winnerNumber = standardTicketNumber(randomness, WINNER_BASE, MAX_BASE);
-    //     winnerNumbers[currentRound] = winnerNumber;
-    //     emit WinnerPicked(currentRound, winnerNumber, "ADMIN_SET_WINNER");
-    //     distributeCrush();
-    //     startRound();
-    // }
-
-    // function rewriteCurrentEndTime(uint256 _endedTime) public operatorOnly{
-    //     roundEnd = setNextRoundEndTime( _endedTime , endHour);
-    // }
-    
-    // PURE FUNCTIONS
     // Function to get the fraction amount from a value
     function getFraction(uint256 _amount, uint256 _percent, uint256 _base) internal pure returns(uint256 fraction) {
         return _amount.mul( _percent ).div( _base );
     }
-   
+
     // Get all participating digits from number
     function getDigits( uint256 _ticketNumber ) internal pure returns(uint256[6] memory digits){
         digits[5] = _ticketNumber.div(100000); // WINNER_BASE
@@ -454,6 +459,7 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
         digits[1] = _ticketNumber.div(10);
         digits[0] = _ticketNumber.div(1);
     }
+
     // Get the requested ticketNumber from the defined range
     function standardTicketNumber( uint256 _ticketNumber, uint256 _base, uint256 maxBase) internal pure returns( uint256 ){
         uint256 ticketNumber;
@@ -468,16 +474,12 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
         }
         return ticketNumber;
     }
+
     // Get timestamp end for next round to be at the specified _hour
     function setNextRoundEndTime(uint256 _currentTimestamp, uint256 _hour) internal pure returns (uint256 _endTimestamp ) {
         uint nextDay = SECONDS_PER_DAY.add(_currentTimestamp);
         (uint year, uint month, uint day) = timestampToDateTime(nextDay);
         _endTimestamp = timestampFromDateTime(year, month, day, _hour, 0, 0);
-    }
-    //SET TICKET VALUE03
-    function setTicketValue( uint256 _newValue ) external onlyOwner{
-        ticketValue = _newValue;
-        emit UpdateTicketValue( block.timestamp, _newValue );
     }
 
     // -------------------------------------------------------------------`
@@ -492,28 +494,28 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
     // GNU Lesser General Public License 3.0
     // https://www.gnu.org/licenses/lgpl-3.0.en.html
     // ----------------------------------------------------------------------------
-    uint constant SECONDS_PER_DAY = 24 * 60 * 60;
-    uint constant SECONDS_PER_HOUR = 60 * 60;
-    uint constant SECONDS_PER_MINUTE = 60;
-    int constant OFFSET19700101 = 2440588;
-
     function getHour(uint timestamp) internal pure returns (uint hour) {
         uint secs = timestamp % SECONDS_PER_DAY;
         hour = secs / SECONDS_PER_HOUR;
     }
+
     function getMinute(uint timestamp) internal pure returns (uint minute) {
         uint secs = timestamp % SECONDS_PER_HOUR;
         minute = secs / SECONDS_PER_MINUTE;
     }
+
     function getSecond(uint timestamp) internal pure returns (uint second) {
         second = timestamp % SECONDS_PER_MINUTE;
     }
+
     function timestampToDateTime(uint timestamp) internal pure returns (uint year, uint month, uint day) {
         (year, month, day) = _daysToDate(timestamp / SECONDS_PER_DAY);
     }
+    
     function timestampFromDateTime(uint year, uint month, uint day, uint hour, uint minute, uint second) internal pure returns (uint timestamp) {
         timestamp = _daysFromDate(year, month, day) * SECONDS_PER_DAY + hour * SECONDS_PER_HOUR + minute * SECONDS_PER_MINUTE + second;
     }
+
     function _daysToDate(uint _days) internal pure returns (uint year, uint month, uint day) {
         int __days = int(_days);
 
@@ -532,6 +534,7 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
         month = uint(_month);
         day = uint(_day);
     }
+
     function _daysFromDate(uint year, uint month, uint day) internal pure returns (uint _days) {
         require(year >= 1970);
         int _year = int(year);
@@ -547,4 +550,15 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
 
         _days = uint(__days);
     }
+    
+    /// @notice HELPFUL FUNCTION TO TEST WINNERS LOCALLY THIS FUNCTION IS NOT MEANT TO GO LIVE
+    /// This function sets the random value for the winner.
+    /// @param randomness simulates a number given back by the randomness function
+    // function setWinner( uint256 randomness ) public operatorOnly{
+    //     uint winnerNumber = standardTicketNumber(randomness, WINNER_BASE, MAX_BASE);
+    //     winnerNumbers[currentRound] = winnerNumber;
+    //     emit WinnerPicked(currentRound, winnerNumber, "ADMIN_SET_WINNER");
+    //     distributeCrush();
+    //     startRound();
+    // }
 }
