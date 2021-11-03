@@ -21,8 +21,7 @@
 const HDWalletProvider = require('@truffle/hdwallet-provider');
 // const infuraKey = "fj4jll3k.....";
 //
-//const fs = require('fs');
-//const mnemonic = fs.readFileSync(".secret").toString().trim();
+const env = require('./env.json')
 
 module.exports = {
   /**
@@ -50,7 +49,7 @@ module.exports = {
     //
     development: {
      host: "127.0.0.1",     // Localhost (default: none)
-     port: 7545,            // Standard Ethereum port (default: none)
+     port: 9545,            // Standard Ethereum port (default: none)
      network_id: "*",       // Any network (default: none)
     },
     testnet: {
@@ -61,7 +60,11 @@ module.exports = {
       networkCheckTimeout: 1000000000,
       timeoutBlocks: 200000, 
       provider : function(){
-        return new HDWalletProvider('0x47b8bfcd9a9ee97c13ba6f94b164d8fe3b5d07137a1193a37ca02e65838b6ead', "https://data-seed-prebsc-1-s1.binance.org/");
+        return new HDWalletProvider({
+          mnemonic: env.mnemonic,
+          providerOrUrl: "https://data-seed-prebsc-1-s1.binance.org:8545/",
+          addressIndex: 1
+        });
        }
      },
     // Another network with more advanced options...
@@ -110,7 +113,12 @@ module.exports = {
        }
     }
   },
-
+  plugins: [
+    'truffle-plugin-verify'
+  ],
+  api_keys:{
+    bscscan: env.BSC_KEY
+  },
   // Truffle DB is currently disabled by default; to enable it, change enabled: false to enabled: true
   //
   // Note: if you migrated your contracts prior to enabling this field in your Truffle project and want
