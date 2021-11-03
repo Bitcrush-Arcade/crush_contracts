@@ -342,9 +342,7 @@ contract BitcrushStaking is Ownable {
                 currentUser.claimedAmount = currentUser.claimedAmount.add(stakerReward);
                 currentUser.stakedAmount = currentUser.stakedAmount.add(stakerReward);
                 
-                uint256 rewardShares = stakerReward.mul(totalShares).div(totalStaked);
-                totalShares = totalShares.add( rewardShares );
-                currentUser.shares = currentUser.shares.add(rewardShares);
+                totalStaked = totalStaked.add(stakerReward);
             }    
             currentUser.lastBlockCompounded = block.number;
             batchStartingIndex = batchStartingIndex.add(1);

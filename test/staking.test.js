@@ -1,15 +1,30 @@
 const { expectRevert, time } = require('@openzeppelin/test-helpers');
 const { inTransaction } = require('@openzeppelin/test-helpers/src/expectEvent');
 const { assertion } = require('@openzeppelin/test-helpers/src/expectRevert');
+const { BN, web3 } = require('@openzeppelin/test-helpers/src/setup')
+const helper = require("./helpers/truffleTestHelper");
 const CrushToken = artifacts.require('CRUSHToken');
 const BitcrushStaking = artifacts.require('BitcrushStaking');
 const BitcrushBankroll = artifacts.require('BitcrushBankroll');
 const BitcrushLiveWallet = artifacts.require('BitcrushLiveWallet');
 
 contract('Bitcrush', ([alice, bob, carol, dev ,minter]) => {
+    
+    const toWei = ( number ) => {
+        return web3.utils.toBN(""+number).mul( web3.utils.toBN('10').pow( web3.utils.toBN('18') ) )
+    }
+    const fromWei = ( input ) => {
+        return web3.utils.fromWei( input )
+    }
+
+    const waitForBlocks = async blocksToWait => {
+        for( i = 0; i< blocksToWait; i++)
+            await helper.advanceTimeAndBlock(60)
+    }
+
     beforeEach(async () => {
         this.crush = await CrushToken.new({ from: minter });
-        this.staking = await BitcrushStaking.new(this.crush.address,0,dev, { from: minter },);
+        this.staking = await BitcrushStaking.new(this.crush.address, toWei(1) ,dev, { from: minter },);
         this.bankroll = await BitcrushBankroll.new(this.crush.address,this.staking.address,dev,carol,6000,1000,200,2700, { from: minter });
         
         await this.staking.setBankroll(this.bankroll.address,{from : minter});
@@ -39,7 +54,71 @@ contract('Bitcrush', ([alice, bob, carol, dev ,minter]) => {
         await this.staking.setAutoCompoundLimit(1, {from : minter});
         await this.bankroll.setProfitThreshold(100000000000000000000n, {from : minter});
         
+        await this.crush.approve( this.staking.address, toWei(30000000), {from: alice})
+        await this.crush.approve( this.staking.address, toWei(30000000), {from: bob})
+        await this.crush.approve( this.staking.address, toWei(30000000), {from: carol})
+        await this.crush.approve( this.staking.address, toWei(30000000), {from: dev})
+        await this.crush.approve( this.staking.address, toWei(30000000), {from: minter})
     });
+    it("should show correct reward amount", async()=>{
+        const staked = toWei(100)
+        await this.staking.enterStaking( staked ,{ from: alice})
+        let aliceStakings = await this.staking.stakings(alice)
+        assert.equal( staked.toString(), aliceStakings.stakedAmount.toString(), "Didn't stake correctly")
+        console.log('startBlock', (await web3.eth.getBlock('latest')).number)
+        await waitForBlocks(20)
+
+        await this.staking.enterStaking( staked, {from: bob})
+        let bobStakings = await this.staking.stakings(bob)
+        assert.equal( bobStakings.stakedAmount.toString(), aliceStakings.stakedAmount.toString(), "Didn't stake equal amounts")
+        assert.equal( fromWei(bobStakings.shares.toString()), '50', "Shares aren't calculating as supposed to" )
+
+        await waitForBlocks(20)
+        let currentBlock = (await web3.eth.getBlock('latest')).number
+        let aliceReward = await this.staking.pendingReward(alice)
+        let bobReward = await this.staking.pendingReward(bob)
+        console.log( { 
+            a: {
+                reward: fromWei(aliceReward.toString()),
+                last: aliceStakings.lastBlockCompounded.toString(),
+                shares: fromWei(aliceStakings.shares.toString()),
+                staked: fromWei(aliceStakings.stakedAmount.toString())
+            },
+            b: {
+                reward: fromWei(bobReward.toString()),
+                last: bobStakings.lastBlockCompounded.toString(),
+                shares: fromWei(bobStakings.shares.toString()),
+                staked: fromWei(bobStakings.stakedAmount.toString())
+            },
+            currentBlock,
+            totalReward: fromWei(await this.staking.totalPool()),
+            totalStaked: fromWei(await this.staking.totalStaked()),
+        })
+        await this.staking.compoundAll({from: carol})
+        await waitForBlocks(1)
+        currentBlock = (await web3.eth.getBlock('latest')).number
+        aliceReward = await this.staking.pendingReward(alice)
+        bobReward = await this.staking.pendingReward(bob)
+        aliceStakings = await this.staking.stakings(alice)
+        bobStakings = await this.staking.stakings(bob)
+        console.log( { 
+            a: {
+                reward: fromWei(aliceReward.toString()),
+                last: aliceStakings.lastBlockCompounded.toString(),
+                shares: fromWei(aliceStakings.shares.toString()),
+                staked: fromWei(aliceStakings.stakedAmount.toString())
+            },
+            b: {
+                reward: fromWei(bobReward.toString()),
+                last: bobStakings.lastBlockCompounded.toString(),
+                shares: fromWei(bobStakings.shares.toString()),
+                staked: fromWei(bobStakings.stakedAmount.toString())
+            },
+            currentBlock,
+            totalReward: fromWei(await this.staking.totalPool()),
+            totalStaked: fromWei(await this.staking.totalStaked()),
+        })
+    })
     /* it("total pool added",async () => {
         let totalPool = await this.staking.totalPool();
         console.log("total Pool is:"+totalPool);
@@ -82,13 +161,13 @@ contract('Bitcrush', ([alice, bob, carol, dev ,minter]) => {
         
         //await this.staking.setEarlyWithdrawFeeTime(5,{from : alice})
     }) */
-    it("Black list test",async () => {
-        await this.liveWallet.blacklistSelf({from : carol});
-        await this.liveWallet.whitelistUser(carol,{from : minter});
-        await this.crush.approve(this.liveWallet.address,1000000000000000000000n,{from : carol});
-        await this.liveWallet.addbet(1000000000000000000000n, {from : carol});
+    // it("Black list test",async () => {
+    //     await this.liveWallet.blacklistSelf({from : carol});
+    //     await this.liveWallet.whitelistUser(carol,{from : minter});
+    //     await this.crush.approve(this.liveWallet.address,1000000000000000000000n,{from : carol});
+    //     await this.liveWallet.addbet(1000000000000000000000n, {from : carol});
 
-    })
+    // })
    /*  it("register win",async () => {
         await this.crush.approve(this.liveWallet.address,100,{from : bob});
         await this.liveWallet.addbet(100,1,{from : bob});
