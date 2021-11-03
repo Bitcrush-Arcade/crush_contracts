@@ -26,7 +26,7 @@ contract BitcrushStaking is Ownable {
     uint256 public blockPerSecond = 3;
     uint256 public earlyWithdrawFeeTime = 72 * 60 * 60 / blockPerSecond;
     uint256 public apyBoost = 2500; //2500/10000 * 100 = 25%
-    uint256 private totalShares;
+    uint256 public totalShares;
 
     
     //address of the crush token
@@ -36,7 +36,6 @@ contract BitcrushStaking is Ownable {
     struct UserStaking {
         uint256 shares;
         uint256 stakedAmount;
-        uint256 lastStaking;
         uint256 claimedAmount;
         uint256 profit;
         uint256 lastBlockCompounded;
