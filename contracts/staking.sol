@@ -169,6 +169,7 @@ contract BitcrushStaking is Ownable {
         uint256 availableStaked = user.stakedAmount;
         if(totalFrozen > 0){
             availableStaked = availableStaked.sub(totalFrozen.mul(user.stakedAmount).div(totalStaked));
+            require(availableStaked >= _amount, "Frozen Funds: Can't withdraw more than Available funds");
         }else if(user.lastFrozenWithdraw > 0){
             user.lastFrozenWithdraw = 0;
         }
@@ -305,7 +306,11 @@ contract BitcrushStaking is Ownable {
             }
         }
 
-        for(uint256 i=batchStartingIndex; i < batchLimit; i++){
+        uint256 batchStart = batchStartingIndex;
+        if( batchStartingIndex >= addressIndexes.length )
+            batchStart = 0;
+
+        for(uint256 i=batchStart; i < batchLimit; i++){
             uint256 stakerReward = getReward(addressIndexes[i]);
             UserStaking storage currentUser = stakings[addressIndexes[i]];
             if(stakerReward > 0){

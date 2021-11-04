@@ -1,6 +1,5 @@
 const { expectRevert, time } = require('@openzeppelin/test-helpers');
 const { inTransaction } = require('@openzeppelin/test-helpers/src/expectEvent');
-const { assertion } = require('@openzeppelin/test-helpers/src/expectRevert');
 const { BN, web3 } = require('@openzeppelin/test-helpers/src/setup')
 const helper = require("./helpers/truffleTestHelper");
 const CrushToken = artifacts.require('CRUSHToken');
@@ -20,6 +19,12 @@ contract('Bitcrush', ([alice, bob, carol, robert, dev ,minter]) => {
     const waitForBlocks = async blocksToWait => {
         for( i = 0; i< blocksToWait; i++)
             await helper.advanceTimeAndBlock(60)
+    }
+
+    const logSection = text => {
+        console.log('-------------------------')
+        console.log(text)
+        console.log('-------------------------')
     }
 
     beforeEach(async () => {
@@ -42,20 +47,20 @@ contract('Bitcrush', ([alice, bob, carol, robert, dev ,minter]) => {
         await this.liveWallet.setBitcrushBankroll(this.bankroll.address, {from : minter});
         await this.liveWallet.setStakingPool(this.staking.address, {from : minter});
 
-        await this.crush.mint(minter,10000000000000000000000n, {from : minter});
-        await this.crush.mint(alice,10000000000000000000000n, {from : minter});
-        await this.crush.mint(bob,10000000000000000000000n, {from : minter});
-        await this.crush.mint(robert,10000000000000000000000n, {from : minter});
-        await this.crush.mint(carol,10000000000000000000000n, {from : minter});
-        await this.crush.approve(this.bankroll.address,1000000000000000000000n, {from : minter});
-        await this.bankroll.addToBankroll(1000000000000000000000n, {from : minter});
+        await this.crush.mint(minter, toWei(1000000), {from : minter});
+        await this.crush.mint(alice, toWei(10000), {from : minter});
+        await this.crush.mint(bob, toWei(10000), {from : minter});
+        await this.crush.mint(robert, toWei(10000), {from : minter});
+        await this.crush.mint(carol, toWei(10000), {from : minter});
+        await this.crush.approve(this.bankroll.address, toWei(30000000), {from : minter});
+        await this.bankroll.addToBankroll( toWei(150), {from : minter});
 
         // APPROVE LIVE WALLET AND ADD FUNDS FROM CAROL
         await this.crush.approve( this.liveWallet.address, toWei(30000000), {from: carol});
         await this.liveWallet.addbet( toWei(500),{ from: carol} );
         
-        await this.crush.approve(this.staking.address,1000000000000000000000n, {from : minter});
-        await this.staking.addRewardToPool(1000000000000000000000n, {from : minter});
+        await this.crush.approve(this.staking.address, toWei(30000000), {from : minter});
+        await this.staking.addRewardToPool( toWei(10000), {from : minter});
 
         await this.staking.setAutoCompoundLimit(1, {from : minter});
         await this.bankroll.setProfitThreshold( toWei(100), {from : minter});
@@ -64,14 +69,17 @@ contract('Bitcrush', ([alice, bob, carol, robert, dev ,minter]) => {
         await this.crush.approve( this.staking.address, toWei(30000000), {from: bob})
         await this.crush.approve( this.staking.address, toWei(30000000), {from: carol})
         await this.crush.approve( this.staking.address, toWei(30000000), {from: dev})
+        await this.crush.approve( this.staking.address, toWei(30000000), {from: robert})
         await this.crush.approve( this.staking.address, toWei(30000000), {from: minter})
 
         this.logStakes = async() => {
             let aliceStakings = await this.staking.stakings(alice)
             let bobStakings = await this.staking.stakings(bob)
+            let robertStakings = await this.staking.stakings(robert)
             let currentBlock = (await web3.eth.getBlock('latest')).number
             let aliceReward = await this.staking.pendingReward(alice)
             let bobReward = await this.staking.pendingReward(bob)
+            let robertReward = await this.staking.pendingReward(robert)
             let profits ={}
             try{
                 let stakingProfits = await this.staking.profits(0)
@@ -83,61 +91,91 @@ contract('Bitcrush', ([alice, bob, carol, robert, dev ,minter]) => {
             }
             console.log( { 
                 currentBlock,
+                compoundIndex: (await this.staking.batchStartingIndex()).toString(),
                 a: {
                     reward: fromWei(aliceReward.toString()),
                     last: aliceStakings.lastBlockCompounded.toString(),
                     shares: fromWei(aliceStakings.shares.toString()),
-                    staked: fromWei(aliceStakings.stakedAmount.toString())
+                    staked: fromWei(aliceStakings.stakedAmount.toString()),
+                    wallet: fromWei( await this.crush.balanceOf(alice) ),
+                    index: aliceStakings.index.toString()
                 },
                 b: {
                     reward: fromWei(bobReward.toString()),
                     last: bobStakings.lastBlockCompounded.toString(),
                     shares: fromWei(bobStakings.shares.toString()),
-                    staked: fromWei(bobStakings.stakedAmount.toString())
+                    staked: fromWei(bobStakings.stakedAmount.toString()),
+                    wallet: fromWei( await this.crush.balanceOf(bob) ),
+                    index: bobStakings.index.toString()
+                },
+                r: {
+                    reward: fromWei(robertReward.toString()),
+                    last: robertStakings.lastBlockCompounded.toString(),
+                    shares: fromWei(robertStakings.shares.toString()),
+                    staked: fromWei(robertStakings.stakedAmount.toString()),
+                    wallet: fromWei( await this.crush.balanceOf(robert) ),
+                    index: robertStakings.index.toString()
                 },
                 totalBankroll: fromWei( await this.bankroll.totalBankroll()),
                 stakingProfits: profits,
                 totalStaked: fromWei(await this.staking.totalStaked()),
+                frozen: fromWei( await this.staking.totalFrozen()),
             })
         }
     });
-    it("should show correct reward amount", async()=>{
-        const staked = toWei(100)
-        await this.staking.enterStaking( staked ,{ from: alice})
-        // assert.equal( staked.toString(), aliceStakings.stakedAmount.toString(), "Didn't stake correctly")
-        console.log('startBlock', (await web3.eth.getBlock('latest')).number)
-        await waitForBlocks(20)
-        await this.logStakes()
-        // add profits and compound for ALICE
-        await this.liveWallet.registerLoss([toWei(150)],[carol],{ from: minter })
-        console.log("CAROL LOST")
-        await waitForBlocks(40)
-        await this.logStakes()
-        await this.staking.compoundAll({from: carol})
-        console.log("COMPOUNDED")
-        await waitForBlocks(2)
-        await this.logStakes()
+    // it("should show correct reward amount", async()=>{
+    //     const staked = toWei(100)
+    //     await this.staking.enterStaking( staked ,{ from: alice})
+    //     // assert.equal( staked.toString(), aliceStakings.stakedAmount.toString(), "Didn't stake correctly")
+    //     logSection('start')
+    //     console.log('startBlock', (await web3.eth.getBlock('latest')).number)
+    //     await waitForBlocks(20)
+    //     await this.logStakes()
 
-        await this.staking.enterStaking( staked, {from: bob})
-        // assert.equal( bobStakings.stakedAmount.toString(), aliceStakings.stakedAmount.toString(), "Didn't stake equal amounts")
-        // assert.equal( fromWei(bobStakings.shares.toString()), '50', "Shares aren't calculating as supposed to" )
-        console.log("BOB entered")
-        await waitForBlocks(20)
-        await this.logStakes()
-        await this.staking.compoundAll({from: carol})
-        console.log("COMPOUNDED")
-        await waitForBlocks(2)
-        await this.logStakes()
+    //     // add profits and compound for ALICE
+    //     await this.liveWallet.registerLoss([toWei(150)],[carol],{ from: minter })
+    //     logSection("CAROL LOST")
+    //     await waitForBlocks(40)
+    //     await this.logStakes()
+        
+    //     await this.staking.compoundAll({from: carol})
+    //     logSection("COMPOUNDED")
+    //     await waitForBlocks(2)
+    //     await this.logStakes()
 
-    })
+    //     await this.staking.enterStaking( staked, {from: bob})
+    //     logSection("BOB entered")
+    //     await waitForBlocks(20)
+    //     await this.logStakes()
 
+    //     await this.staking.compoundAll({from: carol})
+    //     logSection("COMPOUNDED")
+    //     await waitForBlocks(2)
+    //     await this.logStakes()
 
-    /**
-     * @DEV CAROL LOSES 100
-     * BEFORE COMPOUND BOB WITHDRAWS 50% OF HIS BALANCE
-     * COMPOUND ALL
-     * 
-     */
+    //     /**
+    //      * @DEV CAROL LOSES 100
+    //      * BEFORE COMPOUND BOB WITHDRAWS 50% OF HIS BALANCE
+    //      * COMPOUND ALL
+    //      * 
+    //      */
+
+    //     await this.liveWallet.registerLoss([toWei(100)],[carol],{ from: minter })
+    //     logSection("CAROL Loses")
+    //     await waitForBlocks(5)
+    //     await this.logStakes()
+        
+    //     const bobStakes1 = fromWei((await this.staking.stakings(bob)).stakedAmount)
+    //     await this.staking.leaveStaking( toWei( parseFloat(bobStakes1)/2 ), false, {from: bob})
+    //     logSection("BOB withdraws 50%")
+    //     await waitForBlocks(10)
+    //     await this.logStakes()
+
+    //     await this.staking.compoundAll({from: carol})
+    //     logSection("COMPOUNDED")
+    //     await waitForBlocks(10)
+    //     await this.logStakes()
+    // })
 
     /**
      * @DEV CAROL WINS 250
@@ -151,8 +189,61 @@ contract('Bitcrush', ([alice, bob, carol, robert, dev ,minter]) => {
      * WAIT BLOCKS
      * ALICE COMPLETELY WITHDRAWS
      * WAIT BLOCKS
-     * 
      */
+
+    it("Check of multiple scenarios", async()=>{
+        const staked = toWei(200)
+        await this.staking.enterStaking( staked ,{ from: alice})
+        await this.staking.enterStaking( staked ,{ from: bob })
+        logSection('start')
+        await this.logStakes()
+
+        await this.liveWallet.registerWin( [toWei(250)], [carol], {from: minter})
+        logSection('Carol won 250')
+        await this.logStakes()
+
+        await this.staking.leaveStaking( toWei(100), false,{from: alice} )
+        logSection('Alice will Withdraw')
+        await this.logStakes()
+
+        await this.staking.compoundAll({from: carol})
+        logSection("COMPOUNDED")
+        await this.logStakes()
+
+        await this.staking.enterStaking( staked ,{ from: robert})
+        logSection('Robert gets added')
+        await this.logStakes()
+
+        await this.liveWallet.registerLoss( [toWei(300)], [carol], {from: minter})
+        logSection('Carol lost 300')
+        await this.logStakes()
+
+        await waitForBlocks(100)
+        logSection('wait for 100 blocks')
+        await this.logStakes()
+
+        await this.staking.compoundAll({from: carol})
+        logSection("COMPOUNDED")
+        await this.logStakes()
+
+        await waitForBlocks(100)
+        logSection('wait for 100 blocks')
+        await this.logStakes()
+
+        const aliceStaked1 = await this.staking.stakings(alice)
+        await this.staking.leaveStaking( aliceStaked1.stakedAmount, false,{from: alice})
+        logSection('Alice completely left pool')
+        await this.logStakes()
+
+        await this.staking.compoundAll({from: carol})
+        logSection("COMPOUNDED")
+        await this.logStakes()
+
+        await waitForBlocks(100)
+        logSection('wait for 100 blocks')
+        await this.logStakes()
+
+    })
 
     /**
      * MAKE FUNDS FROZEN
@@ -161,8 +252,43 @@ contract('Bitcrush', ([alice, bob, carol, robert, dev ,minter]) => {
      * THAT SOMEONE WITHDRAWS EVERYTHING
      * EXPECTED TO FAIL
      */
+    // it("Should not allow a full withdraw with things frozen", async() =>{
+    //     const staked = toWei(200)
 
+    //     await this.staking.enterStaking( staked ,{ from: alice})
+    //     await this.staking.enterStaking( staked ,{ from: bob })
+    //     logSection('start')
+    //     await this.logStakes()
 
+    //     await this.liveWallet.registerWin( [toWei(250)], [carol], {from: minter})
+    //     logSection('Carol won 250')
+    //     await this.logStakes()
+
+    //     await this.staking.enterStaking( staked, {from: robert})
+    //     logSection('Robert Entered Staking')
+    //     await this.logStakes()
+
+    //     await waitForBlocks(2)
+    //     logSection('Robert wants to Leave')
+    //     await this.logStakes()
+
+    //     const weiAlice = (await this.staking.stakings(alice)).stakedAmount
+    //     const aliceStaked = fromWei(weiAlice)
+    //     const aliceFrozen = parseFloat( aliceStaked )*parseFloat(fromWei(await this.staking.totalFrozen()))/ parseFloat( fromWei(await this.staking.totalStaked()) )
+    //     const availableStaked = parseFloat(aliceStaked) - aliceFrozen
+    //     console.log(aliceFrozen, aliceStaked, availableStaked, availableStaked > 200)
+    //     assert.equal( aliceFrozen, 200*100/600, "Frozen amounts don't match" );
+        
+    //     const weirobert = (await this.staking.stakings(robert)).stakedAmount
+    //     const robertStaked = fromWei(weirobert)
+    //     const robertFrozen = parseFloat( robertStaked )*parseFloat(fromWei(await this.staking.totalFrozen()))/ parseFloat( fromWei(await this.staking.totalStaked()) )
+    //     const robAvail = parseFloat(robertStaked) - robertFrozen
+    //     console.log(robertFrozen, robertStaked, robAvail, robAvail > 200)
+    //     assert.equal( robertFrozen, 200*100/600, "Frozen amounts don't match" );
+    //     await this.staking.leaveStaking(weirobert,false,{from: robert})
+    //     await this.staking.leaveStaking(weiAlice,false,{from: alice})
+    // })
+    
     /* it("total pool added",async () => {
         let totalPool = await this.staking.totalPool();
         console.log("total Pool is:"+totalPool);
