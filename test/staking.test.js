@@ -80,6 +80,10 @@ contract('Bitcrush', ([alice, bob, carol, robert, dev ,minter]) => {
             let aliceReward = await this.staking.pendingReward(alice)
             let bobReward = await this.staking.pendingReward(bob)
             let robertReward = await this.staking.pendingReward(robert)
+            let indexes = []
+            try{ indexes.push(await this.staking.addressIndexes(0))}catch { indexes.push("-")}
+            try{ indexes.push(await this.staking.addressIndexes(1))}catch { indexes.push("-")}
+            try{ indexes.push(await this.staking.addressIndexes(2))}catch { indexes.push("-")}
             let profits ={}
             try{
                 let stakingProfits = await this.staking.profits(0)
@@ -92,6 +96,7 @@ contract('Bitcrush', ([alice, bob, carol, robert, dev ,minter]) => {
             console.log( { 
                 currentBlock,
                 compoundIndex: (await this.staking.batchStartingIndex()).toString(),
+                indexes,
                 a: {
                     reward: fromWei(aliceReward.toString()),
                     last: aliceStakings.lastBlockCompounded.toString(),

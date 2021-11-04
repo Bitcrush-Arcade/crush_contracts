@@ -17,10 +17,10 @@ contract BitcrushStaking is Ownable {
     uint256 public constant divisor = 10000;
     
     uint256  public earlyWithdrawFee         = 50; // 50/10000 * 100 = 0.5% 
-    uint256  public frozenEarlyWithdrawFee   = 1500; // 50/10000 * 100 = 0.5% 
+    uint256  public frozenEarlyWithdrawFee   = 1500; // 50/10000 * 100 = 15% 
     uint256  public performanceFeeReserve    = 190; // 190/10000 * 100 = 1.9%
     
-    uint256  public frozenEarlyWithdrawFeeTime   = 10800; // 50/10000 * 100 = 0.5% 
+    uint256  public frozenEarlyWithdrawFeeTime   = 10800;
 
     
     uint256 public blockPerSecond = 3;
@@ -28,11 +28,13 @@ contract BitcrushStaking is Ownable {
     uint256 public apyBoost = 2500; //2500/10000 * 100 = 25%
     uint256 public totalShares;
 
-    
-    //address of the crush token
+    // Contracts to Interact with
     CRUSHToken public immutable crush;
     BitcrushBankroll public bankroll;
     BitcrushLiveWallet public liveWallet;
+    // Team address to maintain funds
+    address public reserveAddress;
+    
     struct UserStaking {
         uint256 shares;
         uint256 stakedAmount;
@@ -42,6 +44,7 @@ contract BitcrushStaking is Ownable {
         uint256 lastBlockStaked;
         uint256 index;
         uint256 lastFrozenWithdraw;
+        uint256 entryBaseline;
     }
     mapping (address => UserStaking) public stakings;
     address[] public addressIndexes;
@@ -51,25 +54,25 @@ contract BitcrushStaking is Ownable {
         uint256 remaining;
     }
     profit[] public profits;
-
-    uint256 public totalPool;
     uint256 public lastAutoCompoundBlock;
-    uint256 public batchStartingIndex = 0;
-    
-    uint256 public crushPerBlock = 5500000000000000000;
-    address public reserveAddress;
 
+    uint256 public batchStartingIndex = 0;
+    uint256 public crushPerBlock = 5500000000000000000;
+    // Pool Accumulated Reward Per Share
+    uint256 public accRewardPerShare;
+    uint256 public lastRewardBlock;
+    // Tracking Totals
+    uint256 public totalPool; // Reward for Staking
     uint256 public totalStaked;
-    
-    uint256 public totalClaimed;
+    uint256 public totalClaimed; // Total Claimed as rewards
     uint256 public totalFrozen = 0;
-    uint256 public totalProfitDistributed = 0;
+    uint256 public totalProfitDistributed = 0; // Total Claimed as Profits
     
-    uint256 public autoCompoundLimit = 10;
+    uint256 public autoCompoundLimit = 10; // Max Batch Size
 
     uint256 public deploymentTimeStamp;
+
     event RewardPoolUpdated (uint256 indexed _totalPool);
-    
     event StakeUpdated (address indexed recipeint, uint256 indexed _amount);
     
     constructor (CRUSHToken _crush, uint256 _crushPerBlock, address _reserveAddress) public{
@@ -81,7 +84,8 @@ contract BitcrushStaking is Ownable {
         reserveAddress = _reserveAddress;
         lastAutoCompoundBlock = 0;
         deploymentTimeStamp = block.timestamp;
-        
+        accRewardPerShare = 0;
+        lastRewardBlock = block.number;
     }
     /// Store `_bankroll`.
     /// @param _bankroll the new value to store
@@ -107,6 +111,24 @@ contract BitcrushStaking is Ownable {
         emit RewardPoolUpdated(totalPool);
     }
 
+    function updateDistribution() public {
+        if(block.number <= lastRewardBlock)
+            return;
+        if(totalStaked == 0){
+            lastRewardBlock = block.number;
+            return;
+        }
+        uint256 rewardPerBlock = crushPerBlock;
+        if(totalFrozen > 0)
+            rewardPerBlock = rewardPerBlock.add(crushPerBlock.mul(apyBoost).div(divisor));
+        if(totalPool == 0)
+            rewardPerBlock = 0;
+        uint256 blocksSinceCalc = block.number.sub(lastRewardBlock);
+        uint256 rewardCalc = blocksSinceCalc.mul(rewardPerBlock).mul(1e12).div(totalShares);
+        accRewardPerShare = accRewardPerShare.add( rewardCalc );
+        lastRewardBlock = block.number;
+    }
+
     
     function setCrushPerBlock (uint256 _amount) public onlyOwner {
         require(_amount >= 0, "Crush per Block can not be negative" );
@@ -123,6 +145,7 @@ contract BitcrushStaking is Ownable {
         require(_amount > 0,"Invalid staking amount");
         require(totalPool > 0, "Reward Pool Exhausted");
         
+        updateDistribution();
         crush.safeTransferFrom(msg.sender, address(this), _amount);
         if(totalStaked == 0){
             lastAutoCompoundBlock = block.number;
@@ -135,25 +158,27 @@ contract BitcrushStaking is Ownable {
             user.index = addressIndexes.length-1;
         }
         else{
-            crush.safeTransfer(msg.sender, getReward(msg.sender));
+            uint256 pending = user.shares.mul(accRewardPerShare.div(1e12).sub(user.entryBaseline));
+            if(pending > 0)
+                crush.safeTransfer(msg.sender, pending);
         }
         
         totalStaked = totalStaked.add(_amount);
 
         uint256 currentShares = 0;
-        if (totalShares != 0) {
+        if (totalShares != 0)
             currentShares = _amount.mul(totalShares).div(totalStaked);
-        } else {
+        else
             currentShares = _amount;
-        }
-        user.shares = user.shares.add(currentShares);
-        totalShares = totalShares.add(currentShares);
 
+        totalShares = totalShares.add(currentShares);
+        if( user.shares == 0){
+            user.lastBlockCompounded = block.number;
+        }
+        user.entryBaseline = accRewardPerShare.mul(currentShares).div(1e12);
+        user.shares = user.shares.add(currentShares);
         user.stakedAmount = user.stakedAmount.add(_amount);
-        
         user.lastBlockStaked = block.number;
-        
-        user.lastBlockCompounded = block.number;
     }
 
 
@@ -162,10 +187,13 @@ contract BitcrushStaking is Ownable {
     /// @param _amount the amount to unstake
     /// @dev leaves staking and deducts total pool by the users reward. early withdrawal fee applied if withdraw is made before earlyWithdrawFeeTime
     function leaveStaking (uint256 _amount, bool _liveWallet) external  {
-        uint256 reward = getReward(msg.sender);
+        
+        updateDistribution();
         UserStaking storage user = stakings[msg.sender];
-        user.lastBlockCompounded = block.number;
+        uint256 reward = user.shares.mul(accRewardPerShare).div(1e12).sub(user.entryBaseline);
         totalPool = totalPool.sub(reward);
+        user.lastBlockCompounded = block.number;
+        
         uint256 availableStaked = user.stakedAmount;
         if(totalFrozen > 0){
             availableStaked = availableStaked.sub(totalFrozen.mul(user.stakedAmount).div(totalStaked));
@@ -180,11 +208,11 @@ contract BitcrushStaking is Ownable {
         user.stakedAmount = user.stakedAmount.sub(_amount);
         user.shares = user.shares.sub( shareReduction );
         totalShares = totalShares.sub( shareReduction );
-
+        user.entryBaseline = user.shares.mul(accRewardPerShare).div(1e12);
         if(totalFrozen > 0 ){
-            if(user.lastFrozenWithdraw > 0 ) {
+            if(user.lastFrozenWithdraw > 0 ) 
                 require(block.timestamp > user.lastFrozenWithdraw.add(frozenEarlyWithdrawFeeTime),"Only One Withdraw allowed per 3 hours during freeze");
-            }
+            
             uint256 withdrawalFee = _amount.mul(frozenEarlyWithdrawFee).div(divisor);
             user.lastFrozenWithdraw = block.timestamp;
             _amount = _amount.sub(withdrawalFee);
@@ -193,9 +221,8 @@ contract BitcrushStaking is Ownable {
                 uint256 remainder = withdrawalFee.sub(totalFrozen);
                 crush.approve(address(bankroll), remainder);
                 totalFrozen = 0;
-            }else {
+            }else
                 totalFrozen = totalFrozen.sub(withdrawalFee);
-            }
             
             bankroll.recoverBankroll(withdrawalFee);
             
@@ -207,14 +234,14 @@ contract BitcrushStaking is Ownable {
             crush.safeTransfer(reserveAddress, withdrawalFee);
         }
         _amount = _amount.add(reward);
-        if(_liveWallet == false){
+        if(_liveWallet == false)
             crush.safeTransfer(msg.sender, _amount);
-        }else {
+        else {
             crush.approve(address(liveWallet), _amount);
             liveWallet.addbetWithAddress(_amount, msg.sender);
         }
         
-        //remove from array
+        //remove from batchig array
         if(user.stakedAmount == 0){
             if(user.index != addressIndexes.length-1){
                 address lastAddress = addressIndexes[addressIndexes.length-1];
@@ -224,27 +251,6 @@ contract BitcrushStaking is Ownable {
             addressIndexes.pop();
         }
         emit RewardPoolUpdated(totalPool);
-    }
-
-
-    function getReward(address _address) internal view returns (uint256) {
-        UserStaking storage user = stakings[_address];
-        if(block.number <= user.lastBlockCompounded || totalPool == 0 || totalStaked ==0){
-            return 0;
-        }
-        //if the staker reward is greater than total pool => set it to total pool
-        uint256 blocks = block.number.sub(user.lastBlockCompounded);
-        uint256 totalReward;
-        if(totalFrozen > 0){
-            totalReward = blocks.mul(crushPerBlock.add(crushPerBlock.mul(apyBoost).div(divisor)));
-        }else {
-            totalReward = blocks.mul(crushPerBlock);
-        }
-        uint256 stakerReward = totalReward.mul(user.shares).div(totalShares);
-        if(stakerReward > totalPool){
-            stakerReward = totalPool;
-        }
-        return stakerReward;
     }
 
     /// Calculates total potential pending rewards
@@ -264,11 +270,23 @@ contract BitcrushStaking is Ownable {
             return totalReward;
     }
 
-    /// Get pending rewards of a user
+    /// Get pending rewards of a user for UI
     /// @param _address the address to calculate the reward for
     /// @dev calculates potential reward for the address provided based on crush per block
     function pendingReward (address _address) external view returns (uint256){
-        return getReward(_address);
+        UserStaking storage user = stakings[_address];
+        uint256 rewardPerBlock = crushPerBlock;
+        if(totalFrozen > 0)
+            rewardPerBlock = rewardPerBlock.add(crushPerBlock.mul(apyBoost).div(divisor));
+        if(totalPool == 0)
+            rewardPerBlock = 0;
+        uint256 localAccRewardPerShare = accRewardPerShare;
+        if(block.number > lastRewardBlock && totalShares !=0){
+            uint256 blocksSinceCalc = block.number.sub(lastRewardBlock);
+            uint256 rewardCalc = blocksSinceCalc.mul(rewardPerBlock).mul(1e12).div(totalShares);
+            localAccRewardPerShare = accRewardPerShare.add( rewardCalc );
+        }
+        return user.shares.mul(localAccRewardPerShare).div(1e12).sub(user.entryBaseline);
     }
 
    
@@ -283,13 +301,16 @@ contract BitcrushStaking is Ownable {
         
         uint256 compounderReward = 0;
         uint totalPoolDeducted = 0;
+
+        uint256 batchStart = batchStartingIndex;
+        if( batchStartingIndex >= addressIndexes.length )
+            batchStart = addressIndexes.length - 1;
         
         uint256 batchLimit = addressIndexes.length;
-        if(addressIndexes.length <= autoCompoundLimit || batchStartingIndex.add(autoCompoundLimit) >= addressIndexes.length){
+        if(addressIndexes.length <= autoCompoundLimit || batchStart.add(autoCompoundLimit) >= addressIndexes.length)
             batchLimit = addressIndexes.length;
-        }else {
-            batchLimit = batchStartingIndex.add(autoCompoundLimit);
-        }
+        else
+            batchLimit = batchStart.add(autoCompoundLimit);
         uint256 newProfit = bankroll.transferProfit();
         if(newProfit > 0){
             //profit deduction
@@ -297,7 +318,7 @@ contract BitcrushStaking is Ownable {
             profits.push(prof);
             totalProfitDistributed = totalProfitDistributed.add(newProfit);
         }
-        if(batchStartingIndex == 0){
+        if(batchStart == 0){
             if(profits.length > 1){
                 profits[profits.length - 1].total = profits[profits.length - 1].total.add(profits[0].remaining); 
                 profits[profits.length - 1].remaining = profits[profits.length - 1].total;
@@ -305,14 +326,11 @@ contract BitcrushStaking is Ownable {
                 profits.pop();
             }
         }
-
-        uint256 batchStart = batchStartingIndex;
-        if( batchStartingIndex >= addressIndexes.length )
-            batchStart = 0;
-
+        updateDistribution();
         for(uint256 i=batchStart; i < batchLimit; i++){
-            uint256 stakerReward = getReward(addressIndexes[i]);
             UserStaking storage currentUser = stakings[addressIndexes[i]];
+            uint256 stakerReward = currentUser.shares.mul(accRewardPerShare).div(1e12).sub(currentUser.entryBaseline);
+            currentUser.entryBaseline = currentUser.entryBaseline.add(stakerReward);
             if(stakerReward > 0){
                 totalClaimed = totalClaimed.add(stakerReward);
                 totalPoolDeducted = totalPoolDeducted.add(stakerReward);
@@ -350,7 +368,7 @@ contract BitcrushStaking is Ownable {
                 totalStaked = totalStaked.add(stakerReward);
             }    
             currentUser.lastBlockCompounded = block.number;
-            batchStartingIndex = batchStartingIndex.add(1);
+            batchStartingIndex = batchStart.add(1);
                         
         }
         if(batchStartingIndex >= addressIndexes.length){
@@ -375,6 +393,7 @@ contract BitcrushStaking is Ownable {
          BitcrushLiveWallet currentLw = BitcrushLiveWallet(_lwAddress);
          currentLw.addToUserWinnings(_amount, _recipient);
          crush.safeTransfer(address(_lwAddress), _amount);
+         updateDistribution();
     }
     
     /// unfreeze previously frozen funds from the staking pool
@@ -385,6 +404,7 @@ contract BitcrushStaking is Ownable {
         //update user mapping to reflect deducted frozen amount
          require(_amount <= totalFrozen, "unfreeze amount cant be greater than currently frozen amount");
          totalFrozen = totalFrozen.sub(_amount);
+         updateDistribution();
     }
 
 
