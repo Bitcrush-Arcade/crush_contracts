@@ -113,6 +113,9 @@ contract BitcrushStaking is Ownable {
         emit RewardPoolUpdated(totalPool);
     }
 
+    /// @notice updates accRewardPerShare based on the last block calculated and totalShares
+    /// @dev accRewardPerShare is accumulative, meaning it always holds the total historic 
+    /// rewardPerShare making entryBaseline necessary to keep rewards fair
     function updateDistribution() public {
         if(block.number <= lastRewardBlock)
             return;
