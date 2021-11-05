@@ -157,15 +157,17 @@ contract BitcrushStaking is Ownable {
         }
         UserStaking storage user = stakings[msg.sender];
 
-        if(user.stakedAmount == 0){
+        if(user.stakedAmount == 0) {
             user.lastBlockCompounded = block.number;
             addressIndexes.push(msg.sender);
             user.index = addressIndexes.length-1;
         }
-        else{
+        else {
             uint256 pending = user.shares.mul(accRewardPerShare.div(1e12).sub(user.entryBaseline));
-            if(pending > 0)
+            if(pending > 0) {
                 crush.safeTransfer(msg.sender, pending);
+                user.claimedAmount = user.claimedAmount.add(pending);
+            }
         }
         
         totalStaked = totalStaked.add(_amount);
@@ -241,10 +243,11 @@ contract BitcrushStaking is Ownable {
         _amount = _amount.add(reward);
         if(_liveWallet == false)
             crush.safeTransfer(msg.sender, _amount);
-        else {
+        else  {
             crush.approve(address(liveWallet), _amount);
             liveWallet.addbetWithAddress(_amount, msg.sender);
         }
+        user.claimedAmount = user.claimedAmount.add(reward);
         
         //remove from batchig array
         if(user.stakedAmount == 0){
