@@ -16,8 +16,8 @@ contract BitcrushBankroll is Ownable {
     uint256 public negativeBankroll;
     //address of the crush token
     CRUSHToken public immutable crush;
-    BitcrushStaking public stakingPool;
-    BitcrushLiveWallet public liveWallet;
+    BitcrushStaking public immutable stakingPool;
+    
     address public reserve;
     address public lottery;
     
@@ -64,13 +64,7 @@ contract BitcrushBankroll is Ownable {
 
     }
 
-    /// Store `_liveWallet`.
-    /// @param _liveWallet the new value to store
-    /// @dev stores the _liveWallet address in the state variable `liveWallet`
-    function setLiveWallet(BitcrushLiveWallet _liveWallet) public onlyOwner{
-        liveWallet = _liveWallet;
-    }
-
+    
     /// authorize address to register wins and losses
     /// @param _address the address to be authorized
     /// @dev updates the authorizedAddresses mapping to true for given address
@@ -325,7 +319,8 @@ contract BitcrushBankroll is Ownable {
             _houseBankrollShare
             .add(_profitShare)
             .add(_lotteryShare)
-            .add(_reserveShare) == DIVISOR,
+            .add(_reserveShare)
+            .add(BURN_RATE) == DIVISOR,
             "Sum of all shares should add up to 100%"
             );
         houseBankrollShare = _houseBankrollShare;   
@@ -335,11 +330,6 @@ contract BitcrushBankroll is Ownable {
         emit SharesUpdated(_houseBankrollShare, _profitShare, _lotteryShare,  _reserveShare);
     }
 
-    /// Store `_stakingPool`.
-    /// @param _stakingPool the new value to store
-    /// @dev stores the _stakingPool address in the state variable `stakingPool`
-    function setBitcrushStaking (BitcrushStaking _stakingPool)public onlyOwner{
-        stakingPool = _stakingPool;
-    }
+   
 
 }

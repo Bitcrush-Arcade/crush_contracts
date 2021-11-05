@@ -56,7 +56,7 @@ contract BitcrushStaking is Ownable {
     profit[] public profits;
     uint256 public lastAutoCompoundBlock;
 
-    uint256 public batchStartingIndex = 0;
+    uint256 public batchStartingIndex;
     uint256 public crushPerBlock = 5500000000000000000;
     // Pool Accumulated Reward Per Share
     uint256 public accRewardPerShare;
@@ -65,8 +65,8 @@ contract BitcrushStaking is Ownable {
     uint256 public totalPool; // Reward for Staking
     uint256 public totalStaked;
     uint256 public totalClaimed; // Total Claimed as rewards
-    uint256 public totalFrozen = 0;
-    uint256 public totalProfitDistributed = 0; // Total Claimed as Profits
+    uint256 public totalFrozen;
+    uint256 public totalProfitDistributed; // Total Claimed as Profits
     
     uint256 public autoCompoundLimit = 10; // Max Batch Size
 
@@ -91,6 +91,7 @@ contract BitcrushStaking is Ownable {
     /// @param _bankroll the new value to store
     /// @dev stores the _bankroll address in the state variable `bankroll`
     function setBankroll (BitcrushBankroll _bankroll) public onlyOwner{
+        require(bankroll == BitcrushBankroll(0x0), "Bankroll address already set");
         bankroll = _bankroll;
     }
 
@@ -98,6 +99,7 @@ contract BitcrushStaking is Ownable {
     /// @param _liveWallet the new value to store
     /// @dev stores the _liveWallet address in the state variable `liveWallet`
     function setLiveWallet (BitcrushLiveWallet _liveWallet) public onlyOwner{
+        require(liveWallet == BitcrushLiveWallet(0x0), "Live Wallet address already set");
         liveWallet = _liveWallet;
     }
 
@@ -399,9 +401,7 @@ contract BitcrushStaking is Ownable {
     /// unfreeze previously frozen funds from the staking pool
     /// @dev deducts the provided amount from the total frozen variablle
     function unfreezeStaking (uint256 _amount) public {
-        require(msg.sender == address(bankroll), "Callet must be bankroll");
-       //divide amount over users
-        //update user mapping to reflect deducted frozen amount
+        require(msg.sender == address(bankroll), "Caller must be bankroll");
          require(_amount <= totalFrozen, "unfreeze amount cant be greater than currently frozen amount");
          totalFrozen = totalFrozen.sub(_amount);
          updateDistribution();
@@ -466,6 +466,74 @@ contract BitcrushStaking is Ownable {
         require(_limit > 0, "Limit can not be 0");
         require(_limit < 30, "Max autocompound limit cannot be greater 30");
         autoCompoundLimit = _limit;
+    }
+
+
+    /// emergency withdraw funds of users
+    /// @dev transfer all available funds of users to users wallet
+    function emergencyWithdraw () public {
+        
+        updateDistribution();
+        UserStaking storage user = stakings[msg.sender];
+        uint256 reward = user.shares.mul(accRewardPerShare).div(1e12).sub(user.entryBaseline);
+        totalPool = totalPool.sub(reward);
+        user.lastBlockCompounded = block.number;
+        
+        uint256 availableStaked = user.stakedAmount;
+        if(totalFrozen > 0){
+            availableStaked = availableStaked.sub(totalFrozen.mul(user.stakedAmount).div(totalStaked));
+        }else if(user.lastFrozenWithdraw > 0){
+            user.lastFrozenWithdraw = 0;
+        }
+        
+        totalStaked = totalStaked.sub(availableStaked);
+        
+        uint256 shareReduction = availableStaked.mul( user.shares ).div( user.stakedAmount );
+        user.stakedAmount = user.stakedAmount.sub(availableStaked);
+        user.shares = user.shares.sub( shareReduction );
+        totalShares = totalShares.sub( shareReduction );
+        user.entryBaseline = user.shares.mul(accRewardPerShare).div(1e12);
+        if(totalFrozen > 0 ){
+            if(user.lastFrozenWithdraw > 0 ) 
+                require(block.timestamp > user.lastFrozenWithdraw.add(frozenEarlyWithdrawFeeTime),"Only One Withdraw allowed per 3 hours during freeze");
+            
+            uint256 withdrawalFee = availableStaked.mul(frozenEarlyWithdrawFee).div(divisor);
+            user.lastFrozenWithdraw = block.timestamp;
+            availableStaked = availableStaked.sub(withdrawalFee);
+            
+            if(withdrawalFee > totalFrozen){
+                uint256 remainder = withdrawalFee.sub(totalFrozen);
+                crush.approve(address(bankroll), remainder);
+                totalFrozen = 0;
+            }else
+                totalFrozen = totalFrozen.sub(withdrawalFee);
+            
+            crush.safeTransfer(reserveAddress, withdrawalFee);
+
+            
+        }
+        else if(block.number < user.lastBlockStaked.add(earlyWithdrawFeeTime)){
+            //apply fee
+            uint256 withdrawalFee = availableStaked.mul(earlyWithdrawFee).div(divisor);
+            availableStaked = availableStaked.sub(withdrawalFee);
+            crush.safeTransfer(reserveAddress, withdrawalFee);
+        }
+        availableStaked = availableStaked.add(reward);
+        
+        crush.safeTransfer(msg.sender, availableStaked);
+        
+        
+        //remove from batchig array
+        if(user.stakedAmount == 0){
+            if(user.index != addressIndexes.length-1){
+                address lastAddress = addressIndexes[addressIndexes.length-1];
+                addressIndexes[user.index] = lastAddress;
+                stakings[lastAddress].index = user.index;
+            }
+            addressIndexes.pop();
+        }
+        emit RewardPoolUpdated(totalPool);
+
     }
    
 

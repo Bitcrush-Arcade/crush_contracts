@@ -190,17 +190,13 @@ contract BitcrushLiveWallet is Ownable {
         earlyWithdrawFee = _earlyWithdrawFee;
     }
 
-    /// Store `_bankRoll`.
-    /// @param _bankRoll the new value to store
-    /// @dev stores the _bankRoll address in the state variable `bankroll`
-    function setBitcrushBankroll (BitcrushBankroll _bankRoll) public onlyOwner {
-        bankroll = _bankRoll;
-    }
+   
 
     /// Store `_stakingPool`.
     /// @param _stakingPool the new value to store
     /// @dev stores the _stakingPool address in the state variable `stakingPool`
     function setStakingPool (BitcrushStaking _stakingPool) public onlyOwner {
+        require(stakingPool == BitcrushStaking(0x0), "staking pool address already set");
         stakingPool = _stakingPool;
     }
 
