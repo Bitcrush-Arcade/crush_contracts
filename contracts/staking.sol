@@ -167,6 +167,7 @@ contract BitcrushStaking is Ownable {
             if(pending > 0) {
                 crush.safeTransfer(msg.sender, pending);
                 user.claimedAmount = user.claimedAmount.add(pending);
+                totalClaimed = totalClaimed.add(pending);
             }
         }
         
@@ -248,7 +249,7 @@ contract BitcrushStaking is Ownable {
             liveWallet.addbetWithAddress(_amount, msg.sender);
         }
         user.claimedAmount = user.claimedAmount.add(reward);
-        
+        totalClaimed = totalClaimed.add(reward);
         //remove from batchig array
         if(user.stakedAmount == 0){
             if(user.index != addressIndexes.length-1){
@@ -339,10 +340,8 @@ contract BitcrushStaking is Ownable {
             UserStaking storage currentUser = stakings[addressIndexes[i]];
             uint256 stakerReward = currentUser.shares.mul(accRewardPerShare).div(1e12).sub(currentUser.entryBaseline);
             currentUser.entryBaseline = currentUser.entryBaseline.add(stakerReward);
-            if(stakerReward > 0){
-                totalClaimed = totalClaimed.add(stakerReward);
+            if(stakerReward > 0)
                 totalPoolDeducted = totalPoolDeducted.add(stakerReward);
-            }
             if(profits.length > 0){
                 if(profits[0].remaining > 0){
                     uint256 profitShareUser =0;
@@ -359,6 +358,7 @@ contract BitcrushStaking is Ownable {
                 }
             }
             if(stakerReward > 0){
+                totalClaimed = totalClaimed.add(stakerReward);
                 uint256 stakerBurn = stakerReward.mul(performanceFeeBurn).div(divisor);
                 crushToBurn = crushToBurn.add(stakerBurn);
             
