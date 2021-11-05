@@ -39,6 +39,11 @@ contract BitcrushBankroll is Ownable {
     uint256 public totalWinnings;
     uint256 public totalProfit;
     
+    //time lock variables
+    uint256 authorizationTimeLock;
+    uint256 reserveAddressTimeLock;
+    uint256 lotteryAddressTimeLock;
+
 
     //authorized addresses
     mapping (address => bool) public authorizedAddresses;
@@ -69,6 +74,7 @@ contract BitcrushBankroll is Ownable {
     /// @param _address the address to be authorized
     /// @dev updates the authorizedAddresses mapping to true for given address
     function authorizeAddress (address _address) public onlyOwner {
+        require(block.timestamp.add(86400) > authorizationTimeLock && authorizationTimeLock < block.timestamp.add(90000), "Timelock conditions not met");
         authorizedAddresses[_address] = true;
     }
 
@@ -330,6 +336,38 @@ contract BitcrushBankroll is Ownable {
         emit SharesUpdated(_houseBankrollShare, _profitShare, _lotteryShare,  _reserveShare);
     }
 
+    /// initates authorization timelock for adding live wallet address
+    /// @dev sets the timelock variable to current time. after 24 hours a window of 1 hour will be open for using the associated setter
+    function initiateAuthorizationTimelock () public onlyOwner {
+        authorizationTimeLock = block.timestamp;
+    }
+
+    ///store new address in reserve address
+    /// @param _reserve the new address to store
+    /// @dev changes the address which recieves reserve fees
+    function setReserveAddress (address _reserve ) public onlyOwner {
+        require(block.timestamp.add(86400) > reserveAddressTimeLock && reserveAddressTimeLock < block.timestamp.add(90000), "Timelock conditions not met");
+        reserve = _reserve;
+    }
+    /// initates authorization timelock for updating reserve address
+    /// @dev sets the timelock variable to current time. after 24 hours a window of 1 hour will be open for using the associated setter
+    function initiateReserveTimelock () public onlyOwner {
+        reserveAddressTimeLock = block.timestamp;
+    }
+
+    ///store new address in lottery address
+    /// @param _lottery the new address to store
+    /// @dev changes the address which recieves lottery fees
+    function setLotteryAddress (address _lottery) public onlyOwner {
+        require(block.timestamp.add(86400) > lotteryAddressTimeLock && lotteryAddressTimeLock < block.timestamp.add(90000), "Timelock conditions not met");
+        lottery = _lottery;
+    }
+
+    /// initates authorization timelock for updating lottery address
+    /// @dev sets the timelock variable to current time. after 24 hours a window of 1 hour will be open for using the associated setter
+    function initiateLotteryTimelock () public onlyOwner {
+        lotteryAddressTimeLock = block.timestamp;
+    }
    
 
 }
