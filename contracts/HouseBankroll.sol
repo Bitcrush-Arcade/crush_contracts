@@ -74,8 +74,9 @@ contract BitcrushBankroll is Ownable {
     /// @param _address the address to be authorized
     /// @dev updates the authorizedAddresses mapping to true for given address
     function authorizeAddress (address _address) public onlyOwner {
-        require(block.timestamp.add(86400) > authorizationTimeLock && authorizationTimeLock < block.timestamp.add(90000), "Timelock conditions not met");
+        require((block.timestamp >= authorizationTimeLock.add(86400) && block.timestamp <= authorizationTimeLock.add(90000)) || authorizationTimeLock == 0,"Timelock conditions not met");
         authorizedAddresses[_address] = true;
+        authorizationTimeLock = block.timestamp;
     }
 
     /// remove authorization of an address from register wins and losses
@@ -346,8 +347,9 @@ contract BitcrushBankroll is Ownable {
     /// @param _reserve the new address to store
     /// @dev changes the address which recieves reserve fees
     function setReserveAddress (address _reserve ) public onlyOwner {
-        require(block.timestamp.add(86400) > reserveAddressTimeLock && reserveAddressTimeLock < block.timestamp.add(90000), "Timelock conditions not met");
+        require((block.timestamp >= reserveAddressTimeLock.add(86400) && block.timestamp <= reserveAddressTimeLock.add(90000)) || reserveAddressTimeLock == 0,"Timelock conditions not met");
         reserve = _reserve;
+        reserveAddressTimeLock = block.timestamp;
     }
     /// initates authorization timelock for updating reserve address
     /// @dev sets the timelock variable to current time. after 24 hours a window of 1 hour will be open for using the associated setter
@@ -359,8 +361,9 @@ contract BitcrushBankroll is Ownable {
     /// @param _lottery the new address to store
     /// @dev changes the address which recieves lottery fees
     function setLotteryAddress (address _lottery) public onlyOwner {
-        require(block.timestamp.add(86400) > lotteryAddressTimeLock && lotteryAddressTimeLock < block.timestamp.add(90000), "Timelock conditions not met");
+        require((block.timestamp >= lotteryAddressTimeLock.add(86400) && block.timestamp <= lotteryAddressTimeLock.add(90000)) || lotteryAddressTimeLock == 0,"Timelock conditions not met");
         lottery = _lottery;
+        lotteryAddressTimeLock = block.timestamp;
     }
 
     /// initates authorization timelock for updating lottery address
