@@ -63,6 +63,7 @@ contract BitcrushStaking is Ownable {
     uint256 public totalStaked;
     uint256 public totalClaimed; // Total Claimed as rewards
     uint256 public totalFrozen;
+    uint256 public totalProfitsClaimed;
     uint256 public totalProfitDistributed; // Total Claimed as Profits
     
     uint256 public autoCompoundLimit = 10; // Max Batch Size
@@ -84,6 +85,8 @@ contract BitcrushStaking is Ownable {
         accRewardPerShare = 0;
         accProfitPerShare = 0;
         lastRewardBlock = block.number;
+        totalProfitsClaimed = 0;
+        totalProfitDistributed = 0;
     }
     /// Store `_bankroll`.
     /// @param _bankroll the new value to store
@@ -182,6 +185,7 @@ contract BitcrushStaking is Ownable {
                 crush.safeTransfer(msg.sender, pending);
                 user.claimedAmount = user.claimedAmount.add(pending);
                 totalClaimed = totalClaimed.add(pending);
+                totalProfitsClaimed = totalProfitsClaimed.add(profitPending);
             }
         }
         
@@ -218,6 +222,7 @@ contract BitcrushStaking is Ownable {
         uint256 profitShare = user.shares.mul(accProfitPerShare).div(1e12).sub(user.profitBaseline);
         totalPool = totalPool.sub(reward);
         reward = reward.add(profitShare);
+        totalProfitsClaimed = totalProfitsClaimed.add(profitShare);
         user.lastBlockCompounded = block.number;
         
         uint256 availableStaked = user.stakedAmount;
@@ -343,6 +348,7 @@ contract BitcrushStaking is Ownable {
             currentUser.profitBaseline = currentUser.profitBaseline.add(profitReward);
             stakerReward = stakerReward.add(profitReward);
             if(stakerReward > 0){
+                totalProfitsClaimed = totalProfitsClaimed.add(profitReward);
                 totalClaimed = totalClaimed.add(stakerReward);
                 uint256 stakerBurn = stakerReward.mul(performanceFeeBurn).div(divisor);
                 crushToBurn = crushToBurn.add(stakerBurn);
