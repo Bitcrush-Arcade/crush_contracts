@@ -39,7 +39,6 @@ contract BitcrushStaking is Ownable {
         uint256 shares;
         uint256 stakedAmount;
         uint256 claimedAmount;
-        uint256 profit;
         uint256 lastBlockCompounded;
         uint256 lastBlockStaked;
         uint256 index;
