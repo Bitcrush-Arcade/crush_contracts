@@ -37,14 +37,14 @@ contract('Bitcrush', ([alice, bob, carol, robert, dev ,minter]) => {
         await this.staking.setLiveWallet(this.liveWallet.address, {from : minter});
 
 
-        await this.bankroll.setLiveWallet(this.liveWallet.address, {from : minter});
-        await this.bankroll.setBitcrushStaking(this.staking.address, {from : minter});
+        // await this.bankroll.setLiveWallet(this.liveWallet.address, {from : minter});
+        // await this.bankroll.setBitcrushStaking(this.staking.address, {from : minter});
         await this.bankroll.authorizeAddress(this.liveWallet.address,{from: minter})
         //await this.bankroll.addGame(6000,web3.utils.asciiToHex("DI"),1000,200,2600,100,dev, {from : minter});
         
-        await this.staking.setBankroll(this.bankroll.address, {from : minter});
+        // await this.staking.setBankroll(this.bankroll.address, {from : minter});
 
-        await this.liveWallet.setBitcrushBankroll(this.bankroll.address, {from : minter});
+        // await this.liveWallet.setBitcrushBankroll(this.bankroll.address, {from : minter});
         await this.liveWallet.setStakingPool(this.staking.address, {from : minter});
 
         await this.crush.mint(minter, toWei(1000000), {from : minter});
@@ -84,26 +84,21 @@ contract('Bitcrush', ([alice, bob, carol, robert, dev ,minter]) => {
             try{ indexes.push(await this.staking.addressIndexes(0))}catch { indexes.push("-")}
             try{ indexes.push(await this.staking.addressIndexes(1))}catch { indexes.push("-")}
             try{ indexes.push(await this.staking.addressIndexes(2))}catch { indexes.push("-")}
-            let profits ={}
-            try{
-                let stakingProfits = await this.staking.profits(0)
-                profits.total = fromWei(stakingProfits.total)
-                profits.remainder = fromWei(stakingProfits.remaining)
-            }
-            catch{
-                profits = { total: 0, remainder: 0}
-            }
+            let profits = fromWei( await this.staking.accProfitPerShare() )
             console.log( { 
                 currentBlock,
-                compoundIndex: (await this.staking.batchStartingIndex()).toString(),
-                indexes,
+                bankProfit : fromWei( await this.bankroll.brSinceCompound() ),
+                bankThreshold : fromWei( await this.bankroll.profitThreshold() ),
+                // compoundIndex: (await this.staking.batchStartingIndex()).toString(),
+                // indexes,
                 a: {
                     reward: fromWei(aliceReward.toString()),
                     last: aliceStakings.lastBlockCompounded.toString(),
                     shares: fromWei(aliceStakings.shares.toString()),
                     staked: fromWei(aliceStakings.stakedAmount.toString()),
                     wallet: fromWei( await this.crush.balanceOf(alice) ),
-                    index: aliceStakings.index.toString()
+                    profit: fromWei( await this.staking.pendingProfits(alice) ),
+                //     index: aliceStakings.index.toString()
                 },
                 b: {
                     reward: fromWei(bobReward.toString()),
@@ -111,7 +106,8 @@ contract('Bitcrush', ([alice, bob, carol, robert, dev ,minter]) => {
                     shares: fromWei(bobStakings.shares.toString()),
                     staked: fromWei(bobStakings.stakedAmount.toString()),
                     wallet: fromWei( await this.crush.balanceOf(bob) ),
-                    index: bobStakings.index.toString()
+                    profit: fromWei( await this.staking.pendingProfits(bob) ),
+                //     index: bobStakings.index.toString()
                 },
                 r: {
                     reward: fromWei(robertReward.toString()),
@@ -119,9 +115,10 @@ contract('Bitcrush', ([alice, bob, carol, robert, dev ,minter]) => {
                     shares: fromWei(robertStakings.shares.toString()),
                     staked: fromWei(robertStakings.stakedAmount.toString()),
                     wallet: fromWei( await this.crush.balanceOf(robert) ),
-                    index: robertStakings.index.toString()
+                    profit: fromWei( await this.staking.pendingProfits(robert) ),
+                //     index: robertStakings.index.toString()
                 },
-                totalBankroll: fromWei( await this.bankroll.totalBankroll()),
+                // totalBankroll: fromWei( await this.bankroll.totalBankroll()),
                 stakingProfits: profits,
                 totalStaked: fromWei(await this.staking.totalStaked()),
                 frozen: fromWei( await this.staking.totalFrozen()),
@@ -219,8 +216,8 @@ contract('Bitcrush', ([alice, bob, carol, robert, dev ,minter]) => {
         logSection('Robert gets added')
         await this.logStakes()
 
-        await this.liveWallet.registerLoss( [toWei(300)], [carol], {from: minter})
-        logSection('Carol lost 300')
+        await this.liveWallet.registerLoss( [toWei(500)], [carol], {from: minter})
+        logSection('Carol lost 500')
         await this.logStakes()
 
         await waitForBlocks(100)
@@ -238,6 +235,14 @@ contract('Bitcrush', ([alice, bob, carol, robert, dev ,minter]) => {
         const aliceStaked1 = await this.staking.stakings(alice)
         await this.staking.leaveStaking( aliceStaked1.stakedAmount, false,{from: alice})
         logSection('Alice completely left pool')
+        await this.logStakes()
+
+        await this.staking.compoundAll({from: carol})
+        logSection("COMPOUNDED")
+        await this.logStakes()
+
+        await this.liveWallet.registerLoss( [toWei(100)], [carol], {from: minter})
+        logSection('Carol lost 500')
         await this.logStakes()
 
         await this.staking.compoundAll({from: carol})

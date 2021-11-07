@@ -44,23 +44,21 @@ contract BitcrushStaking is Ownable {
         uint256 lastBlockStaked;
         uint256 index;
         uint256 lastFrozenWithdraw;
-        uint256 entryBaseline;
+        uint256 apyBaseline;
+        uint256 profitBaseline;
     }
     mapping (address => UserStaking) public stakings;
     address[] public addressIndexes;
 
-    struct profit {
-        uint256 total;
-        uint256 remaining;
-    }
-    profit[] public profits;
     uint256 public lastAutoCompoundBlock;
 
     uint256 public batchStartingIndex;
     uint256 public crushPerBlock = 5500000000000000000;
-    // Pool Accumulated Reward Per Share
+    // Pool Accumulated Reward Per Share (APY)
     uint256 public accRewardPerShare;
     uint256 public lastRewardBlock;
+    // Profit Accumulated Reward Per Share
+    uint256 public accProfitPerShare;
     // Tracking Totals
     uint256 public totalPool; // Reward for Staking
     uint256 public totalStaked;
@@ -85,6 +83,7 @@ contract BitcrushStaking is Ownable {
         lastAutoCompoundBlock = 0;
         deploymentTimeStamp = block.timestamp;
         accRewardPerShare = 0;
+        accProfitPerShare = 0;
         lastRewardBlock = block.number;
     }
     /// Store `_bankroll`.
@@ -115,7 +114,7 @@ contract BitcrushStaking is Ownable {
 
     /// @notice updates accRewardPerShare based on the last block calculated and totalShares
     /// @dev accRewardPerShare is accumulative, meaning it always holds the total historic 
-    /// rewardPerShare making entryBaseline necessary to keep rewards fair
+    /// rewardPerShare making apyBaseline necessary to keep rewards fair
     function updateDistribution() public {
         if(block.number <= lastRewardBlock)
             return;
@@ -132,6 +131,19 @@ contract BitcrushStaking is Ownable {
         uint256 rewardCalc = blocksSinceCalc.mul(rewardPerBlock).mul(1e12).div(totalShares);
         accRewardPerShare = accRewardPerShare.add( rewardCalc );
         lastRewardBlock = block.number;
+    }
+
+    /// @notice updates accProfitPerShare based on current Profit available and totalShares
+    /// @dev this allows for consistent profit reporting and no change on profits to distribute
+    function updateProfits() public {
+        if(totalShares == 0)
+            return;
+        uint256 requestedProfits = bankroll.transferProfit();
+        if(requestedProfits == 0)
+            return;
+        totalProfitDistributed = totalProfitDistributed.add(requestedProfits);
+        uint256 profitCalc = requestedProfits.mul(1e12).div(totalShares);
+        accProfitPerShare = accProfitPerShare.add( profitCalc );
     }
 
     
@@ -151,6 +163,7 @@ contract BitcrushStaking is Ownable {
         require(totalPool > 0, "Reward Pool Exhausted");
         
         updateDistribution();
+        updateProfits();
         crush.safeTransferFrom(msg.sender, address(this), _amount);
         if(totalStaked == 0){
             lastAutoCompoundBlock = block.number;
@@ -163,8 +176,10 @@ contract BitcrushStaking is Ownable {
             user.index = addressIndexes.length-1;
         }
         else {
-            uint256 pending = user.shares.mul(accRewardPerShare.div(1e12).sub(user.entryBaseline));
-            if(pending > 0) {
+            uint256 pending = user.shares.mul(accRewardPerShare).div(1e12).sub(user.apyBaseline);
+            uint256 profitPending = user.shares.mul(accProfitPerShare).div(1e12).sub(user.profitBaseline);
+            pending = pending.add(profitPending);
+            if( pending > 0) {
                 crush.safeTransfer(msg.sender, pending);
                 user.claimedAmount = user.claimedAmount.add(pending);
                 totalClaimed = totalClaimed.add(pending);
@@ -183,7 +198,8 @@ contract BitcrushStaking is Ownable {
         if( user.shares == 0){
             user.lastBlockCompounded = block.number;
         }
-        user.entryBaseline = accRewardPerShare.mul(currentShares).div(1e12);
+        user.profitBaseline = accProfitPerShare.mul(currentShares).div(1e12);
+        user.apyBaseline = accRewardPerShare.mul(currentShares).div(1e12);
         user.shares = user.shares.add(currentShares);
         user.stakedAmount = user.stakedAmount.add(_amount);
         user.lastBlockStaked = block.number;
@@ -197,9 +213,12 @@ contract BitcrushStaking is Ownable {
     function leaveStaking (uint256 _amount, bool _liveWallet) external  {
         
         updateDistribution();
+        updateProfits();
         UserStaking storage user = stakings[msg.sender];
-        uint256 reward = user.shares.mul(accRewardPerShare).div(1e12).sub(user.entryBaseline);
+        uint256 reward = user.shares.mul(accRewardPerShare).div(1e12).sub(user.apyBaseline);
+        uint256 profitShare = user.shares.mul(accProfitPerShare).div(1e12).sub(user.profitBaseline);
         totalPool = totalPool.sub(reward);
+        reward = reward.add(profitShare);
         user.lastBlockCompounded = block.number;
         
         uint256 availableStaked = user.stakedAmount;
@@ -216,7 +235,8 @@ contract BitcrushStaking is Ownable {
         user.stakedAmount = user.stakedAmount.sub(_amount);
         user.shares = user.shares.sub( shareReduction );
         totalShares = totalShares.sub( shareReduction );
-        user.entryBaseline = user.shares.mul(accRewardPerShare).div(1e12);
+        user.apyBaseline = user.shares.mul(accRewardPerShare).div(1e12);
+        user.profitBaseline = user.shares.mul(accProfitPerShare).div(1e12);
         if(totalFrozen > 0 ){
             if(user.lastFrozenWithdraw > 0 ) 
                 require(block.timestamp > user.lastFrozenWithdraw.add(frozenEarlyWithdrawFeeTime),"Only One Withdraw allowed per 3 hours during freeze");
@@ -262,23 +282,6 @@ contract BitcrushStaking is Ownable {
         emit RewardPoolUpdated(totalPool);
     }
 
-    /// Calculates total potential pending rewards
-    /// @dev Calculates potential reward based on crush per block
-    function totalPendingRewards () public view returns (uint256){
-            if(block.number <= lastAutoCompoundBlock){
-                return 0;
-            }else if(lastAutoCompoundBlock == 0){
-                return 0;
-            }else if (totalPool == 0){
-                return 0;
-            }
-
-            uint256 blocks = block.number.sub(lastAutoCompoundBlock);
-            uint256 totalReward = blocks.mul(crushPerBlock);
-
-            return totalReward;
-    }
-
     /// Get pending rewards of a user for UI
     /// @param _address the address to calculate the reward for
     /// @dev calculates potential reward for the address provided based on crush per block
@@ -295,7 +298,15 @@ contract BitcrushStaking is Ownable {
             uint256 rewardCalc = blocksSinceCalc.mul(rewardPerBlock).mul(1e12).div(totalShares);
             localAccRewardPerShare = accRewardPerShare.add( rewardCalc );
         }
-        return user.shares.mul(localAccRewardPerShare).div(1e12).sub(user.entryBaseline);
+        return user.shares.mul(localAccRewardPerShare).div(1e12).sub(user.apyBaseline);
+    }
+
+    /// Get pending Profits to Claim
+    /// @param _address the user's wallet address to calculate profits
+    /// @return pending Profits to be claimed by this user
+    function pendingProfits(address _address) public view returns(uint256) {
+        UserStaking storage user = stakings[_address];
+        return user.shares.mul(accProfitPerShare).div(1e12).sub(user.profitBaseline);
     }
 
    
@@ -320,43 +331,18 @@ contract BitcrushStaking is Ownable {
             batchLimit = addressIndexes.length;
         else
             batchLimit = batchStart.add(autoCompoundLimit);
-        uint256 newProfit = bankroll.transferProfit();
-        if(newProfit > 0){
-            //profit deduction
-            profit memory prof = profit(newProfit,newProfit);
-            profits.push(prof);
-            totalProfitDistributed = totalProfitDistributed.add(newProfit);
-        }
-        if(batchStart == 0){
-            if(profits.length > 1){
-                profits[profits.length - 1].total = profits[profits.length - 1].total.add(profits[0].remaining); 
-                profits[profits.length - 1].remaining = profits[profits.length - 1].total;
-                profits[0] = profits[profits.length - 1];
-                profits.pop();
-            }
-        }
+
+        updateProfits();
         updateDistribution();
         for(uint256 i=batchStart; i < batchLimit; i++){
             UserStaking storage currentUser = stakings[addressIndexes[i]];
-            uint256 stakerReward = currentUser.shares.mul(accRewardPerShare).div(1e12).sub(currentUser.entryBaseline);
-            currentUser.entryBaseline = currentUser.entryBaseline.add(stakerReward);
+            uint256 stakerReward = currentUser.shares.mul(accRewardPerShare).div(1e12).sub(currentUser.apyBaseline);
+            currentUser.apyBaseline = currentUser.apyBaseline.add(stakerReward);
             if(stakerReward > 0)
                 totalPoolDeducted = totalPoolDeducted.add(stakerReward);
-            if(profits.length > 0){
-                if(profits[0].remaining > 0){
-                    uint256 profitShareUser =0;
-                    profitShareUser = profits[0].total.mul( currentUser.shares).div(totalShares);
-                    if(profitShareUser > profits[0].remaining){
-                        profitShareUser = profits[0].remaining;
-                    }
-                    profits[0].remaining = profits[0].remaining.sub(profitShareUser);
-                    if(profits[0].remaining <= 5){
-                       totalPool = totalPool.add(profits[0].remaining); 
-                       profits[0].remaining = 0;
-                    }
-                    stakerReward = stakerReward.add(profitShareUser); 
-                }
-            }
+            uint256 profitReward = currentUser.shares.mul(accProfitPerShare).div(1e12).sub(currentUser.profitBaseline);
+            currentUser.profitBaseline = currentUser.profitBaseline.add(profitReward);
+            stakerReward = stakerReward.add(profitReward);
             if(stakerReward > 0){
                 totalClaimed = totalClaimed.add(stakerReward);
                 uint256 stakerBurn = stakerReward.mul(performanceFeeBurn).div(divisor);
@@ -402,6 +388,7 @@ contract BitcrushStaking is Ownable {
          currentLw.addToUserWinnings(_amount, _recipient);
          crush.safeTransfer(address(_lwAddress), _amount);
          updateDistribution();
+         updateProfits();
     }
     
     /// unfreeze previously frozen funds from the staking pool
@@ -411,6 +398,7 @@ contract BitcrushStaking is Ownable {
          require(_amount <= totalFrozen, "unfreeze amount cant be greater than currently frozen amount");
          totalFrozen = totalFrozen.sub(_amount);
          updateDistribution();
+         updateProfits();
     }
 
 
@@ -480,11 +468,13 @@ contract BitcrushStaking is Ownable {
     function emergencyWithdraw () public {
         
         updateDistribution();
+        updateProfits();
         UserStaking storage user = stakings[msg.sender];
-        uint256 reward = user.shares.mul(accRewardPerShare).div(1e12).sub(user.entryBaseline);
+        uint256 reward = user.shares.mul(accRewardPerShare).div(1e12).sub(user.apyBaseline);
+        uint256 profitShare = user.shares.mul(accProfitPerShare).div(1e12).sub(user.profitBaseline);
         totalPool = totalPool.sub(reward);
         user.lastBlockCompounded = block.number;
-        
+        reward = reward.add(profitShare);
         uint256 availableStaked = user.stakedAmount;
         if(totalFrozen > 0){
             availableStaked = availableStaked.sub(totalFrozen.mul(user.stakedAmount).div(totalStaked));
@@ -498,7 +488,8 @@ contract BitcrushStaking is Ownable {
         user.stakedAmount = user.stakedAmount.sub(availableStaked);
         user.shares = user.shares.sub( shareReduction );
         totalShares = totalShares.sub( shareReduction );
-        user.entryBaseline = user.shares.mul(accRewardPerShare).div(1e12);
+        user.apyBaseline = user.shares.mul(accRewardPerShare).div(1e12);
+        user.profitBaseline = user.shares.mul(accProfitPerShare).div(1e12);
         if(totalFrozen > 0 ){
             if(user.lastFrozenWithdraw > 0 ) 
                 require(block.timestamp > user.lastFrozenWithdraw.add(frozenEarlyWithdrawFeeTime),"Only One Withdraw allowed per 3 hours during freeze");
