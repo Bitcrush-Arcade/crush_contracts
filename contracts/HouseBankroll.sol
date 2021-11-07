@@ -275,8 +275,8 @@ contract BitcrushBankroll is Ownable {
             //-----
             uint256 profit = 0;
             if(profitShare > 0 ){
-                uint256 stakingBakrollProfit = brSinceCompound.mul(profitShare).div(DIVISOR);
-                profit = profit.add(stakingBakrollProfit);
+                uint256 stakingBankrollProfit = brSinceCompound.mul(profitShare).div(DIVISOR);
+                profit = profit.add(stakingBankrollProfit);
             }
             if(reserveShare > 0 ){
                 uint256 reserveCrush = brSinceCompound.mul(reserveShare).div(DIVISOR);
