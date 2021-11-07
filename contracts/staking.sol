@@ -201,9 +201,9 @@ contract BitcrushStaking is Ownable {
         if( user.shares == 0){
             user.lastBlockCompounded = block.number;
         }
-        user.profitBaseline = accProfitPerShare.mul(currentShares).div(1e12);
-        user.apyBaseline = accRewardPerShare.mul(currentShares).div(1e12);
         user.shares = user.shares.add(currentShares);
+        user.profitBaseline = accProfitPerShare.mul(user.shares).div(1e12);
+        user.apyBaseline = accRewardPerShare.mul(user.shares).div(1e12);
         user.stakedAmount = user.stakedAmount.add(_amount);
         user.lastBlockStaked = block.number;
     }
