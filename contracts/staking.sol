@@ -189,7 +189,6 @@ contract BitcrushStaking is Ownable {
             }
         }
         
-        totalStaked = totalStaked.add(_amount);
 
         uint256 currentShares = 0;
         if (totalShares != 0)
@@ -197,6 +196,7 @@ contract BitcrushStaking is Ownable {
         else
             currentShares = _amount;
 
+        totalStaked = totalStaked.add(_amount);
         totalShares = totalShares.add(currentShares);
         if( user.shares == 0){
             user.lastBlockCompounded = block.number;
