@@ -22,7 +22,7 @@ contract BitcrushLiveWallet is Ownable {
     
     //address of the crush token
     CRUSHToken public immutable crush;
-    BitcrushBankroll public bankroll;
+    BitcrushBankroll public immutable bankroll;
     BitcrushStaking public stakingPool;
     
     
