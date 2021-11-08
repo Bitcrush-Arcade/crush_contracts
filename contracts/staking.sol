@@ -241,6 +241,7 @@ contract BitcrushStaking is Ownable {
         totalShares = totalShares.sub( shareReduction );
         user.apyBaseline = user.shares.mul(accRewardPerShare).div(1e12);
         user.profitBaseline = user.shares.mul(accProfitPerShare).div(1e12);
+        _amount = _amount.add(reward);
         if(totalFrozen > 0 ){
             if(user.lastFrozenWithdraw > 0 ) 
                 require(block.timestamp > user.lastFrozenWithdraw.add(frozenEarlyWithdrawFeeTime),"Only One Withdraw allowed per 3 hours during freeze");
@@ -265,7 +266,7 @@ contract BitcrushStaking is Ownable {
             _amount = _amount.sub(withdrawalFee);
             crush.safeTransfer(reserveAddress, withdrawalFee);
         }
-        _amount = _amount.add(reward);
+        
         if(_liveWallet == false)
             crush.safeTransfer(msg.sender, _amount);
         else  {
