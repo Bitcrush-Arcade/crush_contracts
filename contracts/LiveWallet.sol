@@ -33,6 +33,7 @@ contract BitcrushLiveWallet is Ownable {
     
     event Withdraw (address indexed _address, uint256 indexed _amount);
     event Deposit (address indexed _address, uint256 indexed _amount);
+    event DepositWin (address indexed _address, uint256 indexed _amount);
     event LockPeriodUpdated (uint256 indexed _lockPeriod);
 
     constructor (CRUSHToken _crush, BitcrushBankroll _bankroll, address _reserveAddress) public {
@@ -61,7 +62,7 @@ contract BitcrushLiveWallet is Ownable {
         crush.safeTransferFrom(msg.sender, address(this), _amount);
         betAmounts[_user].balance = betAmounts[_user].balance.add(_amount);
         betAmounts[_user].lockTimeStamp = block.timestamp;
-        emit Deposit(_user, _amount);
+        emit DepositWin(_user, _amount);
     }
 
     /// return the current balance of user in the live wallet
