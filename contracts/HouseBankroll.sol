@@ -38,12 +38,13 @@ contract BitcrushBankroll is Ownable {
     //tracking historical winnings and profits
     uint256 public totalWinnings;
     uint256 public totalProfit;
-    
-    //time lock variables
-    uint256 authorizationTimeLock;
-    uint256 reserveAddressTimeLock;
-    uint256 lotteryAddressTimeLock;
 
+    address admin;
+    // MODIFIERS
+    modifier adminOnly {
+        require(  msg.sender == address(admin), 'Access restricted to admin only');
+        _;
+    }
 
     //authorized addresses
     mapping (address => bool) public authorizedAddresses;
@@ -56,7 +57,8 @@ contract BitcrushBankroll is Ownable {
         uint256 _profitShare,
         uint256 _houseBankrollShare,
         uint256 _lotteryShare,
-        uint256 _reserveShare
+        uint256 _reserveShare,
+        address _admin
     ) public {
         crush = _crush;
         stakingPool = _stakingPool;
@@ -66,7 +68,7 @@ contract BitcrushBankroll is Ownable {
         houseBankrollShare = _houseBankrollShare;
         lotteryShare = _lotteryShare;
         reserveShare = _reserveShare;
-
+        admin = _admin;
     }
 
     
@@ -74,9 +76,7 @@ contract BitcrushBankroll is Ownable {
     /// @param _address the address to be authorized
     /// @dev updates the authorizedAddresses mapping to true for given address
     function authorizeAddress (address _address) public onlyOwner {
-        require((block.timestamp >= authorizationTimeLock.add(86400) && block.timestamp <= authorizationTimeLock.add(90000)) || authorizationTimeLock == 0,"Timelock conditions not met");
         authorizedAddresses[_address] = true;
-        authorizationTimeLock = block.timestamp;
     }
 
     /// remove authorization of an address from register wins and losses
@@ -89,7 +89,7 @@ contract BitcrushBankroll is Ownable {
     /// Add funds to the bankroll
     /// @param _amount the amount to add
     /// @dev adds funds to the bankroll
-    function addToBankroll(uint256 _amount) public onlyOwner {
+    function addToBankroll(uint256 _amount) public adminOnly {
 
         
         if (poolDepleted == true) {
@@ -310,7 +310,7 @@ contract BitcrushBankroll is Ownable {
     /// Store `_threshold`.
     /// @param _threshold the new value to store
     /// @dev stores the _threshold address in the state variable `profitThreshold`
-    function setProfitThreshold(uint256 _threshold) public onlyOwner {
+    function setProfitThreshold(uint256 _threshold) public adminOnly {
         require(_threshold < 100000000000000000000000, "Max profit threshold cant be greater than 100k Crush");
         profitThreshold = _threshold;
     }
@@ -337,40 +337,22 @@ contract BitcrushBankroll is Ownable {
         emit SharesUpdated(_houseBankrollShare, _profitShare, _lotteryShare,  _reserveShare);
     }
 
-    /// initates authorization timelock for adding live wallet address
-    /// @dev sets the timelock variable to current time. after 24 hours a window of 1 hour will be open for using the associated setter
-    function initiateAuthorizationTimelock () public onlyOwner {
-        authorizationTimeLock = block.timestamp;
-    }
 
     ///store new address in reserve address
     /// @param _reserve the new address to store
     /// @dev changes the address which recieves reserve fees
     function setReserveAddress (address _reserve ) public onlyOwner {
-        require((block.timestamp >= reserveAddressTimeLock.add(86400) && block.timestamp <= reserveAddressTimeLock.add(90000)) || reserveAddressTimeLock == 0,"Timelock conditions not met");
         reserve = _reserve;
-        reserveAddressTimeLock = block.timestamp;
     }
-    /// initates authorization timelock for updating reserve address
-    /// @dev sets the timelock variable to current time. after 24 hours a window of 1 hour will be open for using the associated setter
-    function initiateReserveTimelock () public onlyOwner {
-        reserveAddressTimeLock = block.timestamp;
-    }
+    
 
     ///store new address in lottery address
     /// @param _lottery the new address to store
     /// @dev changes the address which recieves lottery fees
     function setLotteryAddress (address _lottery) public onlyOwner {
-        require((block.timestamp >= lotteryAddressTimeLock.add(86400) && block.timestamp <= lotteryAddressTimeLock.add(90000)) || lotteryAddressTimeLock == 0,"Timelock conditions not met");
         lottery = _lottery;
-        lotteryAddressTimeLock = block.timestamp;
     }
 
-    /// initates authorization timelock for updating lottery address
-    /// @dev sets the timelock variable to current time. after 24 hours a window of 1 hour will be open for using the associated setter
-    function initiateLotteryTimelock () public onlyOwner {
-        lotteryAddressTimeLock = block.timestamp;
-    }
    
 
 }

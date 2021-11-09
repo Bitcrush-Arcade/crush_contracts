@@ -17,7 +17,7 @@ contract BitcrushStaking is Ownable {
     uint256 public constant divisor = 10000;
     
     uint256  public earlyWithdrawFee         = 50; // 50/10000 * 100 = 0.5% 
-    uint256  public frozenEarlyWithdrawFee   = 1500; // 50/10000 * 100 = 15% 
+    uint256  public frozenEarlyWithdrawFee   = 1500; // 1500/10000 * 100 = 15% 
     uint256  public performanceFeeReserve    = 190; // 190/10000 * 100 = 1.9%
     
     uint256  public frozenEarlyWithdrawFeeTime   = 10800;
@@ -78,15 +78,9 @@ contract BitcrushStaking is Ownable {
         if(_crushPerBlock <= MAX_CRUSH_PER_BLOCK){
             crushPerBlock = _crushPerBlock;
         }
-    
         reserveAddress = _reserveAddress;
-        lastAutoCompoundBlock = 0;
         deploymentTimeStamp = block.timestamp;
-        accRewardPerShare = 0;
-        accProfitPerShare = 0;
         lastRewardBlock = block.number;
-        totalProfitsClaimed = 0;
-        totalProfitDistributed = 0;
     }
     /// Store `_bankroll`.
     /// @param _bankroll the new value to store
