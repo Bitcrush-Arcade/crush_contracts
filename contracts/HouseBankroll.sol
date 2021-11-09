@@ -352,7 +352,13 @@ contract BitcrushBankroll is Ownable {
     function setLotteryAddress (address _lottery) public onlyOwner {
         lottery = _lottery;
     }
-
+    
+    ///store new address in admin address
+    /// @param _admin the new address to store
+    /// @dev changes the address which is used by the adminOnly modifier
+    function setAdmin (address _admin) public onlyOwner {
+        admin = _admin;
+    }
    
 
 }
