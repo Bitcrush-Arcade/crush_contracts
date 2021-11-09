@@ -476,9 +476,6 @@ contract BitcrushStaking is Ownable {
         updateDistribution();
         
         UserStaking storage user = stakings[msg.sender];
-        uint256 reward = user.shares.mul(accRewardPerShare).div(1e12).sub(user.apyBaseline);
-        
-        totalPool = totalPool.sub(reward);
         user.lastBlockCompounded = block.number;
         
         uint256 availableStaked = user.stakedAmount;
@@ -496,7 +493,7 @@ contract BitcrushStaking is Ownable {
         totalShares = totalShares.sub( shareReduction );
         user.apyBaseline = user.shares.mul(accRewardPerShare).div(1e12);
         user.profitBaseline = user.shares.mul(accProfitPerShare).div(1e12);
-        availableStaked = availableStaked.add(reward);
+        
         if(totalFrozen > 0 ){
             if(user.lastFrozenWithdraw > 0 ) 
                 require(block.timestamp > user.lastFrozenWithdraw.add(frozenEarlyWithdrawFeeTime),"Only One Withdraw allowed per 3 hours during freeze");
