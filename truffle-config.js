@@ -21,7 +21,7 @@
 const HDWalletProvider = require('@truffle/hdwallet-provider');
 // const infuraKey = "fj4jll3k.....";
 //
-const env = require('./env.json')
+//const env = require('./env.json')
 
 module.exports = {
   /**
@@ -60,11 +60,7 @@ module.exports = {
       networkCheckTimeout: 1000000000,
       timeoutBlocks: 200000, 
       provider : function(){
-        return new HDWalletProvider({
-          mnemonic: env.mnemonic,
-          providerOrUrl: "https://data-seed-prebsc-1-s1.binance.org:8545/",
-          addressIndex: 1
-        });
+        return new HDWalletProvider('', "https://data-seed-prebsc-1-s1.binance.org/");
        }
      },
     // Another network with more advanced options...
@@ -117,7 +113,7 @@ module.exports = {
     'truffle-plugin-verify'
   ],
   api_keys:{
-    bscscan: env.BSC_KEY
+    bscscan: "KM5UHCYTVQ8H4UWIIUHUHIBA9P7BJBW56U"
   },
   // Truffle DB is currently disabled by default; to enable it, change enabled: false to enabled: true
   //
