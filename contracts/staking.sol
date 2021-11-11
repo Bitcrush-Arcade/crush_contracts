@@ -308,8 +308,6 @@ contract BitcrushStaking is Ownable {
         return user.shares.mul(accProfitPerShare).div(1e12).sub(user.profitBaseline);
     }
 
-   
-
     /// compounds the rewards of all users in the pool
     /// @dev compounds the rewards of all users in the pool add adds it into their staked amount while deducting fees
     function compoundAll () public  {
@@ -323,7 +321,7 @@ contract BitcrushStaking is Ownable {
 
         uint256 batchStart = batchStartingIndex;
         if( batchStartingIndex >= addressIndexes.length )
-            batchStart = addressIndexes.length - 1;
+            batchStart = 0;
         
         uint256 batchLimit = addressIndexes.length;
         if(addressIndexes.length <= autoCompoundLimit || batchStart.add(autoCompoundLimit) >= addressIndexes.length)
@@ -362,9 +360,8 @@ contract BitcrushStaking is Ownable {
                 totalStaked = totalStaked.add(stakerReward);
             }    
             currentUser.lastBlockCompounded = block.number;
-            batchStartingIndex = batchStart.add(1);
-                        
         }
+        batchStartingIndex = batchLimit;
         if(batchStartingIndex >= addressIndexes.length){
             batchStartingIndex = 0;
         }
