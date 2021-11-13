@@ -86,6 +86,7 @@ contract BitcrushLiveWallet is Ownable {
         require (_bets.length == _users.length, "Parameter lengths should be equal");
         for(uint256 i=0; i < _users.length; i++){
             if(_bets[i] > 0){
+            require(betAmounts[_users[i]].balance >= _bets[i], "Loss bet amount is greater than available balance");    
             transferToBankroll(_bets[i]);
             betAmounts[_users[i]].balance = betAmounts[_users[i]].balance.sub(_bets[i]);
             }

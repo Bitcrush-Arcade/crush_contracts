@@ -156,7 +156,7 @@ contract BitcrushStaking is Ownable {
     function enterStaking (uint256 _amount) public  {
         require(crush.balanceOf(msg.sender) >= _amount, "Insufficient Crush tokens for transfer");
         require(_amount > 0,"Invalid staking amount");
-        require(totalPool > 0, "Reward Pool Exhausted");
+        
         
         updateDistribution();
         updateProfits();
@@ -334,6 +334,9 @@ contract BitcrushStaking is Ownable {
         for(uint256 i=batchStart; i < batchLimit; i++){
             UserStaking storage currentUser = stakings[addressIndexes[i]];
             uint256 stakerReward = currentUser.shares.mul(accRewardPerShare).div(1e12).sub(currentUser.apyBaseline);
+            if(totalPool < totalPoolDeducted.add(stakerReward)){
+                stakerReward = totalPool.sub(totalPoolDeducted);
+            }
             currentUser.apyBaseline = currentUser.apyBaseline.add(stakerReward);
             if(stakerReward > 0)
                 totalPoolDeducted = totalPoolDeducted.add(stakerReward);
