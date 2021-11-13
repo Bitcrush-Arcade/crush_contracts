@@ -173,6 +173,9 @@ contract BitcrushStaking is Ownable {
         }
         else {
             uint256 pending = user.shares.mul(accRewardPerShare).div(1e12).sub(user.apyBaseline);
+            if( pending > totalPool)
+                pending = totalPool;
+            totalPool = totalPool.sub(pending);
             uint256 profitPending = user.shares.mul(accProfitPerShare).div(1e12).sub(user.profitBaseline);
             pending = pending.add(profitPending);
             if( pending > 0) {
@@ -214,6 +217,8 @@ contract BitcrushStaking is Ownable {
         UserStaking storage user = stakings[msg.sender];
         uint256 reward = user.shares.mul(accRewardPerShare).div(1e12).sub(user.apyBaseline);
         uint256 profitShare = user.shares.mul(accProfitPerShare).div(1e12).sub(user.profitBaseline);
+        if( reward > totalPool )
+            reward = totalPool;
         totalPool = totalPool.sub(reward);
         reward = reward.add(profitShare);
         totalProfitsClaimed = totalProfitsClaimed.add(profitShare);
