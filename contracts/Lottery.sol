@@ -4,6 +4,7 @@ pragma solidity ^0.8.0;
 // VRF
 import "@chainlink/contracts/src/v0.8/VRFConsumerBase.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
@@ -21,7 +22,8 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
     
     // Libraries
     using SafeMath for uint256;
-    
+    using SafeERC20 for ERC20;
+    using SafeERC20 for CRUSHToken;
     // Contracts
     CRUSHToken public crush;
     address public devAddress; //Address to send Ticket cut to.
@@ -35,6 +37,12 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
     struct Claimer {
         address claimer;
         uint256 percent;
+    }
+    // This struct defines the values to be stored on a per Round basis
+    struct BonusCoin {
+        address bonusToken;
+        uint256 bonusAmount;
+        uint bonusMaxPercent; // accumulated percentage of winners for a round
     }
     
     // VRF Specific
@@ -74,8 +82,7 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
     mapping(uint256 => uint256) public totalTickets; //Total Tickets emmited per round
     mapping(uint256 => uint256) public roundPool; // Winning Pool
     mapping(uint256 => uint256) public winnerNumbers; // record of winner Number per round
-    mapping(uint256 => address) public bonusCoins; //Track bonus partner coins to distribute
-    mapping(uint256 => uint256) public bonusTotal; //Track bonus partner coins to distribute
+    mapping(uint256 => BonusCoin) public bonusCoins; //Track bonus partner coins to distribute
     mapping(uint256 => mapping(uint256 => uint256)) public holders; // ROUND => DIGITS => #OF HOLDERS
     mapping(uint256 => mapping(address => Ticket[]))public userTickets; // User Bought Tickets
     mapping(address => uint256) public exchangeableTickets;
@@ -86,6 +93,7 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
     
     
     // EVENTS
+    event FundedBonusCoins(address indexed _partner, uint256 _amount, uint256 _startRound, uint256 _numberOfRounds );
     event FundPool(uint256 indexed _round, uint256 _amount);
     event OperatorChanged (address indexed operators, bool active_status);
     event RoundStarted(uint256 indexed _round, address indexed _starter, uint256 _timestamp);
@@ -125,7 +133,7 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
 
     // External functions
     /// @notice Buy Tickets to participate in current Round
-    /// @param _ticketNumbers takes in an array of uint values as the ticket numebers to buy
+    /// @param _ticketNumbers takes in an array of uint values as the ticket numbers to buy
     /// @dev max bought tickets at any given time shouldn't be more than 10
     function buyTickets(uint256[] calldata _ticketNumbers) external {
         require(_ticketNumbers.length > 0, "Cant buy zero tickets");
@@ -143,11 +151,11 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
         
         uint devCut = getFraction(ticketCost, devTicketCut, PERCENT_BASE);
         addToPool(ticketCost.sub(devCut));
-        crush.transferFrom(msg.sender, devAddress, devCut);
+        crush.safeTransferFrom(msg.sender, devAddress, devCut);
         totalTickets[currentRound] += _ticketNumbers.length;
     }
 
-    /// @notice Reward Tickets to a particular user
+    /// @notice Give Redeemable Tickets to a particular user
     /// @param _rewardee Address the tickets will be awarded to
     /// @param ticketAmount number of tickets awarded
     function rewardTicket(address _rewardee, uint256 ticketAmount) external operatorOnly {
@@ -195,17 +203,17 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
         if(isWinner) {
             uint256 matchAmount = getFraction(currentPool, matches[amountMatch - 1], PERCENT_BASE);
             claimAmount = matchAmount.div(holders[_round][digits[6 - amountMatch]]);
-            transferBonus(msg.sender, _round, matches[amountMatch - 1]);
+            transferBonus(msg.sender, holders[_round][digits[6 - amountMatch]], _round, matches[amountMatch - 1]);
         }
         else{
             uint256 matchReduction = noMatch.sub(claimers[_round].percent);
             uint256 matchAmount = getFraction(currentPool, matchReduction, PERCENT_BASE);
-            transferBonus(msg.sender, _round, matchReduction);
+            transferBonus(msg.sender, calcNonWinners(_round), _round, matchReduction);
             // matchAmount / nonWinners
             claimAmount = matchAmount.div(calcNonWinners(_round));
         }
         if(claimAmount > 0)
-            crush.transfer(msg.sender, claimAmount);
+            crush.safeTransfer(msg.sender, claimAmount);
         userTickets[_round][msg.sender][ticketIndex].claimed = true;
         emit TicketClaimed(_round, msg.sender, ownedTickets[ticketIndex]);
     }
@@ -253,16 +261,28 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
     /// @param _fee the value of the new fee
     /// @dev Fee cannot be greater than 2% ( since 2% is the amount given out to nonWinners )
     function setClaimerFee( uint256 _fee ) external onlyOwner{
-        require(_fee < 2000 && _fee > 0, "Invalid fee amount");
+        require(_fee < 2000 && _fee >= 0, "Invalid fee amount");
         claimFee = _fee;
     }
     /// @notice Set the token that will be used as a Bonus for a particular round
     /// @param _partnerToken Token address
     /// @param _round round where this token applies
-    function setBonusCoin( address _partnerToken, uint256 _round ) external operatorOnly{
-        require(_round >= currentRound, "This round has passed.");
+    function setBonusCoin( address _partnerToken, uint256 _amount ,uint256 _round, uint256 _roundAmount ) external operatorOnly{
+        require(_roundAmount > 0, "Thanks for the tokens, but these need to go.");
+        require(_round > currentRound, "This round has passed.");
         require(_partnerToken != address(0),"Cant set bonus Token" );
-        bonusCoins[ _round ] = _partnerToken;
+        require( bonusCoins[ _round ].bonusToken == address(0), "Bonus token has already been added to this round");
+        ERC20 bonusToken = ERC20(_partnerToken);
+        require( bonusToken.balanceOf(msg.sender) >= _amount, "Funds are needed, can't conjure from thin air");
+        require( bonusToken.allowance(msg.sender, address(this)) >= _amount, "Please approve this contract for spending :)");
+        uint256 spreadAmount = _amount.div(_roundAmount);
+        uint256 totalAmount = spreadAmount.mul(_roundAmount);//get the actual total to take into account division issues
+        for( uint rounds = _round; rounds < _round.add(_roundAmount); rounds++){
+            // Uses the claimFee as the base since that will always be distributed to the claimer.
+            bonusCoins[ _round ] = BonusCoin(_partnerToken, spreadAmount, 0 );
+        }
+        bonusToken.safeTransferFrom(msg.sender, address(this), totalAmount);
+        emit FundedBonusCoins(_partnerToken, _amount, _round, _roundAmount);
     }
 
     /// @notice Set the ticket value
@@ -312,7 +332,7 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
     function addToPool(uint256 _amount) public {
         uint256 userBalance = crush.balanceOf( msg.sender );
         require( userBalance >= _amount, "Insufficient Funds to Send to Pool");
-        crush.transferFrom( msg.sender, address(this), _amount);
+        crush.safeTransferFrom( msg.sender, address(this), _amount);
         roundPool[ currentRound ] = roundPool[ currentRound ].add( _amount );
         emit FundPool( currentRound, _amount);
     }
@@ -341,12 +361,21 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
     }
 
     // Transfer bonus to
-    function transferBonus(address _to, uint256 _round, uint256 _match) internal {
-        if( bonusCoins[_round] != address(0) ){
-            ERC20( bonusCoins[_round] )
-                .transfer(
+    function transferBonus(address _to, uint256 _holders, uint256 _round, uint256 _match) internal {
+        BonusCoin storage bonus = bonusCoins[_round];
+        if(_holders == 0)
+            return;
+        if( bonus.bonusToken != address(0) ){
+            ERC20 bonusContract = ERC20(bonus.bonusToken);
+            uint256 availableFunds = bonusContract.balanceOf(address(this));
+            uint256 bonusReward = getFraction( bonus.bonusAmount, _match, bonus.bonusMaxPercent ).div(_holders);
+            if( bonusReward > availableFunds)
+                bonusReward = availableFunds;
+            if(bonusReward == 0)
+                return
+            bonusContract.safeTransfer(
                     _to,
-                    getFraction( bonusTotal[_round], _match, PERCENT_BASE )
+                    bonusReward
                 );
         }
     }
@@ -369,8 +398,8 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
         (rollOver, burnAmount, forClaimer) = calculateRollover();
         // Transfer Amount to Claimer
         Claimer storage roundClaimer = claimers[currentRound];
-        crush.transfer( roundClaimer.claimer, forClaimer );
-        transferBonus( roundClaimer.claimer, currentRound, roundClaimer.percent );
+        crush.safeTransfer( roundClaimer.claimer, forClaimer );
+        transferBonus( roundClaimer.claimer, 1 ,currentRound, roundClaimer.percent );
         // BURN AMOUNT
         crush.burn( burnAmount );
         roundPool[ currentRound + 1 ] = rollOver;
@@ -382,15 +411,12 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
         // for zero match winners
         uint roundTickets = totalTickets[currentRound];
         uint256 currentWinner = winnerNumbers[currentRound];
+        BonusCoin storage roundBonusCoin = bonusCoins[currentRound];
         uint256[6] memory winnerDigits = getDigits(currentWinner);
         uint256[6] memory matchPercents = [ match6, match5, match4, match3, match2, match1 ];
         uint256[6] memory matchHolders;
         uint256 totalMatchHolders = 0;
-        uint256 bonusRollOver = 0;
         
-        if( bonusCoins[ currentRound ] != address(0) ){
-            bonusTotal[ currentRound ] = ERC20(bonusCoins[currentRound]).balanceOf( address(this) );
-        }
         for( uint8 i = 0; i < 6; i ++){
             uint256 digitToCheck = winnerDigits[i];
             matchHolders[i] = holders[currentRound][digitToCheck];
@@ -405,30 +431,21 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
                 }
             }
             // single check to remove duplicate code
-            if(matchHolders[i] == 0){
+            if(matchHolders[i] == 0)
                 _rollover = _rollover.add( getFraction(totalPool, matchPercents[i], PERCENT_BASE) );
-                if( bonusCoins[ currentRound ] != address(0) ){
-                    bonusRollOver += getFraction( bonusTotal[currentRound], matchPercents[i], PERCENT_BASE);
-                }
-            }
             else{
-                _forClaimer = _forClaimer.add( matchPercents[i] );
+                _forClaimer = _forClaimer.add(matchPercents[i]);
+                roundBonusCoin.bonusMaxPercent = roundBonusCoin.bonusMaxPercent.add(matchPercents[i]);
             }
         }
         _forClaimer = _forClaimer.mul(claimFee).div(PERCENT_BASE);
         uint256 nonWinners = roundTickets.sub(totalMatchHolders);
         // Are there any noMatch tickets
-        if( nonWinners == 0 ){
+        if( nonWinners == 0 )
             _rollover += getFraction(totalPool, noMatch.sub(_forClaimer ), PERCENT_BASE);
-            if( bonusCoins[ currentRound ] != address(0) ){
-                bonusRollOver += getFraction( bonusTotal[currentRound], noMatch, PERCENT_BASE);
-            }
-        }
+        else
+            roundBonusCoin.bonusMaxPercent = roundBonusCoin.bonusMaxPercent.add(noMatch);
 
-        // Transfer bonus coin excedent to devAddress
-        if(bonusRollOver > 0){
-            ERC20(bonusCoins[currentRound]).transfer(devAddress, bonusTotal[currentRound].sub(bonusRollOver) );
-        }
         _burn = getFraction( totalPool, burn, PERCENT_BASE);
         
         claimers[currentRound].percent = _forClaimer;
