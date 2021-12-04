@@ -10,6 +10,10 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 
 import "./CrushCoin.sol";
 
+interface Bankroll {
+    function addUserLoss(uint256 _amount) external;
+}
+
 /**
  * @title  Bitcrush's lottery game
  * @author Bitcrush Devs
@@ -43,6 +47,12 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
         address bonusToken;
         uint256 bonusAmount;
         uint bonusMaxPercent; // accumulated percentage of winners for a round
+    }
+
+    struct Partner {
+        uint256 spread;
+        uint256 id;
+        bool set;
     }
     
     // VRF Specific
@@ -86,12 +96,13 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
     mapping(uint256 => mapping(uint256 => uint256)) public holders; // ROUND => DIGITS => #OF HOLDERS
     mapping(uint256 => mapping(address => Ticket[]))public userTickets; // User Bought Tickets
     mapping(address => uint256) public exchangeableTickets;
+    mapping(address => Partner) public partnerSplit;
 
     mapping(uint256 => Claimer) private claimers; // Track claimers to autosend claiming Bounty
     
     mapping(address => bool) public operators; //Operators allowed to execute certain functions
     
-    
+    address[] private partners;
     // EVENTS
     event FundedBonusCoins(address indexed _partner, uint256 _amount, uint256 _startRound, uint256 _numberOfRounds );
     event FundPool(uint256 indexed _round, uint256 _amount);
@@ -103,6 +114,7 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
     event TicketClaimed(uint256 indexed _round, address winner, Ticket ticketClaimed);
     event TicketsRewarded(address _rewardee, uint256 _ticketAmount);
     event UpdateTicketValue(uint256  _timeOfUpdate, uint256 _newValue);
+    event PartnerUpdated(address indexed _partner);
     
     // MODIFIERS
     modifier operatorOnly {
@@ -153,6 +165,52 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
         addToPool(ticketCost.sub(devCut));
         crush.safeTransferFrom(msg.sender, devAddress, devCut);
         totalTickets[currentRound] += _ticketNumbers.length;
+    }
+
+    /// @notice OVERLOAD - Buy Tickets to participate in current round from a partner
+    /// @param _ticketNumbers takes in an array of uint values as the ticket number to buy
+    /// @param _partnerId the id of the partner to send the funds to.
+    function buyTickets(uint256[] calldata _ticketNumbers, uint256 _partnerId) external {
+        require(_ticketNumbers.length > 0, "Cant buy zero tickets");
+        require(currentIsActive == true, "Round not active");
+        // Check if User has funds for ticket
+        uint userCrushBalance = crush.balanceOf(msg.sender);
+        uint ticketCost = ticketValue.mul(_ticketNumbers.length);
+        require(userCrushBalance >= ticketCost, "Not enough funds to purchase Tickets");
+        require(_partnerId < partners.length, "Cheeky aren't you");
+        Partner storage _p = partnerSplit[partners[_partnerId]];
+        require(_p.set, "Partnership ended");
+        // Add Tickets to respective Mappings
+        for(uint i = 0; i < _ticketNumbers.length; i++){
+            createTicket(msg.sender, _ticketNumbers[i], currentRound);
+        }
+        uint devCut = getFraction(ticketCost, devTicketCut, PERCENT_BASE);
+        addToPool(ticketCost.sub(devCut));
+
+        // Split cut with partner
+        uint partnerCut = getFraction(devCut, _p.spread, 100);
+        devCut = devCut.sub(partnerCut);
+
+        crush.safeTransferFrom(msg.sender, partners[_partnerId], partnerCut);
+        crush.safeTransferFrom(msg.sender, devAddress, devCut);
+        totalTickets[currentRound] += _ticketNumbers.length;
+    }
+
+    /// @notice add/remove/edit partners 
+    /// @param _partnerAddress the address where funds will go to.
+    /// @param _split the negotiated split percentage. Value goes from 0 to 90.
+    /// @dev their ID doesn't change, nor is it removed once partnership ends.
+    function editPartner(address _partnerAddress, uint8 _split) external operatorOnly {
+        require(_split <= 90, "No greedyness, thanks");
+        Partner storage _p = partnerSplit[_partnerAddress];
+        if(!_p.set){
+            partners.push(_partnerAddress);
+            _p.id = partners.length;
+        }
+        _p.spread = _split;
+        if(_split > 0)
+            _p.set = true;
+        emit PartnerUpdated(_partnerAddress);
     }
 
     /// @notice Give Redeemable Tickets to a particular user
