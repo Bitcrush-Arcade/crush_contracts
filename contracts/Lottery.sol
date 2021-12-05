@@ -212,7 +212,9 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
             _p.set = true;
         emit PartnerUpdated(_partnerAddress);
     }
-
+    /// @notice retrieve a provider wallet ID
+    /// @param _checkAddress the address to check
+    /// @return _id the ID of the provider
     function getProviderId(address _checkAddress) external view returns(uint256 _id){
         Partner storage partner = partnerSplit[_checkAddress];
         require( partner.set , "Not a partner");
