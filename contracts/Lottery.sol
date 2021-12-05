@@ -213,6 +213,12 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
         emit PartnerUpdated(_partnerAddress);
     }
 
+    function getProviderId(address _checkAddress) external view returns(uint256 _id){
+        Partner storage partner = partnerSplit[_checkAddress];
+        require( partner.set , "Not a partner");
+        _id = partner.id;
+    }
+
     /// @notice Give Redeemable Tickets to a particular user
     /// @param _rewardee Address the tickets will be awarded to
     /// @param ticketAmount number of tickets awarded
