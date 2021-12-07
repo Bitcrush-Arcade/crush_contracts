@@ -360,6 +360,19 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
         emit UpdateTicketValue(block.timestamp, _newValue);
     }
 
+    /// @notice Edit the times array
+    /// @param _newTimes Array of hours when Lottery will end
+    /// @dev adding a sorting algorithm would be nice but honestly we have too much going on to add that in. So help us out and add your times sorted
+    function setEndHours( uint8[] calldata _newTimes) external operatorOnly{
+        require( _newTimes.length > 0, "There must be a time somewhere");
+        for( uint i = 0; i < _newTimes.length; i ++){
+            require(_newTimes[i] < 24, "We all wish we had more hours per day");
+            if(i>0)
+                require( _newTimes[i] > _newTimes[i-1], "Help a brother out, sort your times first");
+        }
+        endHours = _newTimes;
+    }
+
     // External functions that are view
     /// @notice Get Tickets for the caller for during a specific round
     /// @param _round The round to query
@@ -405,11 +418,12 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
 
     /// @notice Set the next start hour and next hour index
     function calcNextHour() private {
-        uint256 tempEnd = endHour;
+        uint256 tempEnd = roundEnd;
         while(tempEnd <= block.timestamp){
             endHourIndex = endHourIndex + 1 >= endHours.length ? 0 : endHourIndex + 1;
             tempEnd = setNextRoundEndTime(block.timestamp, endHours[endHourIndex], endHourIndex != 0);
         }
+        roundEnd = tempEnd;
     }
 
     // Internal functions
