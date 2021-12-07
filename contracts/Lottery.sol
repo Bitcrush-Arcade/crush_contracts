@@ -103,6 +103,9 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
     mapping(address => bool) public operators; //Operators allowed to execute certain functions
     
     address[] private partners;
+
+    uint8[] public endHours = [18];
+    uint8 public endHourIndex;
     // EVENTS
     event FundedBonusCoins(address indexed _partner, uint256 _amount, uint256 _startRound, uint256 _numberOfRounds );
     event FundPool(uint256 indexed _round, uint256 _amount);
@@ -285,7 +288,7 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
     function firstStart() external operatorOnly{
         require(currentRound == 0, "First Round only");
         startRound();
-        roundEnd = setNextRoundEndTime( block.timestamp, endHour);
+        calcNextHour();
     }
 
     /// @notice Ends current round
@@ -295,7 +298,7 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
         require(currentIsActive == true, "Current Round is over");
         require(block.timestamp > roundEnd, "Can't end round just yet");
 
-        roundEnd = setNextRoundEndTime(block.timestamp, endHour);
+        calcNextHour();
         currentIsActive = false;
         claimers[currentRound] = Claimer(msg.sender, 0);
         // Request Random Number for Winner
@@ -398,6 +401,15 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
         crush.safeTransferFrom( msg.sender, address(this), _amount);
         roundPool[ currentRound ] = roundPool[ currentRound ].add( _amount );
         emit FundPool( currentRound, _amount);
+    }
+
+    /// @notice Set the next start hour and next hour index
+    function calcNextHour() private {
+        uint256 tempEnd = endHour;
+        while(tempEnd <= block.timestamp){
+            endHourIndex = endHourIndex + 1 >= endHours.length ? 0 : endHourIndex + 1;
+            tempEnd = setNextRoundEndTime(block.timestamp, endHours[endHourIndex], endHourIndex != 0);
+        }
     }
 
     // Internal functions
@@ -556,8 +568,8 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
     }
 
     // Get timestamp end for next round to be at the specified _hour
-    function setNextRoundEndTime(uint256 _currentTimestamp, uint256 _hour) internal pure returns (uint256 _endTimestamp ) {
-        uint nextDay = SECONDS_PER_DAY.add(_currentTimestamp);
+    function setNextRoundEndTime(uint256 _currentTimestamp, uint256 _hour, bool _sameDay) internal pure returns (uint256 _endTimestamp ) {
+        uint nextDay = _sameDay ? _currentTimestamp : SECONDS_PER_DAY.add(_currentTimestamp);
         (uint year, uint month, uint day) = timestampToDateTime(nextDay);
         _endTimestamp = timestampFromDateTime(year, month, day, _hour, 0, 0);
     }
