@@ -32,89 +32,75 @@ contract( "LotteryTests", ([alice, bob, carol, dev, minter]) => {
 
       await this.lottery.firstStart({ from: minter });
       await this.crush.approve( this.lottery.address, numberToWei(3000) ,{ from: minter });
+      await this.crush.approve( this.lottery.address, numberToWei(3000) ,{ from: bob });
+      await this.crush.approve( this.lottery.address, numberToWei(3000) ,{ from: alice });
+      await this.crush.approve( this.lottery.address, numberToWei(3000) ,{ from: carol });
+  
       await this.lottery.addToPool( numberToWei(1000), {from: minter}  )
   });
 
-  // it("should set next end time", async () => {
-  //   const currentTimestamp = await this.lottery.roundEnd();
-  //   await this.lottery.setNextRoundEndTime({ from: bob });
-  //   const newEndTime = await this.lottery.roundEnd();
-  //   console.log( new Date( parseInt(currentTimestamp.toString())* 1000 ), new Date(parseInt(newEndTime.toString())*1000))
+  it("should give the appropriate winner match value", async () => {
+    const sentWinner = 445568
+    await this.lottery.setWinner( sentWinner, alice,{ from: minter });
+    const { _winner, _match } = await this.lottery.isNumberWinner(1, 123456)
+    const { _winner: win1, _match: match1 } = await this.lottery.isNumberWinner(1, 433333)
+    const { _winner: win2, _match: match2 } = await this.lottery.isNumberWinner(1, 443333)
+    const { _winner: win3, _match: match3 } = await this.lottery.isNumberWinner(1, 445333)
+    const { _winner: win4, _match: match4 } = await this.lottery.isNumberWinner(1, 445555)
+    const { _winner: win5, _match: match5 } = await this.lottery.isNumberWinner(1, 445565)
+    const { _winner: win6, _match: match6 } = await this.lottery.isNumberWinner(1, 2445568)
+    assert.equal( _winner, false, "Shouldn't have been a winner")
+    assert.equal( win1, true, "1 Should have been a winner")
+    assert.equal( win2, true, "2 Should have been a winner")
+    assert.equal( win3, true, "3 Should have been a winner")
+    assert.equal( win4, true, "4 Should have been a winner")
+    assert.equal( win5, true, "5 Should have been a winner")
+    assert.equal( win6, true, "6 Should have been a winner")
+    assert.equal( _match.toString(), "0", "0 Didn't match same amount")
+    assert.equal( match1.toString(), "1", "1 Didn't match same amount")
+    assert.equal( match2.toString(), "2", "2 Didn't match same amount")
+    assert.equal( match3.toString(), "3", "3 Didn't match same amount")
+    assert.equal( match4.toString(), "4", "4 Didn't match same amount")
+    assert.equal( match5.toString(), "5", "5 Didn't match same amount")
+    assert.equal( match6.toString(), "6", "6 Didn't match same amount")
+  })
+
+  // it("should calculate the rollover", async () => {
+
+  //   const ticket1 = 112233 //NO WIN 2%
+  //   const ticket2 = 435566 // 1 match win 2%
+  //   const ticket7 = 345567 // NO WIN
+  //   const ticket3 = 345567 // NO WIN
+  //   const ticket4 = 345557 // NO WIN
+  //   const ticket5 = 445457 // 3 match win 5%
+  //   const ticket6 = 441234 // 2 match win 3%
+    
+    
+  //   await this.lottery.buyTickets([ticket1,ticket2], { from: bob });
+  //   await this.lottery.buyTickets([ticket3,ticket4], { from: alice });
+  //   await this.lottery.buyTickets([ticket5,ticket6,ticket7], { from: carol });
+  //   const initPool = web3.utils.fromWei((await this.lottery.roundPool(1)))
+  //   const sentWinner = 445568
+  //   // to test SETWINNER fn needs to be public
+  //   await this.lottery.setWinner( sentWinner, carol,{ from: minter });
+  //   const rolledOver = web3.utils.fromWei((await this.lottery.roundPool(2)))
+  //   assert.equal(rolledOver, "" + (parseFloat(initPool)*0.7), "different rolledOver value")
   //   return true
   // })
 
-  // it("should give the appropriate winner match value", async () => {
-  //   const sentWinner = 445568
-  //   await this.lottery.setWinner( sentWinner,{ from: minter });
-  //   const { _winner, _match } = await this.lottery.isNumberWinner(1, 123456)
-  //   const { _winner: win1, _match: match1 } = await this.lottery.isNumberWinner(1, 433333)
-  //   const { _winner: win2, _match: match2 } = await this.lottery.isNumberWinner(1, 443333)
-  //   const { _winner: win3, _match: match3 } = await this.lottery.isNumberWinner(1, 445333)
-  //   const { _winner: win4, _match: match4 } = await this.lottery.isNumberWinner(1, 445555)
-  //   const { _winner: win5, _match: match5 } = await this.lottery.isNumberWinner(1, 445565)
-  //   const { _winner: win6, _match: match6 } = await this.lottery.isNumberWinner(1, 2445568)
-  //   assert.equal( _winner, false, "Shouldn't have been a winner")
-  //   assert.equal( win1, true, "1 Should have been a winner")
-  //   assert.equal( win2, true, "2 Should have been a winner")
-  //   assert.equal( win3, true, "3 Should have been a winner")
-  //   assert.equal( win4, true, "4 Should have been a winner")
-  //   assert.equal( win5, true, "5 Should have been a winner")
-  //   assert.equal( win6, true, "6 Should have been a winner")
-  //   assert.equal( _match.toString(), "0", "0 Didn't match same amount")
-  //   assert.equal( match1.toString(), "1", "1 Didn't match same amount")
-  //   assert.equal( match2.toString(), "2", "2 Didn't match same amount")
-  //   assert.equal( match3.toString(), "3", "3 Didn't match same amount")
-  //   assert.equal( match4.toString(), "4", "4 Didn't match same amount")
-  //   assert.equal( match5.toString(), "5", "5 Didn't match same amount")
-  //   assert.equal( match6.toString(), "6", "6 Didn't match same amount")
-  // })
-
-  /* it("should calculate the rollover", async () => {
-
-    await this.crush.approve( this.lottery.address, numberToWei(3000) ,{ from: bob });
-    await this.crush.approve( this.lottery.address, numberToWei(3000) ,{ from: alice });
-    await this.crush.approve( this.lottery.address, numberToWei(3000) ,{ from: carol });
-    const ticket1 = 112233 //NO WIN 2%
-    const ticket2 = 435566 // 1 match win 2%
-    const ticket7 = 345567 // NO WIN
-    const ticket3 = 345567 // NO WIN
-    const ticket4 = 345557 // NO WIN
-    const ticket5 = 445457 // 3 match win 5%
-    const ticket6 = 441234 // 2 match win 3%
-    
-    
-    await this.lottery.buyTickets([ticket1,ticket2], { from: bob });
-    await this.lottery.buyTickets([ticket3,ticket4], { from: alice });
-    await this.lottery.buyTickets([ticket5,ticket6,ticket7], { from: carol });
-    const initPool = web3.utils.fromWei((await this.lottery.roundPool(1)))
-    const sentWinner = 445568
-    await this.lottery.setWinner( sentWinner,{ from: minter });
-    // TO TEST THIS MAKE DISTRIBUTECRUSH PUBLIC
-    await this.lottery.distributeCrush({from: minter});
-    const rolledOver = web3.utils.fromWei((await this.lottery.roundPool(2)))
-    // const winnerDigits = (await this.lottery.getDigits( (await this.lottery.winnerNumbers(1)).toString() )).map( digit => digit.toString() )
-    // const holders = []
-    // for( let i = 0; i < winnerDigits.length; i++){
-    //   holders.push( (await this.lottery.holders(1, winnerDigits[i] )).toString() )
-    // }
-    // console.log(winnerDigits,holders)
-    // console.log(initPool, rolledOver, parseFloat(initPool)*0.5)
-    assert.equal(rolledOver, "" + (parseFloat(initPool)*0.7), "different rolledOver value")
-    return true
-  }) */
-
   // it("should set the winner", async() => {
-    // const sentWinner = 234567
-    // const comparedWinner = standardizeNumber(sentWinner)
-    // await this.lottery.setWinner( sentWinner,{ from: minter });
-    // assert.equal( (await this.lottery.winnerNumbers(1)).toString(), ""+comparedWinner , "winner number not set" )
+  //   const sentWinner = 234567
+  //   const comparedWinner = standardizeNumber(sentWinner)
+  //   console.log( 'initBalance', (await this.crush.balanceOf(alice)).toString())
+  //   await this.lottery.setWinner( sentWinner, alice,{ from: minter });
+  //   console.log( 'endBalance', (await this.crush.balanceOf(alice)).toString())
+  //   assert.equal( (await this.lottery.winnerNumbers(1)).toString(), ""+comparedWinner , "winner number not set" )
   // })
 
 
-  // it("should start the next Round", async()=>{
+  // it("first Round should only be called once", async()=>{
   //   // START ROUND
-  //   await this.lottery.startRound({ from: minter });
-  //   assert.equal( await this.lottery.currentIsActive(), true, "Round didn't start");
+  //   expectRevert(this.lottery.firstStart({ from: minter }), "First Round only")
   // })
   
   // it( "should create 2 tickets for user", async () => {
@@ -162,5 +148,15 @@ contract( "LotteryTests", ([alice, bob, carol, dev, minter]) => {
   //   )
   // } )
 
+  // it("should be able to set the partners", async()=>{
+  //   await this.lottery.editPartner(alice, 20,{from: minter})
+  //   assert.equal( (await this.lottery.getProviderId(alice, {from: alice})).toString(), "1", "Alice wasn't set as first partner")
+  //   expectRevert( this.lottery.getProviderId(bob, {from: bob}), "Not a partner");
+  //   console.log( await this.lottery.partnerSplit(alice));
+  // })
 
+  it("should split the dev cut between partner and dev", async()=>{
+    const initDevBalance = await this.crush.balanceOf.call(minter);
+    return true
+  })
 })
