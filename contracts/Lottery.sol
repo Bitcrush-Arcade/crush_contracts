@@ -634,9 +634,12 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
     /// @notice HELPFUL FUNCTION TO TEST WINNERS LOCALLY THIS FUNCTION IS NOT MEANT TO GO LIVE
     /// This function sets the random value for the winner.
     /// @param randomness simulates a number given back by the randomness function
-    // function setWinner( uint256 randomness ) public operatorOnly{
+    // function setWinner( uint256 randomness, address _claimer ) public operatorOnly{
+    //     roundEnd = setNextRoundEndTime(block.timestamp, endHour);
+    //     currentIsActive = false;
     //     uint winnerNumber = standardTicketNumber(randomness, WINNER_BASE, MAX_BASE);
     //     winnerNumbers[currentRound] = winnerNumber;
+    //     claimers[currentRound] = Claimer(_claimer, 0);
     //     emit WinnerPicked(currentRound, winnerNumber, "ADMIN_SET_WINNER");
     //     distributeCrush();
     //     startRound();
