@@ -247,11 +247,10 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
         // check if Number belongs to caller
         Ticket[] storage ownedTickets = userTickets[ _round ][ msg.sender ];
         require( ownedTickets.length > 0, "It would be nice if I had tickets");
-        uint256 ticketCheck = standardTicketNumber(luckyTicket, WINNER_BASE, MAX_BASE);
         bool ownsTicket = false;
         uint256 ticketIndex;
         for(uint i = 0; i < ownedTickets.length; i ++) {
-            if(ownedTickets[i].ticketNumber == ticketCheck) {
+            if(ownedTickets[i].ticketNumber == standardTicketNumber(luckyTicket, WINNER_BASE, MAX_BASE)) {
                 ownsTicket = true;
                 ticketIndex = i;
             }
@@ -262,21 +261,19 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
         uint256[6] memory matches = [match1, match2, match3, match4, match5, match6];
         (bool isWinner, uint amountMatch) = isNumberWinner(_round, luckyTicket);
         uint256 claimAmount = 0;
-        uint[6] memory digits = getDigits(ticketCheck);
+        uint[6] memory digits = getDigits(standardTicketNumber(luckyTicket, WINNER_BASE, MAX_BASE));
 
-        uint256 currentPool = roundPool[_round];
-        
         if(isWinner) {
-            uint256 matchAmount = getFraction(currentPool, matches[amountMatch - 1], PERCENT_BASE);
-            claimAmount = matchAmount.div(holders[_round][digits[6 - amountMatch]]);
+            claimAmount = getFraction(roundPool[_round], matches[amountMatch - 1], PERCENT_BASE)
+                .div(holders[_round][digits[6 - amountMatch]]);
             transferBonus(msg.sender, holders[_round][digits[6 - amountMatch]], _round, matches[amountMatch - 1]);
         }
         else{
             uint256 matchReduction = noMatch.sub(claimers[_round].percent);
-            uint256 matchAmount = getFraction(currentPool, matchReduction, PERCENT_BASE);
             transferBonus(msg.sender, calcNonWinners(_round), _round, matchReduction);
             // matchAmount / nonWinners
-            claimAmount = matchAmount.div(calcNonWinners(_round));
+            claimAmount = getFraction(roundPool[_round], matchReduction, PERCENT_BASE)
+                .div(calcNonWinners(_round));
         }
         if(claimAmount > 0)
             crush.safeTransfer(msg.sender, claimAmount);
