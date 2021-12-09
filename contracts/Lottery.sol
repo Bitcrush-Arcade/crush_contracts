@@ -76,6 +76,8 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
     uint256 public ticketValue = 30 * 10**18 ; //Value of Ticket value in WEI
     uint256 public devTicketCut = 10000; // This is 10% of ticket sales taken on ticket sale
     uint256 public endHour= 18; // Time when Lottery ends. Default time is 18:00Z = 12:00 GMT-6
+
+    uint256 public burnThreshold = 10000;
     
     // Fee Distributions
     /// @dev these values are used with PERCENT_BASE as 100%
@@ -373,6 +375,14 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
         endHours = _newTimes;
     }
 
+    /// @notice Setup the burn threshold
+    /// @param _threshold new threshold in percent amount
+    /// @dev setting the minimum threshold as 0 will always burn, setting max as 50% (50000)
+    function setThreshold( uint256 _threshold ) external onlyOwner{
+        require( _threshold >= 0  && _threshold <= 50000, "Out of range");
+        burnThreshold = _threshold;
+    }
+
     // External functions that are view
     /// @notice Get Tickets for the caller for during a specific round
     /// @param _round The round to query
@@ -493,7 +503,8 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
         crush.safeTransfer( roundClaimer.claimer, forClaimer );
         transferBonus( roundClaimer.claimer, 1 ,currentRound, roundClaimer.percent );
         // BURN AMOUNT
-        crush.burn( burnAmount );
+        if( burnAmount > 0 )
+            crush.burn( burnAmount );
         roundPool[ currentRound + 1 ] = rollOver;
     }
 
@@ -537,8 +548,10 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
             _rollover += getFraction(totalPool, noMatch.sub(_forClaimer ), PERCENT_BASE);
         else
             roundBonusCoin.bonusMaxPercent = roundBonusCoin.bonusMaxPercent.add(noMatch);
-
-        _burn = getFraction( totalPool, burn, PERCENT_BASE);
+        if( getFraction(totalPool, burnThreshold, PERCENT_BASE) <=  totalTickets[currentRound].mul(ticketValue) )
+            _burn = getFraction( totalPool, burn, PERCENT_BASE);
+        else
+            _burn = 0;
         
         claimers[currentRound].percent = _forClaimer;
         _forClaimer = getFraction(totalPool, _forClaimer, PERCENT_BASE);
