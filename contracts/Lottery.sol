@@ -77,7 +77,6 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
     uint256 public roundEnd;
     uint256 public ticketValue = 30 * 10**18 ; //Value of Ticket value in WEI
     uint256 public devTicketCut = 10000; // This is 10% of ticket sales taken on ticket sale
-    uint256 public endHour= 18; // Time when Lottery ends. Default time is 18:00Z = 12:00 GMT-6
 
     uint256 public burnThreshold = 10000;
     uint256 public distributionThreshold = 10000;
@@ -303,10 +302,6 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
     }
 
     // SETTERS
-    function setEndHour(uint256 _newHour) external onlyOwner{
-        endHour = _newHour;
-    }
-
     /// @notice Change the claimer's fee
     /// @param _fee the value of the new fee
     /// @dev Fee cannot be greater than 2% ( since 2% is the amount given out to nonWinners )
@@ -360,7 +355,7 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
     /// @notice Setup the burn threshold
     /// @param _threshold new threshold in percent amount
     /// @dev setting the minimum threshold as 0 will always burn, setting max as 50% (50000)
-    function setThreshold( uint256 _threshold ) external onlyOwner{
+    function setBurnThreshold( uint256 _threshold ) external onlyOwner{
         require( _threshold >= 0  && _threshold <= 50000, "Out of range");
         burnThreshold = _threshold;
     }
@@ -408,8 +403,9 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
         emit FundPool( currentRound, _amount);
     }
 
+    // Internal functions
     /// @notice Set the next start hour and next hour index
-    function calcNextHour() private {
+    function calcNextHour() internal {
         uint256 tempEnd = roundEnd;
         bool nextDay = true;
         while(tempEnd <= block.timestamp){
@@ -421,7 +417,6 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
         roundEnd = tempEnd;
     }
 
-    // Internal functions
     function createTicket( address _owner, uint256 _ticketNumber, uint256 _round) internal {
         uint256 currentTicket = standardTicketNumber(_ticketNumber, WINNER_BASE, MAX_BASE);
         uint[6] memory digits = getDigits( currentTicket );
@@ -450,14 +445,14 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
         if(_holders == 0)
             return;
         if( bonus.bonusToken != address(0) ){
-            ERC20 bonusContract = ERC20(bonus.bonusToken);
-            uint256 availableFunds = bonusContract.balanceOf(address(this));
+            ERC20 bonusTokenContract = ERC20(bonus.bonusToken);
+            uint256 availableFunds = bonusTokenContract.balanceOf(address(this));
             uint256 bonusReward = getFraction( bonus.bonusAmount, _match, bonus.bonusMaxPercent ).div(_holders);
             if( bonusReward > availableFunds)
                 bonusReward = availableFunds;
             if(bonusReward == 0)
                 return
-            bonusContract.safeTransfer(
+            bonusTokenContract.safeTransfer(
                     _to,
                     bonusReward
                 );
@@ -606,20 +601,6 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
     // GNU Lesser General Public License 3.0
     // https://www.gnu.org/licenses/lgpl-3.0.en.html
     // ----------------------------------------------------------------------------
-    function getHour(uint timestamp) internal pure returns (uint hour) {
-        uint secs = timestamp % SECONDS_PER_DAY;
-        hour = secs / SECONDS_PER_HOUR;
-    }
-
-    function getMinute(uint timestamp) internal pure returns (uint minute) {
-        uint secs = timestamp % SECONDS_PER_HOUR;
-        minute = secs / SECONDS_PER_MINUTE;
-    }
-
-    function getSecond(uint timestamp) internal pure returns (uint second) {
-        second = timestamp % SECONDS_PER_MINUTE;
-    }
-
     function timestampToDateTime(uint timestamp) internal pure returns (uint year, uint month, uint day) {
         (year, month, day) = _daysToDate(timestamp / SECONDS_PER_DAY);
     }
@@ -666,14 +647,14 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
     /// @notice HELPFUL FUNCTION TO TEST WINNERS LOCALLY THIS FUNCTION IS NOT MEANT TO GO LIVE
     /// This function sets the random value for the winner.
     /// @param randomness simulates a number given back by the randomness function
-    // function setWinner( uint256 randomness, address _claimer ) public operatorOnly{
-    //     calcNextHour();
-    //     currentIsActive = false;
-    //     uint winnerNumber = standardTicketNumber(randomness, WINNER_BASE, MAX_BASE);
-    //     winnerNumbers[currentRound] = winnerNumber;
-    //     claimers[currentRound] = Claimer(_claimer, 0);
-    //     emit WinnerPicked(currentRound, winnerNumber, "ADMIN_SET_WINNER");
-    //     distributeCrush();
-    //     startRound();
-    // }
+    function setWinner( uint256 randomness, address _claimer ) public operatorOnly{
+        calcNextHour();
+        currentIsActive = false;
+        uint winnerNumber = standardTicketNumber(randomness, WINNER_BASE, MAX_BASE);
+        winnerNumbers[currentRound] = winnerNumber;
+        claimers[currentRound] = Claimer(_claimer, 0);
+        emit WinnerPicked(currentRound, winnerNumber, "ADMIN_SET_WINNER");
+        distributeCrush();
+        startRound();
+    }
 }
