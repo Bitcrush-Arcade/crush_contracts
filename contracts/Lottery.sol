@@ -487,6 +487,7 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
         // Can distribute rollover
         if( rollOver > 0 && totalTickets[currentRound].mul(ticketValue) >= getFraction(roundPool[currentRound], distributionThreshold, PERCENT_BASE)){
             uint256 profitDistribution = getFraction(rollOver, distributionThreshold, PERCENT_BASE);
+            crush.approve( address(bankAddress), profitDistribution);
             bankAddress.addUserLoss(profitDistribution);
             rollOver = rollOver.sub(profitDistribution);
         }
