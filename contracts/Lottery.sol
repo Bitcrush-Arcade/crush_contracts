@@ -172,18 +172,18 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
         totalTickets[currentRound] += _ticketNumbers.length;
     }
 
-    /// @notice OVERLOAD - Buy Tickets to participate in current round from a partner
+    /// @notice Buy Tickets to participate in current round from a partner
     /// @param _ticketNumbers takes in an array of uint values as the ticket number to buy
     /// @param _partnerId the id of the partner to send the funds to.
-    function buyTickets(uint256[] calldata _ticketNumbers, uint256 _partnerId) external {
+    function buyPartnerTickets(uint256[] calldata _ticketNumbers, uint256 _partnerId) external {
         require(_ticketNumbers.length > 0, "Cant buy zero tickets");
         require(currentIsActive == true, "Round not active");
         // Check if User has funds for ticket
         uint userCrushBalance = crush.balanceOf(msg.sender);
         uint ticketCost = ticketValue.mul(_ticketNumbers.length);
         require(userCrushBalance >= ticketCost, "Not enough funds to purchase Tickets");
-        require(_partnerId < partners.length, "Cheeky aren't you");
-        Partner storage _p = partnerSplit[partners[_partnerId]];
+        require(_partnerId <= partners.length, "Cheeky aren't you");
+        Partner storage _p = partnerSplit[partners[_partnerId -1]];
         require(_p.set, "Partnership ended");
         // Add Tickets to respective Mappings
         for(uint i = 0; i < _ticketNumbers.length; i++){
@@ -196,7 +196,7 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
         uint partnerCut = getFraction(devCut, _p.spread, 100);
         devCut = devCut.sub(partnerCut);
 
-        crush.safeTransferFrom(msg.sender, partners[_partnerId], partnerCut);
+        crush.safeTransferFrom(msg.sender, partners[_partnerId-1], partnerCut);
         crush.safeTransferFrom(msg.sender, devAddress, devCut);
         totalTickets[currentRound] += _ticketNumbers.length;
     }
@@ -421,9 +421,12 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
     /// @notice Set the next start hour and next hour index
     function calcNextHour() private {
         uint256 tempEnd = roundEnd;
+        bool nextDay = true;
         while(tempEnd <= block.timestamp){
             endHourIndex = endHourIndex + 1 >= endHours.length ? 0 : endHourIndex + 1;
-            tempEnd = setNextRoundEndTime(block.timestamp, endHours[endHourIndex], endHourIndex != 0);
+            tempEnd = setNextRoundEndTime(block.timestamp, endHours[endHourIndex], endHourIndex != 0 && nextDay);
+            if(endHourIndex == endHours.length)
+                nextDay = false;
         }
         roundEnd = tempEnd;
     }
@@ -666,7 +669,7 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
     /// This function sets the random value for the winner.
     /// @param randomness simulates a number given back by the randomness function
     // function setWinner( uint256 randomness, address _claimer ) public operatorOnly{
-    //     roundEnd = setNextRoundEndTime(block.timestamp, endHour);
+    //     calcNextHour();
     //     currentIsActive = false;
     //     uint winnerNumber = standardTicketNumber(randomness, WINNER_BASE, MAX_BASE);
     //     winnerNumbers[currentRound] = winnerNumber;
