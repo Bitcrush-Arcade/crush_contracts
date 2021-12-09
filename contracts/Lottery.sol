@@ -153,32 +153,9 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
     }
 
     // External functions
-    /// @notice Buy Tickets to participate in current Round
-    /// @param _ticketNumbers takes in an array of uint values as the ticket numbers to buy
-    /// @dev max bought tickets at any given time shouldn't be more than 10
-    function buyTickets(uint256[] calldata _ticketNumbers) external {
-        require(_ticketNumbers.length > 0, "Cant buy zero tickets");
-        require(currentIsActive == true, "Round not active");
-        
-        // Check if User has funds for ticket
-        uint userCrushBalance = crush.balanceOf(msg.sender);
-        uint ticketCost = ticketValue.mul(_ticketNumbers.length);
-        require(userCrushBalance >= ticketCost, "Not enough funds to purchase Tickets");
-        
-        // Add Tickets to respective Mappings
-        for(uint i = 0; i < _ticketNumbers.length; i++){
-            createTicket(msg.sender, _ticketNumbers[i], currentRound);
-        }
-        
-        uint devCut = getFraction(ticketCost, devTicketCut, PERCENT_BASE);
-        addToPool(ticketCost.sub(devCut));
-        crush.safeTransferFrom(msg.sender, devAddress, devCut);
-        totalTickets[currentRound] += _ticketNumbers.length;
-    }
-
     /// @notice Buy Tickets to participate in current round from a partner
     /// @param _ticketNumbers takes in an array of uint values as the ticket number to buy
-    /// @param _partnerId the id of the partner to send the funds to.
+    /// @param _partnerId the id of the partner to send the funds to if 0, no partner is checked.
     function buyTickets(uint256[] calldata _ticketNumbers, uint256 _partnerId) external {
         require(_ticketNumbers.length > 0, "Cant buy zero tickets");
         require(currentIsActive == true, "Round not active");
@@ -186,21 +163,22 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
         uint userCrushBalance = crush.balanceOf(msg.sender);
         uint ticketCost = ticketValue.mul(_ticketNumbers.length);
         require(userCrushBalance >= ticketCost, "Not enough funds to purchase Tickets");
-        require(_partnerId <= partners.length, "Cheeky aren't you");
-        Partner storage _p = partnerSplit[partners[_partnerId -1]];
-        require(_p.set, "Partnership ended");
         // Add Tickets to respective Mappings
         for(uint i = 0; i < _ticketNumbers.length; i++){
             createTicket(msg.sender, _ticketNumbers[i], currentRound);
         }
         uint devCut = getFraction(ticketCost, devTicketCut, PERCENT_BASE);
         addToPool(ticketCost.sub(devCut));
-
-        // Split cut with partner
-        uint partnerCut = getFraction(devCut, _p.spread, 100);
-        devCut = devCut.sub(partnerCut);
-
-        crush.safeTransferFrom(msg.sender, partners[_partnerId-1], partnerCut);
+        
+        if(_partnerId > 0){
+            require(_partnerId <= partners.length, "Cheeky aren't you");
+            Partner storage _p = partnerSplit[partners[_partnerId -1]];
+            require(_p.set, "Partnership ended");
+            // Split cut with partner
+            uint partnerCut = getFraction(devCut, _p.spread, 100);
+            devCut = devCut.sub(partnerCut);
+            crush.safeTransferFrom(msg.sender, partners[_partnerId-1], partnerCut);
+        }
         crush.safeTransferFrom(msg.sender, devAddress, devCut);
         totalTickets[currentRound] += _ticketNumbers.length;
     }
