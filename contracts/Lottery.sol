@@ -28,8 +28,10 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
     using SafeMath for uint256;
     using SafeERC20 for ERC20;
     using SafeERC20 for CRUSHToken;
+
     // Contracts
-    CRUSHToken public crush;
+    CRUSHToken immutable public crush;
+    Bankroll immutable public bankAddress;
     address public devAddress; //Address to send Ticket cut to.
     
     // Data Structures
@@ -78,6 +80,7 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
     uint256 public endHour= 18; // Time when Lottery ends. Default time is 18:00Z = 12:00 GMT-6
 
     uint256 public burnThreshold = 10000;
+    uint256 public distributionThreshold = 10000;
     
     // Fee Distributions
     /// @dev these values are used with PERCENT_BASE as 100%
@@ -128,7 +131,7 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
     }
     
     /// @dev Select the appropriate VRF Coordinator and LINK Token addresses
-    constructor (address _crush)
+    constructor (address _crush, address _bankAddress)
         VRFConsumerBase(
             // BSC MAINNET
             // 0x747973a5A2a4Ae1D3a8fDF5479f1514F65Db9C31, //VRFCoordinator
@@ -146,6 +149,7 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
         crush = CRUSHToken(_crush);
         devAddress = msg.sender;
         operators[msg.sender] = true;
+        bankAddress = Bankroll(_bankAddress);
     }
 
     // External functions
@@ -175,7 +179,7 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
     /// @notice Buy Tickets to participate in current round from a partner
     /// @param _ticketNumbers takes in an array of uint values as the ticket number to buy
     /// @param _partnerId the id of the partner to send the funds to.
-    function buyPartnerTickets(uint256[] calldata _ticketNumbers, uint256 _partnerId) external {
+    function buyTickets(uint256[] calldata _ticketNumbers, uint256 _partnerId) external {
         require(_ticketNumbers.length > 0, "Cant buy zero tickets");
         require(currentIsActive == true, "Round not active");
         // Check if User has funds for ticket
@@ -502,6 +506,13 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
         Claimer storage roundClaimer = claimers[currentRound];
         crush.safeTransfer( roundClaimer.claimer, forClaimer );
         transferBonus( roundClaimer.claimer, 1 ,currentRound, roundClaimer.percent );
+        // Can distribute rollover
+        if( rollOver > 0 && totalTickets[currentRound].mul(ticketValue) >= getFraction(roundPool[currentRound], distributionThreshold, PERCENT_BASE)){
+            uint256 profitDistribution = getFraction(rollOver, distributionThreshold, PERCENT_BASE);
+            bankAddress.addUserLoss(profitDistribution);
+            rollOver = rollOver.sub(profitDistribution);
+        }
+
         // BURN AMOUNT
         if( burnAmount > 0 )
             crush.burn( burnAmount );
