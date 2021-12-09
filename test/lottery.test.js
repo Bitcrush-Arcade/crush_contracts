@@ -78,9 +78,9 @@ contract( "LotteryTests", ([alice, bob, carol, dev, minter]) => {
     const ticket6 = 441234 // 2 match win 3%
     
     
-    await this.lottery.buyTickets([ticket1,ticket2], { from: bob });
-    await this.lottery.buyTickets([ticket3,ticket4], { from: alice });
-    await this.lottery.buyTickets([ticket5,ticket6,ticket7], { from: carol });
+    await this.lottery.buyTickets([ticket1,ticket2], 0, { from: bob });
+    await this.lottery.buyTickets([ticket3,ticket4], 0, { from: alice });
+    await this.lottery.buyTickets([ticket5,ticket6,ticket7], 0, { from: carol });
     const bnpool = new BN((await this.lottery.roundPool(1)).toString())
     const initPool = web3.utils.fromWei(bnpool)
     const sentWinner = 445568
@@ -116,7 +116,7 @@ contract( "LotteryTests", ([alice, bob, carol, dev, minter]) => {
     const ticket1 = 112233
     const ticket2 = 445566
 
-    await this.lottery.buyTickets([ticket1,ticket2], { from: bob });
+    await this.lottery.buyTickets([ticket1,ticket2], 0, { from: bob });
     const tickets = await this.lottery.getRoundTickets(1, {from: bob});
     assert.equal( tickets.length, 2, "Different number of tickets" );
     assert.equal( tickets[0].ticketNumber, 1112233, "Ticket Number Mismatch"); //"NOTE THAT TICKET NUMBER HAS AN EXTRA 1 at the start"
@@ -133,8 +133,8 @@ contract( "LotteryTests", ([alice, bob, carol, dev, minter]) => {
     // ALLOW CONTRACT TO SPEND MY CRUSH
     await this.crush.approve( this.lottery.address, web3.utils.toBN('3000').mul( web3.utils.toBN('10').pow( web3.utils.toBN('18'))) ,{ from: bob });
 
-    await this.lottery.buyTickets([112233,445566], { from: bob });
-    await this.lottery.buyTickets([456789,987365,578153], { from: bob });
+    await this.lottery.buyTickets([112233,445566], 0, { from: bob });
+    await this.lottery.buyTickets([456789,987365,578153], 0, { from: bob });
     const tickets = await this.lottery.getRoundTickets(1, {from: bob});
     assert.equal( tickets.length, 5, "Different number of tickets" );
     assert.equal( tickets[4].ticketNumber, 1578153, "Ticket Number Mismatch"); //"NOTE THAT TICKET NUMBER HAS AN EXTRA 1 at the start"
@@ -146,7 +146,7 @@ contract( "LotteryTests", ([alice, bob, carol, dev, minter]) => {
     const initDevBalance = await this.crush.balanceOf.call(minter);
     // ALLOW CONTRACT TO SPEND MY CRUSH
     await this.crush.approve( this.lottery.address, web3.utils.toBN('3000').mul( web3.utils.toBN('10').pow( web3.utils.toBN('18'))) ,{ from: bob });
-    await this.lottery.buyTickets([112233,445566], { from: bob });
+    await this.lottery.buyTickets([112233,445566], 0, { from: bob });
 
     assert.equal( 
       web3.utils.fromWei( await this.crush.balanceOf.call(minter) ),
@@ -166,7 +166,7 @@ contract( "LotteryTests", ([alice, bob, carol, dev, minter]) => {
     const ticket1 = 112233
     const ticket2 = 445566
     const aliceBalInit = parseFloat(web3.utils.fromWei(await this.crush.balanceOf.call(alice)))
-    await this.lottery.buyPartnerTickets([ticket1,ticket2], 1, { from: bob });
+    await this.lottery.buyTickets([ticket1,ticket2], 1, { from: bob });
     const aliceBal = parseFloat(web3.utils.fromWei(await this.crush.balanceOf.call(alice)))
     assert.equal(aliceBalInit + 1.5*2, aliceBal, "Wrong distribution");
 
