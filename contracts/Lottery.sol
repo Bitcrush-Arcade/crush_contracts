@@ -375,6 +375,14 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
         endHours = _newTimes;
     }
 
+    /// @notice Setup the burn threshold
+    /// @param _threshold new threshold in percent amount
+    /// @dev setting the minimum threshold as 0 will always burn, setting max as 50% (50000)
+    function setThreshold( uint256 _threshold ) external onlyOwner{
+        require( _threshold >= 0  && _threshold <= 50000, "Out of range");
+        burnThreshold = _threshold;
+    }
+
     // External functions that are view
     /// @notice Get Tickets for the caller for during a specific round
     /// @param _round The round to query
