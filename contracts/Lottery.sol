@@ -272,6 +272,8 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
         require(currentRound == 0, "First Round only");
         startRound();
         calcNextHour();
+        // Rollover all of pool zero at start
+        roundPool[currentRound] = roundPool[0];
     }
 
     /// @notice Ends current round
