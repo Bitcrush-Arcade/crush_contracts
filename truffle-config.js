@@ -63,6 +63,18 @@ module.exports = {
         return new HDWalletProvider('', "https://data-seed-prebsc-1-s1.binance.org/");
        }
      },
+     /* mainnet: {
+      //host: "https://speedy-nodes-nyc.moralis.io/5cf08c3fc7c53c13465dc18e/bsc/testnet/archive",     // Localhost (default: none)
+      host: "https://bsc-dataseed.binance.org/",     // Localhost (default: none)            // Standard Ethereum port (default: none)
+      network_id: "56",       // Any network (default: none)
+      networkCheckTimeout: 1000000000,
+      timeoutBlocks: 200000, 
+      provider : function(){
+        return new HDWalletProvider('', "https://bsc-dataseed.binance.org/");
+       }
+     }, */
+
+
     // Another network with more advanced options...
     // advanced: {
     // port: 8777,             // Custom port
