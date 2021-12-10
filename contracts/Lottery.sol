@@ -227,6 +227,7 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
     /// @notice Exchange awarded tickets for the current round
     /// @param _ticketNumbers array of numbers to add to the caller as tickets
     function exchangeForTicket(uint256[] calldata _ticketNumbers) external {
+        require(currentIsActive, "Current round is not active please wait for next round start" );
         require(_ticketNumbers.length <= exchangeableTickets[msg.sender], "You don't have enough redeemable tickets.");
         for(uint256 exchange = 0; exchange < _ticketNumbers.length; exchange ++) {
             createTicket(msg.sender, _ticketNumbers[ exchange ], currentRound);
