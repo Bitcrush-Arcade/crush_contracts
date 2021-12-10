@@ -236,9 +236,10 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
         bool ownsTicket = false;
         uint256 ticketIndex;
         for(uint i = 0; i < ownedTickets.length; i ++) {
-            if(ownedTickets[i].ticketNumber == standardTicketNumber(luckyTicket, WINNER_BASE, MAX_BASE)) {
+            if(ownedTickets[i].ticketNumber == standardTicketNumber(luckyTicket, WINNER_BASE, MAX_BASE) && !ownedTickets[i].claimed) {
                 ownsTicket = true;
                 ticketIndex = i;
+                break;
             }
         }
         require(ownsTicket, "This ticket doesn't belong to you.");
@@ -247,7 +248,7 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
         uint256[6] memory matches = [match1, match2, match3, match4, match5, match6];
         (bool isWinner, uint amountMatch) = isNumberWinner(_round, luckyTicket);
         uint256 claimAmount = 0;
-        uint[6] memory digits = getDigits(standardTicketNumber(luckyTicket, WINNER_BASE, MAX_BASE));
+        uint256[6] memory digits = getDigits(standardTicketNumber(luckyTicket, WINNER_BASE, MAX_BASE));
 
         if(isWinner) {
             claimAmount = getFraction(roundPool[_round], matches[amountMatch - 1], PERCENT_BASE)
@@ -380,8 +381,8 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
         require(roundWinner > 0 , "Winner not yet determined");
         _match = 0;
         uint256 luckyNumber = standardTicketNumber(luckyTicket, WINNER_BASE, MAX_BASE);
-        uint[6] memory winnerDigits = getDigits(roundWinner);
-        uint[6] memory luckyDigits = getDigits(luckyNumber);
+        uint256[6] memory winnerDigits = getDigits(roundWinner);
+        uint256[6] memory luckyDigits = getDigits(luckyNumber);
         for( uint8 i = 0; i < 6; i++){
             if(!_winner) {
                 if(winnerDigits[i] == luckyDigits[i]) {
@@ -421,10 +422,10 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
 
     function createTicket( address _owner, uint256 _ticketNumber, uint256 _round) internal {
         uint256 currentTicket = standardTicketNumber(_ticketNumber, WINNER_BASE, MAX_BASE);
-        uint[6] memory digits = getDigits( currentTicket );
+        uint256[6] memory digits = getDigits( currentTicket );
         
-        for( uint digit = 0; digit < digits.length; digit++){
-            holders[ _round ][ digits[digit] ] += 1;
+        for( uint256 digit = 0; digit < 6; digit++){
+            holders[ _round ][ digits[digit] ] = holders[ _round ][ digits[digit] ].add(1);
         }
         Ticket memory ticket = Ticket( currentTicket, false);
         userTickets[ _round ][ _owner ].push(ticket);
