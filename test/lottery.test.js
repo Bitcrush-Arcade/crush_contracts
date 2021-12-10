@@ -475,52 +475,18 @@ contract( "LotteryTests", ([alice, bob, carol, dev, minter, partner, monkey, bul
     await this.lottery.claimNumber(1,win3[0],{from: bear})
     await this.lottery.claimNumber(1,win3[0],{from: bear})
     await this.lottery.claimNumber(1,win3[0],{from: bear})
+    await this.lottery.claimNumber(1,win3[0],{from: bear})
     await this.lottery.claimNumber(1,win4[0],{from: alice})
     await this.lottery.claimNumber(1,win4[0],{from: alice})
     await this.lottery.claimNumber(1,win5[0],{from: carol})
     await this.lottery.claimNumber(1,winJackpot[0],{from: dev})
-    console.log([
-      ['round pool', roundTotal.toString()],
-      ['total Bonus', 1000]
-    ])
-    // assert.equal(
-    //   roundTotal.times( this.matches.noMatch.minus(claimerPercent).div(bonusTokenMax)).toFixed(18,1),
-    //   new BgN(await this.bonusToken.balanceOf(bob)).div(10**18).minus(bobInitBalance).toFixed(18,1),
-    //   "issue with no Winner claim"
-    // )
-    // assert.equal(
-    //   roundTotal.times( new BgN(2000).div(bonusTokenMax)).toNumber(),
-    //   new BgN(await this.bonusToken.balanceOf(monkey)).div(10**18).minus(monkeyInitBalance).toNumber(),
-    //   "issue with 1 match Winner claim"
-    // )
-    // assert.equal(
-    //   roundTotal.times( new BgN(3000).div(bonusTokenMax)).toNumber(),
-    //   new BgN(await this.bonusToken.balanceOf(bull)).div(10**18).minus(bullInitBalance).toNumber(),
-    //   "issue with 2 match Winner claim"
-    // )
-    // assert.equal(
-    //   roundTotal.times( new BgN(5000).div(bonusTokenMax)).toNumber(),
-    //   new BgN(await this.bonusToken.balanceOf(bear)).div(10**18).minus(bearInitBalance).toNumber(),
-    //   "issue with 3 match Winner claim"
-    // )
-    // assert.equal(
-    //   roundTotal.times( new BgN(10000).div(bonusTokenMax)).toNumber(),
-    //   new BgN(await this.bonusToken.balanceOf(alice)).div(10**18).minus(aliceInitBalance).toNumber(),
-    //   "issue with 4 match Winner claim"
-    // )
-    // assert.equal(
-    //   roundTotal.times( new BgN(20000).div(bonusTokenMax)).toNumber(),
-    //   new BgN(await this.bonusToken.balanceOf(carol)).div(10**18).minus(carolInitBalance).toNumber(),
-    //   "issue with 5 match Winner claim"
-    // )
-    // assert.equal(
-    //   roundTotal.times( new BgN(40000).div(bonusTokenMax)).toNumber(),
-    //   new BgN(await this.bonusToken.balanceOf(dev)).div(10**18).minus(devInitBalance).toNumber(),
-    //   "issue with jackpot match Winner claim"
-    // )
+    const roundInfo = await this.lottery.roundInfo(1)
     console.log(
       'expected',
       [
+        { endPool: new BgN(await this.bonusToken.balanceOf(this.lottery.address)).div(10**18).toString()},
+        { totalTickets: new BgN( roundInfo.totalTickets ).toString()},
+        { claimedTickets: new BgN( roundInfo.ticketsClaimed ).toString()},
         { match: 0, amount:roundTotal.times( this.matches.noMatch.minus(claimerPercent).div(bonusTokenMax)).toFixed(18,1) },
         { match: 1, amount:roundTotal.times( this.matches.match1.div(bonusTokenMax)).toFixed(18,1) },
         { match: 2, amount:roundTotal.times( this.matches.match2.div(bonusTokenMax)).toFixed(18,1) },
@@ -531,7 +497,7 @@ contract( "LotteryTests", ([alice, bob, carol, dev, minter, partner, monkey, bul
       ]
     )
     await walletLogs()
-    console.log( 'endPool', new BgN(await this.bonusToken.balanceOf(this.lottery.address)).div(10**18).toString())
+    console.log( )
     return true
   })
 })
