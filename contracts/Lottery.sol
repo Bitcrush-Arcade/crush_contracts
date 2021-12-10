@@ -67,7 +67,9 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
     uint constant SECONDS_PER_MINUTE = 60;
     int constant OFFSET19700101 = 2440588;
     // CONSTANTS
-    uint256 constant PERCENT_BASE = 100000;
+    uint256 constant ONE100PERCENT = 10000000;
+    uint256 constant ONE__PERCENT = 1000000000;
+    uint256 constant PERCENT_BASE = 100000000000;
     uint256 constant WINNER_BASE = 1000000; //6 digits are necessary
     uint256 constant MAX_BASE = 2000000; //6 digits are necessary
     // Variables
@@ -83,15 +85,15 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
     
     // Fee Distributions
     /// @dev these values are used with PERCENT_BASE as 100%
-    uint256 public match6 = 40000;
-    uint256 public match5 = 20000;
-    uint256 public match4 = 10000;
-    uint256 public match3 = 5000;
-    uint256 public match2 = 3000;
-    uint256 public match1 = 2000;
-    uint256 public noMatch = 2000;
-    uint256 public burn = 18000;
-    uint256 public claimFee = 750;
+    uint256 public match6 = 40 * ONE__PERCENT;
+    uint256 public match5 = 20 * ONE__PERCENT;
+    uint256 public match4 = 10 * ONE__PERCENT;
+    uint256 public match3 = 5 * ONE__PERCENT;
+    uint256 public match2 = 3 * ONE__PERCENT;
+    uint256 public match1 = 2 * ONE__PERCENT;
+    uint256 public noMatch = 2 * ONE__PERCENT;
+    uint256 public burn = 18 * ONE__PERCENT;
+    uint256 public claimFee = 75 * ONE100PERCENT;
     // Mappings
     mapping(uint256 => uint256) public totalTickets; //Total Tickets emmited per round
     mapping(uint256 => uint256) public roundPool; // Winning Pool
@@ -242,8 +244,7 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
                 break;
             }
         }
-        require(ownsTicket, "This ticket doesn't belong to you.");
-        require(ownedTickets[ticketIndex].claimed == false, "Ticket already claimed");
+        require(ownsTicket && ownedTickets[ticketIndex].claimed == false, "Not owner or Ticket already claimed");
         // GET AND TRANSFER TICKET CLAIM AMOUNT
         uint256[6] memory matches = [match1, match2, match3, match4, match5, match6];
         (bool isWinner, uint amountMatch) = isNumberWinner(_round, luckyTicket);
@@ -450,11 +451,12 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
         if( bonus.bonusToken != address(0) ){
             ERC20 bonusTokenContract = ERC20(bonus.bonusToken);
             uint256 availableFunds = bonusTokenContract.balanceOf(address(this));
-            uint256 bonusReward = getFraction( bonus.bonusAmount, _match, bonus.bonusMaxPercent ).div(_holders);
+            uint256 bonusReward = getFraction( bonus.bonusAmount.mul(1e12), _match, bonus.bonusMaxPercent ).div(_holders.mul(1e12));
+            if(bonusReward == 0)
+                return;
             if( bonusReward > availableFunds)
                 bonusReward = availableFunds;
-            if(bonusReward == 0)
-                return
+                
             bonusTokenContract.safeTransfer(
                     _to,
                     bonusReward
@@ -557,7 +559,7 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
 
     // Function to get the fraction amount from a value
     function getFraction(uint256 _amount, uint256 _percent, uint256 _base) internal pure returns(uint256 fraction) {
-        return _amount.mul( _percent ).div( _base );
+        fraction = _amount.mul( _percent ).div( _base );
     }
 
     // Get all participating digits from number
