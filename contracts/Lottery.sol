@@ -545,9 +545,10 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
             roundBonusCoin.bonusMaxPercent = roundBonusCoin.bonusMaxPercent.add(noMatch);
         if( getFraction(info.pool, burnThreshold, PERCENT_BASE) <=  info.totalTickets.mul(ticketValue) )
             _burn = getFraction( info.pool, burn, PERCENT_BASE);
-        else
+        else{
             _burn = 0;
-        
+            _rollover = _rollover.add( getFraction( info.pool, burn, PERCENT_BASE) );
+        }
         claimers[currentRound].percent = _forClaimer;
         _forClaimer = getFraction(info.pool, _forClaimer, PERCENT_BASE);
     }
