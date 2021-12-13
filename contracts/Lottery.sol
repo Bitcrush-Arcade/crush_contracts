@@ -461,6 +461,8 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
         if( bonus.bonusToken != address(0) ){
             ERC20 bonusTokenContract = ERC20(bonus.bonusToken);
             uint256 availableFunds = bonusTokenContract.balanceOf(address(this));
+            if(_match == 0)
+                return;
             uint256 bonusReward = getFraction( bonus.bonusAmount, _match, bonus.bonusMaxPercent ).div(_holders);
             if(bonusReward == 0)
                 return;
