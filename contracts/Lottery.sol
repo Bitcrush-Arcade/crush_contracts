@@ -491,7 +491,8 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
         (rollOver, burnAmount, forClaimer) = calculateRollover();
         // Transfer Amount to Claimer
         Claimer storage roundClaimer = claimers[currentRound];
-        crush.safeTransfer( roundClaimer.claimer, forClaimer );
+        if(forClaimer > 0)
+            crush.safeTransfer( roundClaimer.claimer, forClaimer );
         transferBonus( roundClaimer.claimer, 1 ,currentRound, roundClaimer.percent );
         // Can distribute rollover
         if( rollOver > 0 && roundInfo[currentRound].totalTickets.mul(ticketValue) >= getFraction(roundInfo[currentRound].pool, distributionThreshold, PERCENT_BASE)){
@@ -660,14 +661,14 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
     /// @notice HELPFUL FUNCTION TO TEST WINNERS LOCALLY THIS FUNCTION IS NOT MEANT TO GO LIVE
     /// This function sets the random value for the winner.
     /// @param randomness simulates a number given back by the randomness function
-    // function setWinner( uint256 randomness, address _claimer ) public operatorOnly{
-    //     calcNextHour();
-    //     currentIsActive = false;
-    //     RoundInfo storage info = roundInfo[currentRound];
-    //     info.winnerNumber = standardTicketNumber(randomness, WINNER_BASE, MAX_BASE);
-    //     claimers[currentRound] = Claimer(_claimer, 0);
-    //     emit WinnerPicked(currentRound, info.winnerNumber, "ADMIN_SET_WINNER");
-    //     distributeCrush();
-    //     startRound();
-    // }
+    function setWinner( uint256 randomness, address _claimer ) public operatorOnly{
+        calcNextHour();
+        currentIsActive = false;
+        RoundInfo storage info = roundInfo[currentRound];
+        info.winnerNumber = standardTicketNumber(randomness, WINNER_BASE, MAX_BASE);
+        claimers[currentRound] = Claimer(_claimer, 0);
+        emit WinnerPicked(currentRound, info.winnerNumber, "ADMIN_SET_WINNER");
+        distributeCrush();
+        startRound();
+    }
 }
