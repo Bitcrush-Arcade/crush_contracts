@@ -80,33 +80,6 @@ contract( "LotteryTests", ([alice, bob, carol, dev, minter, partner, monkey, bul
       }
   });
 
-  // it("should give the appropriate winner match value", async () => {
-  //   await this.lottery.firstStart({ from: minter });
-  //   const sentWinner = 445568
-  //   // SET WINNER NEEDS TO BE PUBLIC FOR THIS TEST TO PASS
-  //   await this.lottery.setWinner( sentWinner, alice,{ from: minter });
-  //   const { _winner, _match } = await this.lottery.isNumberWinner(1, 123456)
-  //   const { _winner: win1, _match: match1 } = await this.lottery.isNumberWinner(1, 433333)
-  //   const { _winner: win2, _match: match2 } = await this.lottery.isNumberWinner(1, 443333)
-  //   const { _winner: win3, _match: match3 } = await this.lottery.isNumberWinner(1, 445333)
-  //   const { _winner: win4, _match: match4 } = await this.lottery.isNumberWinner(1, 445555)
-  //   const { _winner: win5, _match: match5 } = await this.lottery.isNumberWinner(1, 445565)
-  //   const { _winner: win6, _match: match6 } = await this.lottery.isNumberWinner(1, 2445568)
-  //   assert.equal( _winner, false, "Shouldn't have been a winner")
-  //   assert.equal( win1, true, "1 Should have been a winner")
-  //   assert.equal( win2, true, "2 Should have been a winner")
-  //   assert.equal( win3, true, "3 Should have been a winner")
-  //   assert.equal( win4, true, "4 Should have been a winner")
-  //   assert.equal( win5, true, "5 Should have been a winner")
-  //   assert.equal( win6, true, "6 Should have been a winner")
-  //   assert.equal( _match.toString(), "0", "0 Didn't match same amount")
-  //   assert.equal( match1.toString(), "1", "1 Didn't match same amount")
-  //   assert.equal( match2.toString(), "2", "2 Didn't match same amount")
-  //   assert.equal( match3.toString(), "3", "3 Didn't match same amount")
-  //   assert.equal( match4.toString(), "4", "4 Didn't match same amount")
-  //   assert.equal( match5.toString(), "5", "5 Didn't match same amount")
-  //   assert.equal( match6.toString(), "6", "6 Didn't match same amount")
-  // })
 
   // it("should create a ticket", async() => {
   //   await this.lottery.firstStart({from: minter});
@@ -122,55 +95,57 @@ contract( "LotteryTests", ([alice, bob, carol, dev, minter, partner, monkey, bul
 
   // })
 
-  // it("should calculate the rollover", async () => {
-  //   await this.lottery.firstStart({ from: minter });
-  //   const ticket1 = 112233 //NO WIN 2%
-  //   const ticket2 = 435566 // 1 match win 2%
-  //   const ticket7 = 345567 // NO WIN
-  //   const ticket3 = 345567 // NO WIN
-  //   const ticket4 = 345557 // NO WIN
-  //   const ticket5 = 445457 // 3 match win 5%
-  //   const ticket6 = 441234 // 2 match win 3%
+  it("should calculate the rollover", async () => {
+    await this.lottery.firstStart({ from: minter });
+    const ticket1 = 112233 //NO WIN 2%
+    const ticket2 = 435566 // 1 match win 2%
+    const ticket7 = 345567 // NO WIN
+    const ticket3 = 345567 // NO WIN
+    const ticket4 = 345557 // NO WIN
+    const ticket5 = 445457 // 3 match win 5%
+    const ticket6 = 441234 // 2 match win 3%
     
     
-  //   await this.lottery.buyTickets([ticket1,ticket2], 0, { from: bob });
-  //   await this.lottery.buyTickets([ticket3,ticket4], 0, { from: alice });
-  //   await this.lottery.buyTickets([ticket5,ticket6,ticket7], 0, { from: carol });
-  //   const bnpool = new BgN(await this.lottery.roundPool(1))
-  //   const initPool = bnpool.div(10**18)
-  //   const sentWinner = 123445568
-  //   // to test SETWINNER fn needs to be public
-  //   await this.lottery.setWinner( sentWinner, carol,{ from: minter });
-  //   const winNumber = getTicketDigits(new BgN(await this.lottery.winnerNumbers(1)).toNumber())
-  //   let winners = 0
-  //   for( i = 0; i < winNumber.length; i++){
-  //     const matchTest = winNumber[i]
-  //     winners += new BgN(await this.lottery.holders(1,matchTest)).toNumber()
-  //   }
-  //   assert.equal(winners, 3, "Winners didn't match")
-  //   let removedVal = new BgN(0)
-  //   removedVal = removedVal.plus(initPool.times(2000).div(100000)) //2% of no match
-  //   removedVal = removedVal.plus(initPool.times(2000).div(100000)) //2% of 1 match
-  //   removedVal = removedVal.plus(initPool.times(3000).div(100000)) //3% of 2 match
-  //   removedVal = removedVal.plus(initPool.times(5000).div(100000)) //5% of 3 match
-  //   removedVal = removedVal.plus(initPool.times(18000).div(100000)) //18% of burn
+    await this.lottery.buyTickets([ticket1,ticket2], 0, { from: bob });
+    await this.lottery.buyTickets([ticket3,ticket4], 0, { from: alice });
+    await this.lottery.buyTickets([ticket5,ticket6,ticket7], 0, { from: carol });
+    const bnpool = new BgN((await this.lottery.roundInfo(1)).pool)
+    const initPool = bnpool.div(10**18)
+    const sentWinner = 123445568
+    // to test SETWINNER fn needs to be public
+    await this.lottery.setWinner( sentWinner, carol,{ from: minter });
+    const winNumber = getTicketDigits(new BgN((await this.lottery.roundInfo(1)).winnerNumber).toNumber())
+    let winners = 0
+    for( i = 0; i < winNumber.length; i++){
+      const matchTest = winNumber[i]
+      winners += new BgN(await this.lottery.holders(1,matchTest)).toNumber()
+    }
+    assert.equal(winners, 3, "Winners didn't match")
+    let removedVal = new BgN(0)
+    removedVal = removedVal.plus(initPool.times(2000).div(100000)) //2% of no match
+    removedVal = removedVal.plus(initPool.times(2000).div(100000)) //2% of 1 match
+    removedVal = removedVal.plus(initPool.times(3000).div(100000)) //3% of 2 match
+    removedVal = removedVal.plus(initPool.times(5000).div(100000)) //5% of 3 match
+    removedVal = removedVal.plus(initPool.times(18000).div(100000)) //18% of burn
 
-  //   const rolledOver = web3.utils.fromWei((await this.lottery.roundPool(2)))
-  //   const baseRollover = initPool.minus(removedVal)
-  //   const distributedRollOver = baseRollover.times(10000).div(100000)
-  //   // console.log( new BgN(rolledOver).toFixed(18,1), baseRollover.minus(distributedRollOver).toFixed(18,1), baseRollover.toFixed(18,1))
-  //   assert.ok( new BgN(rolledOver).isEqualTo( baseRollover.minus(distributedRollOver) ), "Rollover mismatch")
-  //   return true
-  // })
+    const rolledOver = web3.utils.fromWei((await this.lottery.roundInfo(2)).pool)
+    const baseRollover = initPool.minus(removedVal)
+    const distributedRollOver = baseRollover.times(10000).div(100000)
+    // console.log( new BgN(rolledOver).toFixed(18,1), baseRollover.minus(distributedRollOver).toFixed(18,1), baseRollover.toFixed(18,1))
+    assert.equal( new BgN(rolledOver).toString(), baseRollover.minus(distributedRollOver).toString(), "Rollover mismatch")
+    return true
+  })
 
   // it("should set the winner", async() => {
   //   await this.lottery.firstStart({ from: minter });
+  //   await this.lottery.buyTickets([123456,123457], 0, { from: bob });
+
   //   const sentWinner = 234567
   //   const comparedWinner = standardizeNumber(sentWinner)
   //   console.log( 'initBalance', (await this.crush.balanceOf(alice)).toString())
   //   await this.lottery.setWinner( sentWinner, alice,{ from: minter });
   //   console.log( 'endBalance', (await this.crush.balanceOf(alice)).toString())
-  //   assert.equal( (await this.lottery.winnerNumbers(1)).toString(), ""+comparedWinner , "winner number not set" )
+  //   assert.equal( (await this.lottery.roundInfo(1)).winnerNumber.toString(), ""+comparedWinner , "winner number not set" )
   // })
 
 
@@ -214,18 +189,17 @@ contract( "LotteryTests", ([alice, bob, carol, dev, minter, partner, monkey, bul
 
   // it("should send 10% of ticket value to DEV", async () =>{
   //   await this.lottery.firstStart({ from: minter });
-  //   const initDevBalance = await this.crush.balanceOf.call(minter);
+  //   const initDevBalance = new BgN(await this.crush.balanceOf(minter));
   //   // ALLOW CONTRACT TO SPEND MY CRUSH
-  //   await this.crush.approve( this.lottery.address, web3.utils.toBN('3000').mul( web3.utils.toBN('10').pow( web3.utils.toBN('18'))) ,{ from: bob });
   //   await this.lottery.buyTickets([112233,445566], 0, { from: bob });
 
   //   assert.equal( 
-  //     web3.utils.fromWei( await this.crush.balanceOf.call(minter) ),
-  //     web3.utils.fromWei( initDevBalance.add( web3.utils.toBN('6000000000000000000') ) ),
+  //     new BgN( await this.crush.balanceOf(minter) ).div(10**18).toString(),
+  //     initDevBalance.div(10**18).plus( 6 ).toString(),
   //     "Different Balances"
   //   )
   // } )
-   // PARTNERS
+  //  // PARTNERS
   // it("should be able to set the partners", async()=>{
   //   await this.lottery.editPartner(alice, 20,{from: minter})
   //   assert.equal( (await this.lottery.getProviderId(alice, {from: alice})).toString(), "1", "Alice wasn't set as first partner")
@@ -278,7 +252,7 @@ contract( "LotteryTests", ([alice, bob, carol, dev, minter, partner, monkey, bul
 
   //   const walletLogs = async() => {
   //     console.log([
-  //       { user: 'totalTickets', balance: new BgN(await this.lottery.totalTickets(1)).toString() },
+  //       { user: 'totalTickets', balance: new BgN((await this.lottery.roundInfo(1)).totalTickets).toString() },
   //       { user: 'claimer', balance: new BgN(await this.crush.balanceOf(claimer)).div(10**18).toString() },
   //       { user: 'alice', balance: new BgN(await this.crush.balanceOf(alice)).div(10**18).toString() },
   //       { user: 'bob', balance: new BgN(await this.crush.balanceOf(bob)).div(10**18).toString() },
@@ -388,116 +362,129 @@ contract( "LotteryTests", ([alice, bob, carol, dev, minter, partner, monkey, bul
   //   return true
   // })
 
-  it("should send the correct bonus to winners", async()=>{
+  // it("should send the correct bonus to winners", async()=>{
 
-    const walletLogs = async() => {
-      console.log([
-        { user: 'totalBonus', balance: new BgN(await this.bonusToken.balanceOf( this.lottery.address )).div(10**18).toString() },
-        { user: 'claimer', balance: new BgN(await this.bonusToken.balanceOf(claimer)).div(10**18).toString() },
-        { user: 'bob', balance: new BgN(await this.bonusToken.balanceOf(bob)).div(10**18).toString() },
-        { user: 'monkey', balance: new BgN(await this.bonusToken.balanceOf(monkey)).div(10**18).toString() },
-        { user: 'bull', balance: new BgN(await this.bonusToken.balanceOf(bull)).div(10**18).toString() },
-        { user: 'bear', balance: new BgN(await this.bonusToken.balanceOf(bear)).div(10**18).toString() },
-        { user: 'alice', balance: new BgN(await this.bonusToken.balanceOf(alice)).div(10**18).toString() },
-        { user: 'carol', balance: new BgN(await this.bonusToken.balanceOf(carol)).div(10**18).toString() },
-        { user: 'dev', balance: new BgN(await this.bonusToken.balanceOf(dev)).div(10**18).toString() },
-      ])
-    }
+  //   const walletLogs = async() => {
+  //     console.log([
+  //       { user: 'totalBonus', balance: new BgN(await this.bonusToken.balanceOf( this.lottery.address )).div(10**18).toString() },
+  //       { user: 'claimer', balance: new BgN(await this.bonusToken.balanceOf(claimer)).div(10**18).toString() },
+  //       { user: 'bob', balance: new BgN(await this.bonusToken.balanceOf(bob)).div(10**18).toString() },
+  //       { user: 'monkey', balance: new BgN(await this.bonusToken.balanceOf(monkey)).div(10**18).toString() },
+  //       { user: 'bull', balance: new BgN(await this.bonusToken.balanceOf(bull)).div(10**18).toString() },
+  //       { user: 'bear', balance: new BgN(await this.bonusToken.balanceOf(bear)).div(10**18).toString() },
+  //       { user: 'alice', balance: new BgN(await this.bonusToken.balanceOf(alice)).div(10**18).toString() },
+  //       { user: 'carol', balance: new BgN(await this.bonusToken.balanceOf(carol)).div(10**18).toString() },
+  //       { user: 'dev', balance: new BgN(await this.bonusToken.balanceOf(dev)).div(10**18).toString() },
+  //     ])
+  //   }
 
-    // START ROUNDS
-    await this.lottery.firstStart({ from: minter });
-    const win0 = new Array(10).fill( standardizeNumber(0))
-    const win1 = new Array(10).fill( standardizeNumber(112233) )
-    const win2 = new Array(10).fill( standardizeNumber(102233) )
-    const win3 = new Array(10).fill( standardizeNumber(100233) )
-    const win4 = new Array(10).fill( standardizeNumber(100033) )
-    const win5 = new Array(10).fill( standardizeNumber(100003) )
-    const winJackpot = new Array(10).fill( standardizeNumber(100000) )
+  //   // START ROUNDS
+  //   await this.lottery.firstStart({ from: minter });
+  //   const win0 = new Array(10).fill( standardizeNumber(0))
+  //   const win1 = new Array(10).fill( standardizeNumber(112233) )
+  //   const win2 = new Array(10).fill( standardizeNumber(102233) )
+  //   const win3 = new Array(10).fill( standardizeNumber(100233) )
+  //   const win4 = new Array(10).fill( standardizeNumber(100033) )
+  //   const win5 = new Array(10).fill( standardizeNumber(100003) )
+  //   const winJackpot = new Array(10).fill( standardizeNumber(100000) )
 
-    await this.lottery.buyTickets( win0.slice(0,10), 0, { from: bob })
-    await this.lottery.buyTickets( win1.slice(0,10), 0, { from: monkey })
-    await this.lottery.buyTickets( win2.slice(0,5), 0, { from: bull })
-    await this.lottery.buyTickets( win3.slice(0,4), 0, { from: bear })
-    await this.lottery.buyTickets( win4.slice(0,2), 0, { from: alice })
-    await this.lottery.buyTickets( win5.slice(0,1), 0, { from: carol })
-    await this.lottery.buyTickets( winJackpot.slice(0,1), 0, { from: dev })
+  //   await this.lottery.buyTickets( win0.slice(0,10), 0, { from: bob })
+  //   await this.lottery.buyTickets( win1.slice(0,10), 0, { from: monkey })
+  //   await this.lottery.buyTickets( win2.slice(0,5), 0, { from: bull })
+  //   await this.lottery.buyTickets( win3.slice(0,4), 0, { from: bear })
+  //   await this.lottery.buyTickets( win4.slice(0,2), 0, { from: alice })
+  //   await this.lottery.buyTickets( win5.slice(0,1), 0, { from: carol })
+  //   await this.lottery.buyTickets( winJackpot.slice(0,1), 0, { from: dev })
 
-    await walletLogs()
+  //   await walletLogs()
     
-    const sentWinner = 100000
-    //   // to test SETWINNER fn needs to be public
-    const claimerInitBalance = new BgN(await this.bonusToken.balanceOf(claimer)).div(10**18)
-    const aliceInitBalance = new BgN(await this.bonusToken.balanceOf(alice)).div(10**18)
-    const bobInitBalance = new BgN(await this.bonusToken.balanceOf(bob)).div(10**18)
-    const monkeyInitBalance = new BgN(await this.bonusToken.balanceOf(monkey)).div(10**18)
-    const bullInitBalance = new BgN(await this.bonusToken.balanceOf(bull)).div(10**18)
-    const bearInitBalance = new BgN(await this.bonusToken.balanceOf(bear)).div(10**18)
-    const carolInitBalance = new BgN(await this.bonusToken.balanceOf(carol)).div(10**18)
-    const devInitBalance = new BgN(await this.bonusToken.balanceOf(dev)).div(10**18)
-    await this.lottery.setWinner( sentWinner, claimer,{ from: minter });
-    // claimers is private for the privacy of claimers.
-    const claimerPercent = new BgN(6).times(10**8) // (await this.lottery.claimers(1)).percent)
-    const bonusTokenInfo = await this.lottery.bonusCoins(1)
-    const bonusTokenMax = new BgN(bonusTokenInfo.bonusMaxPercent)
-    const roundTotal = new BgN(bonusTokenInfo.bonusAmount).div(10**18)
-    console.log(roundTotal.toString())
-    assert.equal(
-      new BgN(await this.bonusToken.balanceOf(claimer)).div(10**18).minus(claimerInitBalance).toFixed(18,1), // actual
-      claimerPercent.times(roundTotal).div(bonusTokenMax).toFixed(18,1), // expected
-      "issue with claimer fee"
-    )
-    await this.lottery.claimNumber(1,win0[0],{from: bob})
-    await this.lottery.claimNumber(1,win0[0],{from: bob})
-    await this.lottery.claimNumber(1,win0[0],{from: bob})
-    await this.lottery.claimNumber(1,win0[0],{from: bob})
-    await this.lottery.claimNumber(1,win0[0],{from: bob})
-    await this.lottery.claimNumber(1,win0[0],{from: bob})
-    await this.lottery.claimNumber(1,win0[0],{from: bob})
-    await this.lottery.claimNumber(1,win0[0],{from: bob})
-    await this.lottery.claimNumber(1,win0[0],{from: bob})
-    await this.lottery.claimNumber(1,win0[0],{from: bob})
-    // await expectRevert(this.lottery.claimNumber(1,win0[0],{from: bob}), "Not owner or Ticket already claimed")
-    await this.lottery.claimNumber(1,win1[0],{from: monkey})
-    await this.lottery.claimNumber(1,win1[0],{from: monkey})
-    await this.lottery.claimNumber(1,win1[0],{from: monkey})
-    await this.lottery.claimNumber(1,win1[0],{from: monkey})
-    await this.lottery.claimNumber(1,win1[0],{from: monkey})
-    await this.lottery.claimNumber(1,win1[0],{from: monkey})
-    await this.lottery.claimNumber(1,win1[0],{from: monkey})
-    await this.lottery.claimNumber(1,win1[0],{from: monkey})
-    await this.lottery.claimNumber(1,win1[0],{from: monkey})
-    await this.lottery.claimNumber(1,win1[0],{from: monkey})
-    await this.lottery.claimNumber(1,win2[0],{from: bull})
-    await this.lottery.claimNumber(1,win2[0],{from: bull})
-    await this.lottery.claimNumber(1,win2[0],{from: bull})
-    await this.lottery.claimNumber(1,win2[0],{from: bull})
-    await this.lottery.claimNumber(1,win2[0],{from: bull})
-    await this.lottery.claimNumber(1,win3[0],{from: bear})
-    await this.lottery.claimNumber(1,win3[0],{from: bear})
-    await this.lottery.claimNumber(1,win3[0],{from: bear})
-    await this.lottery.claimNumber(1,win3[0],{from: bear})
-    await this.lottery.claimNumber(1,win4[0],{from: alice})
-    await this.lottery.claimNumber(1,win4[0],{from: alice})
-    await this.lottery.claimNumber(1,win5[0],{from: carol})
-    await this.lottery.claimNumber(1,winJackpot[0],{from: dev})
-    const roundInfo = await this.lottery.roundInfo(1)
-    console.log(
-      'expected',
-      [
-        { endPool: new BgN(await this.bonusToken.balanceOf(this.lottery.address)).div(10**18).toString()},
-        { totalTickets: new BgN( roundInfo.totalTickets ).toString()},
-        { claimedTickets: new BgN( roundInfo.ticketsClaimed ).toString()},
-        { match: 0, amount:roundTotal.times( this.matches.noMatch.minus(claimerPercent).div(bonusTokenMax)).toFixed(18,1) },
-        { match: 1, amount:roundTotal.times( this.matches.match1.div(bonusTokenMax)).toFixed(18,1) },
-        { match: 2, amount:roundTotal.times( this.matches.match2.div(bonusTokenMax)).toFixed(18,1) },
-        { match: 3, amount:roundTotal.times( this.matches.match3.div(bonusTokenMax)).toFixed(18,1) },
-        { match: 4, amount:roundTotal.times( this.matches.match4.div(bonusTokenMax)).toFixed(18,1) },
-        { match: 5, amount:roundTotal.times( this.matches.match5.div(bonusTokenMax)).toFixed(18,1) },
-        { match: 6, amount:roundTotal.times( this.matches.jackpot.div(bonusTokenMax)).toFixed(18,1) },
-      ]
-    )
-    await walletLogs()
-    console.log( )
-    return true
+  //   const sentWinner = 100000
+  //   //   // to test SETWINNER fn needs to be public
+  //   const claimerInitBalance = new BgN(await this.bonusToken.balanceOf(claimer)).div(10**18)
+  //   const aliceInitBalance = new BgN(await this.bonusToken.balanceOf(alice)).div(10**18)
+  //   const bobInitBalance = new BgN(await this.bonusToken.balanceOf(bob)).div(10**18)
+  //   const monkeyInitBalance = new BgN(await this.bonusToken.balanceOf(monkey)).div(10**18)
+  //   const bullInitBalance = new BgN(await this.bonusToken.balanceOf(bull)).div(10**18)
+  //   const bearInitBalance = new BgN(await this.bonusToken.balanceOf(bear)).div(10**18)
+  //   const carolInitBalance = new BgN(await this.bonusToken.balanceOf(carol)).div(10**18)
+  //   const devInitBalance = new BgN(await this.bonusToken.balanceOf(dev)).div(10**18)
+  //   await this.lottery.setWinner( sentWinner, claimer,{ from: minter });
+  //   // claimers is private for the privacy of claimers.
+  //   const claimerPercent = new BgN(6).times(10**8) // (await this.lottery.claimers(1)).percent)
+  //   const bonusTokenInfo = await this.lottery.bonusCoins(1)
+  //   const bonusTokenMax = new BgN(bonusTokenInfo.bonusMaxPercent)
+  //   const roundTotal = new BgN(bonusTokenInfo.bonusAmount).div(10**18)
+  //   console.log(roundTotal.toString())
+  //   assert.equal(
+  //     new BgN(await this.bonusToken.balanceOf(claimer)).div(10**18).minus(claimerInitBalance).toFixed(18,1), // actual
+  //     claimerPercent.times(roundTotal).div(bonusTokenMax).toFixed(18,1), // expected
+  //     "issue with claimer fee"
+  //   )
+  //   await this.lottery.claimNumber(1,win0[0],{from: bob})
+  //   await this.lottery.claimNumber(1,win0[0],{from: bob})
+  //   await this.lottery.claimNumber(1,win0[0],{from: bob})
+  //   await this.lottery.claimNumber(1,win0[0],{from: bob})
+  //   await this.lottery.claimNumber(1,win0[0],{from: bob})
+  //   await this.lottery.claimNumber(1,win0[0],{from: bob})
+  //   await this.lottery.claimNumber(1,win0[0],{from: bob})
+  //   await this.lottery.claimNumber(1,win0[0],{from: bob})
+  //   await this.lottery.claimNumber(1,win0[0],{from: bob})
+  //   await this.lottery.claimNumber(1,win0[0],{from: bob})
+  //   // await expectRevert(this.lottery.claimNumber(1,win0[0],{from: bob}), "Not owner or Ticket already claimed")
+  //   await this.lottery.claimNumber(1,win1[0],{from: monkey})
+  //   await this.lottery.claimNumber(1,win1[0],{from: monkey})
+  //   await this.lottery.claimNumber(1,win1[0],{from: monkey})
+  //   await this.lottery.claimNumber(1,win1[0],{from: monkey})
+  //   await this.lottery.claimNumber(1,win1[0],{from: monkey})
+  //   await this.lottery.claimNumber(1,win1[0],{from: monkey})
+  //   await this.lottery.claimNumber(1,win1[0],{from: monkey})
+  //   await this.lottery.claimNumber(1,win1[0],{from: monkey})
+  //   await this.lottery.claimNumber(1,win1[0],{from: monkey})
+  //   await this.lottery.claimNumber(1,win1[0],{from: monkey})
+  //   await this.lottery.claimNumber(1,win2[0],{from: bull})
+  //   await this.lottery.claimNumber(1,win2[0],{from: bull})
+  //   await this.lottery.claimNumber(1,win2[0],{from: bull})
+  //   await this.lottery.claimNumber(1,win2[0],{from: bull})
+  //   await this.lottery.claimNumber(1,win2[0],{from: bull})
+  //   await this.lottery.claimNumber(1,win3[0],{from: bear})
+  //   await this.lottery.claimNumber(1,win3[0],{from: bear})
+  //   await this.lottery.claimNumber(1,win3[0],{from: bear})
+  //   await this.lottery.claimNumber(1,win3[0],{from: bear})
+  //   await this.lottery.claimNumber(1,win4[0],{from: alice})
+  //   await this.lottery.claimNumber(1,win4[0],{from: alice})
+  //   await this.lottery.claimNumber(1,win5[0],{from: carol})
+  //   await this.lottery.claimNumber(1,winJackpot[0],{from: dev})
+  //   const roundInfo = await this.lottery.roundInfo(1)
+  //   console.log(
+  //     'expected',
+  //     [
+  //       { endPool: new BgN(await this.bonusToken.balanceOf(this.lottery.address)).div(10**18).toString()},
+  //       { totalTickets: new BgN( roundInfo.totalTickets ).toString()},
+  //       { claimedTickets: new BgN( roundInfo.ticketsClaimed ).toString()},
+  //       { match: 0, amount:roundTotal.times( this.matches.noMatch.minus(claimerPercent).div(bonusTokenMax)).toFixed(18,1) },
+  //       { match: 1, amount:roundTotal.times( this.matches.match1.div(bonusTokenMax)).toFixed(18,1) },
+  //       { match: 2, amount:roundTotal.times( this.matches.match2.div(bonusTokenMax)).toFixed(18,1) },
+  //       { match: 3, amount:roundTotal.times( this.matches.match3.div(bonusTokenMax)).toFixed(18,1) },
+  //       { match: 4, amount:roundTotal.times( this.matches.match4.div(bonusTokenMax)).toFixed(18,1) },
+  //       { match: 5, amount:roundTotal.times( this.matches.match5.div(bonusTokenMax)).toFixed(18,1) },
+  //       { match: 6, amount:roundTotal.times( this.matches.jackpot.div(bonusTokenMax)).toFixed(18,1) },
+  //     ]
+  //   )
+  //   await walletLogs()
+  //   return true
+  // })
+  it("should proceed with next rounds", async() => {
+    await this.lottery.firstStart({from: minter})
+    console.log( new Date(new BgN(await this.lottery.roundEnd.call()).toNumber()*1000) )
+    await this.lottery.setWinner(123456, alice, {from: minter})
+    console.log( new Date(new BgN(await this.lottery.roundEnd.call()).toNumber()*1000) )
+    await this.lottery.setWinner(456789, alice, {from: minter})
+    console.log( new Date(new BgN(await this.lottery.roundEnd.call()).toNumber()*1000) )
+    const round1 = await this.lottery.roundInfo(1)
+    const round2 = await this.lottery.roundInfo(2)
+    const round3 = await this.lottery.roundInfo(3)
+    const round4 = await this.lottery.roundInfo(4)
+    console.log( web3.utils.fromWei(round1.pool), web3.utils.fromWei(round2.pool), web3.utils.fromWei(round3.pool), web3.utils.fromWei(round4.pool) )
+    assert.equal( new BgN(await this.lottery.currentRound.call()).toNumber() , 3, "Rounds not advancing")
   })
 })
