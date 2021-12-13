@@ -88,8 +88,8 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
     uint256 public ticketValue = 30 * 10**18 ; //Value of Ticket value in WEI
     uint256 public devTicketCut = 10 * ONE__PERCENT; // This is 10% of ticket sales taken on ticket sale
 
-    uint256 public burnThreshold = 10000;
-    uint256 public distributionThreshold = 10000;
+    uint256 public burnThreshold = 10 * ONE__PERCENT;
+    uint256 public distributionThreshold = 10 * ONE__PERCENT;
     
     // Fee Distributions
     /// @dev these values are used with PERCENT_BASE as 100%
@@ -101,7 +101,7 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
     uint256 public match1 = 2 * ONE__PERCENT;
     uint256 public noMatch = 2 * ONE__PERCENT;
     uint256 public burn = 18 * ONE__PERCENT;
-    uint256 public claimFee = 75 * ONE100PERCENT;
+    uint256 public claimFee = 75 * ONE100PERCENT; // This is deducted from the no winners 2%
     // Mappings
     mapping(uint256 => RoundInfo) public roundInfo; //Round Info
     mapping(uint256 => BonusCoin) public bonusCoins; //Track bonus partner coins to distribute
@@ -188,7 +188,7 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
             crush.safeTransferFrom(msg.sender, partners[_partnerId-1], partnerCut);
         }
         crush.safeTransferFrom(msg.sender, devAddress, devCut);
-        roundInfo[currentRound].totalTickets += _ticketNumbers.length;
+        roundInfo[currentRound].totalTickets = roundInfo[currentRound].totalTickets.add(_ticketNumbers.length);
     }
 
     /// @notice add/remove/edit partners 
@@ -285,7 +285,7 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
         startRound();
         calcNextHour();
         // Rollover all of pool zero at start
-        roundInfo[currentRound].pool = roundInfo[0].pool;
+        roundInfo[currentRound] = RoundInfo(0,0,0,roundInfo[0].pool);
     }
 
     /// @notice Ends current round
@@ -369,10 +369,10 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
 
     /// @notice Setup the burn threshold
     /// @param _threshold new threshold in percent amount
-    /// @dev setting the minimum threshold as 0 will always burn, setting max as 50% (50000)
+    /// @dev setting the minimum threshold as 0 will always burn, setting max as 50
     function setBurnThreshold( uint256 _threshold ) external onlyOwner{
-        require( _threshold >= 0  && _threshold <= 50000, "Out of range");
-        burnThreshold = _threshold;
+        require( _threshold >= 0  && _threshold <= 50, "Out of range");
+        burnThreshold = _threshold * ONE__PERCENT;
     }
 
     // External functions that are view
@@ -509,51 +509,45 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
     }
 
     function calculateRollover() internal returns ( uint256 _rollover, uint256 _burn, uint256 _forClaimer ) {
-        uint totalPool = roundInfo[currentRound].pool;
+        RoundInfo storage info = roundInfo[currentRound];
         _rollover = 0;
         // for zero match winners
-        RoundInfo storage info = roundInfo[currentRound];
         BonusCoin storage roundBonusCoin = bonusCoins[currentRound];
         uint256[6] memory winnerDigits = getDigits(info.winnerNumber);
         uint256[6] memory matchPercents = [ match6, match5, match4, match3, match2, match1 ];
-        uint256[6] memory matchHolders;
         uint256 totalMatchHolders = 0;
         
         for( uint8 i = 0; i < 6; i ++){
             uint256 digitToCheck = winnerDigits[i];
-            matchHolders[i] = holders[currentRound][digitToCheck];
-            if( matchHolders[i] > 0 ){
-                if(i == 0){
-                    totalMatchHolders = matchHolders[i];
-                }
+            uint256 matchHolders = holders[currentRound][digitToCheck];
+            if( matchHolders > 0 ){
+                if(i == 0)
+                    totalMatchHolders = matchHolders;
                 else{
-                    matchHolders[i] = matchHolders[i].sub(totalMatchHolders);
-                    totalMatchHolders = totalMatchHolders.add( matchHolders[i] );
-                    holders[currentRound][digitToCheck] = matchHolders[i];
+                    matchHolders = matchHolders.sub(totalMatchHolders);
+                    totalMatchHolders = totalMatchHolders.add( matchHolders );
+                    holders[currentRound][digitToCheck] = matchHolders;
                 }
-            }
-            // single check to remove duplicate code
-            if(matchHolders[i] == 0)
-                _rollover = _rollover.add( getFraction(totalPool, matchPercents[i], PERCENT_BASE) );
-            else{
                 _forClaimer = _forClaimer.add(matchPercents[i]);
                 roundBonusCoin.bonusMaxPercent = roundBonusCoin.bonusMaxPercent.add(matchPercents[i]);
             }
+            else
+                _rollover = _rollover.add( getFraction(info.pool, matchPercents[i], PERCENT_BASE) );
         }
         _forClaimer = _forClaimer.mul(claimFee).div(PERCENT_BASE);
         uint256 nonWinners = info.totalTickets.sub(totalMatchHolders);
         // Are there any noMatch tickets
         if( nonWinners == 0 )
-            _rollover += getFraction(totalPool, noMatch.sub(_forClaimer ), PERCENT_BASE);
+            _rollover = _rollover.add(getFraction(info.pool, noMatch.sub(_forClaimer ), PERCENT_BASE));
         else
             roundBonusCoin.bonusMaxPercent = roundBonusCoin.bonusMaxPercent.add(noMatch);
-        if( getFraction(totalPool, burnThreshold, PERCENT_BASE) <=  info.totalTickets.mul(ticketValue) )
-            _burn = getFraction( totalPool, burn, PERCENT_BASE);
+        if( getFraction(info.pool, burnThreshold, PERCENT_BASE) <=  info.totalTickets.mul(ticketValue) )
+            _burn = getFraction( info.pool, burn, PERCENT_BASE);
         else
             _burn = 0;
         
         claimers[currentRound].percent = _forClaimer;
-        _forClaimer = getFraction(totalPool, _forClaimer, PERCENT_BASE);
+        _forClaimer = getFraction(info.pool, _forClaimer, PERCENT_BASE);
     }
 
     // GET Verifiable RandomNumber from VRF
