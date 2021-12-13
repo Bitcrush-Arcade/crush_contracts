@@ -86,7 +86,7 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
     uint256 public roundStart; //Timestamp of roundstart
     uint256 public roundEnd;
     uint256 public ticketValue = 30 * 10**18 ; //Value of Ticket value in WEI
-    uint256 public devTicketCut = 10000; // This is 10% of ticket sales taken on ticket sale
+    uint256 public devTicketCut = 10 * ONE__PERCENT; // This is 10% of ticket sales taken on ticket sale
 
     uint256 public burnThreshold = 10000;
     uint256 public distributionThreshold = 10000;
@@ -487,7 +487,7 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
         uint256 rollOver;
         uint256 burnAmount;
         uint256 forClaimer;
-
+        RoundInfo storage thisRound = roundInfo[currentRound];
         (rollOver, burnAmount, forClaimer) = calculateRollover();
         // Transfer Amount to Claimer
         Claimer storage roundClaimer = claimers[currentRound];
@@ -495,7 +495,7 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
             crush.safeTransfer( roundClaimer.claimer, forClaimer );
         transferBonus( roundClaimer.claimer, 1 ,currentRound, roundClaimer.percent );
         // Can distribute rollover
-        if( rollOver > 0 && roundInfo[currentRound].totalTickets.mul(ticketValue) >= getFraction(roundInfo[currentRound].pool, distributionThreshold, PERCENT_BASE)){
+        if( rollOver > 0 && thisRound.totalTickets.mul(ticketValue) >= getFraction(thisRound.pool, distributionThreshold, PERCENT_BASE)){
             uint256 profitDistribution = getFraction(rollOver, distributionThreshold, PERCENT_BASE);
             crush.approve( address(bankAddress), profitDistribution);
             bankAddress.addUserLoss(profitDistribution);
