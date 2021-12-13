@@ -165,7 +165,7 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
     /// @param _partnerId the id of the partner to send the funds to if 0, no partner is checked.
     function buyTickets(uint256[] calldata _ticketNumbers, uint256 _partnerId) external {
         require(_ticketNumbers.length > 0, "Cant buy zero tickets");
-        require(_ticketNumbers.length < 10, "Cant buy more than 10 tickets at any given time");
+        require(_ticketNumbers.length <= 100, "Cant buy more than 10 tickets at any given time");
         require(currentIsActive == true, "Round not active");
         // Check if User has funds for ticket
         uint userCrushBalance = crush.balanceOf(msg.sender);
