@@ -179,7 +179,7 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
         addToPool(ticketCost.sub(devCut));
         
         if(_partnerId > 0){
-            require(_partnerId <= partners.length, "Cheeky aren't you");
+            require(_partnerId <= partners.length, "Cheeky aren't you, partner Id doesn't exist. Contact us for partnerships");
             Partner storage _p = partnerSplit[partners[_partnerId -1]];
             require(_p.set, "Partnership ended");
             // Split cut with partner
