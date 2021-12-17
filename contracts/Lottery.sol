@@ -422,14 +422,16 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
     /// @notice Set the next start hour and next hour index
     function calcNextHour() internal {
         uint256 tempEnd = roundEnd;
+        uint8 newIndex = endHourIndex;
         bool nextDay = true;
         while(tempEnd <= block.timestamp){
-            endHourIndex = endHourIndex + 1 >= endHours.length ? 0 : endHourIndex + 1;
-            tempEnd = setNextRoundEndTime(block.timestamp, endHours[endHourIndex], endHourIndex != 0 && nextDay);
-            if(endHourIndex == endHours.length)
+            newIndex = newIndex + 1 >= endHours.length ? 0 : newIndex + 1;
+            tempEnd = setNextRoundEndTime(block.timestamp, endHours[newIndex], newIndex != 0 && nextDay);
+            if(newIndex == endHours.length)
                 nextDay = false;
         }
         roundEnd = tempEnd;
+        endHourIndex = newIndex;
     }
 
     function createTicket( address _owner, uint256 _ticketNumber, uint256 _round) internal {
