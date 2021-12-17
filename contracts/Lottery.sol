@@ -7,6 +7,7 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 import "./CrushCoin.sol";
 
@@ -22,7 +23,7 @@ interface Bankroll {
  *
  *
  */
-contract BitcrushLottery is VRFConsumerBase, Ownable {
+contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
     
     // Libraries
     using SafeMath for uint256;
@@ -163,7 +164,7 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
     /// @notice Buy Tickets to participate in current round from a partner
     /// @param _ticketNumbers takes in an array of uint values as the ticket number to buy
     /// @param _partnerId the id of the partner to send the funds to if 0, no partner is checked.
-    function buyTickets(uint256[] calldata _ticketNumbers, uint256 _partnerId) external {
+    function buyTickets(uint256[] calldata _ticketNumbers, uint256 _partnerId) external nonReentrant {
         require(_ticketNumbers.length > 0, "Cant buy zero tickets");
         require(_ticketNumbers.length <= 100, "Cant buy more than 100 tickets at any given time");
         require(currentIsActive == true, "Round not active");
@@ -237,7 +238,7 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
     /// @notice Claim rewards for given ticket number
     /// @param _round the round the ticket number was emitted for
     /// @param luckyTicket the ticket number to claim
-    function claimNumber(uint256 _round, uint256 luckyTicket) external {
+    function claimNumber(uint256 _round, uint256 luckyTicket) external nonReentrant{
         // Check if round is over
         RoundInfo storage info = roundInfo[_round];
         require(info.winnerNumber > 0, "Round not done yet");
@@ -660,14 +661,14 @@ contract BitcrushLottery is VRFConsumerBase, Ownable {
     /// @notice HELPFUL FUNCTION TO TEST WINNERS LOCALLY THIS FUNCTION IS NOT MEANT TO GO LIVE
     /// This function sets the random value for the winner.
     /// @param randomness simulates a number given back by the randomness function
-    function setWinner( uint256 randomness, address _claimer ) public operatorOnly{
-        calcNextHour();
-        currentIsActive = false;
-        RoundInfo storage info = roundInfo[currentRound];
-        info.winnerNumber = standardTicketNumber(randomness, WINNER_BASE, MAX_BASE);
-        claimers[currentRound] = Claimer(_claimer, 0);
-        emit WinnerPicked(currentRound, info.winnerNumber, "ADMIN_SET_WINNER");
-        distributeCrush();
-        startRound();
-    }
+    // function setWinner( uint256 randomness, address _claimer ) public operatorOnly{
+    //     calcNextHour();
+    //     currentIsActive = false;
+    //     RoundInfo storage info = roundInfo[currentRound];
+    //     info.winnerNumber = standardTicketNumber(randomness, WINNER_BASE, MAX_BASE);
+    //     claimers[currentRound] = Claimer(_claimer, 0);
+    //     emit WinnerPicked(currentRound, info.winnerNumber, "ADMIN_SET_WINNER");
+    //     distributeCrush();
+    //     startRound();
+    // }
 }
