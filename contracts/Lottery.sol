@@ -41,6 +41,15 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
         uint256 ticketsClaimed;
         uint256 winnerNumber;
         uint256 pool;
+        uint256 endTime;
+        uint256 match6;
+        uint256 match5;
+        uint256 match4;
+        uint256 match3;
+        uint256 match2;
+        uint256 match1;
+        uint256 noMatch;
+        uint256 burn;
     }
 
     struct Ticket {
@@ -131,6 +140,7 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
     event TicketsRewarded(address _rewardee, uint256 _ticketAmount);
     event UpdateTicketValue(uint256  _timeOfUpdate, uint256 _newValue);
     event PartnerUpdated(address indexed _partner);
+    event PercentagesChanged( address indexed owner, string percentName, uint256 newPercent);
     
     // MODIFIERS
     modifier operatorOnly {
@@ -256,7 +266,7 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
         }
         require(ownsTicket && ownedTickets[ticketIndex].claimed == false, "Not owner or Ticket already claimed");
         // GET AND TRANSFER TICKET CLAIM AMOUNT
-        uint256[6] memory matches = [match1, match2, match3, match4, match5, match6];
+        uint256[6] memory matches = [info.match1, info.match2, info.match3, info.match4, info.match5, info.match6];
         (bool isWinner, uint amountMatch) = isNumberWinner(_round, luckyTicket);
         uint256 claimAmount = 0;
         uint256[6] memory digits = getDigits(standardTicketNumber(luckyTicket, WINNER_BASE, MAX_BASE));
@@ -267,7 +277,7 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
             transferBonus(msg.sender, holders[_round][digits[6 - amountMatch]], _round, matches[amountMatch - 1]);
         }
         else{
-            uint256 matchReduction = noMatch.sub(claimers[_round].percent);
+            uint256 matchReduction = info.noMatch.sub(claimers[_round].percent);
             transferBonus(msg.sender, calcNonWinners(_round), _round, matchReduction);
             // -- matchAmount / nonWinners --
             claimAmount = getFraction(info.pool, matchReduction, PERCENT_BASE)
@@ -283,10 +293,10 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
     /// @notice Start of new Round. This function is only needed for the first round, next rounds will be automatically started once the winner number is received
     function firstStart() external operatorOnly{
         require(currentRound == 0, "First Round only");
-        startRound();
         calcNextHour();
+        startRound();
         // Rollover all of pool zero at start
-        roundInfo[currentRound] = RoundInfo(0,0,0,roundInfo[0].pool);
+        roundInfo[currentRound] = RoundInfo(0,0,0,roundInfo[0].pool, roundEnd, match6, match5, match4, match3, match2, match1, noMatch, 0);
     }
 
     /// @notice Ends current round
@@ -294,10 +304,11 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
     function endRound() external {
         require(LINK.balanceOf(address(this)) >= feeVRF, "Not enough LINK - please contact mod to fund to contract");
         require(currentIsActive == true, "Current Round is over");
-        require(block.timestamp > roundEnd, "Can't end round just yet");
+        require(block.timestamp > roundInfo[currentRound].endTime, "Can't end round just yet");
 
         calcNextHour();
         currentIsActive = false;
+        roundInfo[currentRound.add(1)].endTime = roundEnd;
         claimers[currentRound] = Claimer(msg.sender, 0);
         // Request Random Number for Winner
         bytes32 rqId = requestRandomness(keyHashVRF, feeVRF);
@@ -319,10 +330,11 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
     // SETTERS
     /// @notice Change the claimer's fee
     /// @param _fee the value of the new fee
-    /// @dev Fee cannot be greater than 2% ( since 2% is the amount given out to nonWinners )
+    /// @dev Fee cannot be greater than noMatch percentage ( since noMatch percentage is the amount given out to nonWinners )
     function setClaimerFee( uint256 _fee ) external onlyOwner{
-        require(_fee < 2000 && _fee >= 0, "Invalid fee amount");
-        claimFee = _fee;
+        require(_fee.mul(ONE100PERCENT) < noMatch, "Invalid fee amount");
+        claimFee = _fee.mul(ONE100PERCENT);
+        emit PercentagesChanged(msg.sender, 'claimFee', _fee.mul(ONE100PERCENT));
     }
     /// @notice Set the token that will be used as a Bonus for a particular round
     /// @param _partnerToken Token address
@@ -372,8 +384,34 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
     /// @param _threshold new threshold in percent amount
     /// @dev setting the minimum threshold as 0 will always burn, setting max as 50
     function setBurnThreshold( uint256 _threshold ) external onlyOwner{
-        require( _threshold >= 0  && _threshold <= 50, "Out of range");
+        require(_threshold <= 50, "Out of range");
         burnThreshold = _threshold * ONE__PERCENT;
+    }
+    /// @notice Set the distribution percentage amounts... all amounts must be given for this to work
+    /// @param _newDistribution array of distribution amounts 
+    /// @dev we expect all values to sum 100 and that all items are given. The new distribution only applies to next rounds
+    /// @dev all values are in the one onehundreth percentile amount.
+    /// @dev expected order [ jackpot, match5, match4, match3, match2, match1, noMatch, burn]
+    function setDistributionPercentages( uint256[] calldata _newDistribution ) external onlyOwner{
+        require(_newDistribution.length == 8, "Missed a few values");
+        require(_newDistribution[7] > 0, "We need to burn something");
+        match6 = _newDistribution[0].mul(ONE100PERCENT);
+        match5 = _newDistribution[1].mul(ONE100PERCENT);
+        match4 = _newDistribution[2].mul(ONE100PERCENT);
+        match3 = _newDistribution[3].mul(ONE100PERCENT);
+        match2 = _newDistribution[4].mul(ONE100PERCENT);
+        match1 = _newDistribution[5].mul(ONE100PERCENT);
+        noMatch = _newDistribution[6].mul(ONE100PERCENT);
+        burn = _newDistribution[7].mul(ONE100PERCENT);
+        require( match6.add(match5).add(match4).add(match3).add(match2).add(match1).add(noMatch).add(burn) == PERCENT_BASE, "Numbers don't add up");
+        emit PercentagesChanged(msg.sender, "jackpot", match6);
+        emit PercentagesChanged(msg.sender, "match5", match5);
+        emit PercentagesChanged(msg.sender, "match4", match4);
+        emit PercentagesChanged(msg.sender, "match3", match3);
+        emit PercentagesChanged(msg.sender, "match2", match2);
+        emit PercentagesChanged(msg.sender, "match1", match1);
+        emit PercentagesChanged(msg.sender, "noMatch", noMatch);
+        emit PercentagesChanged(msg.sender, "burnPercent", burn);
     }
 
     // External functions that are view
@@ -484,6 +522,14 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
         currentRound ++;
         currentIsActive = true;
         roundStart = block.timestamp;
+        RoundInfo storage newRound = roundInfo[currentRound];
+        newRound.match6 = match6;
+        newRound.match5 = match5;
+        newRound.match4 = match4;
+        newRound.match3 = match3;
+        newRound.match2 = match2;
+        newRound.match1 = match1;
+        newRound.noMatch = noMatch;
         emit RoundStarted( currentRound, msg.sender, block.timestamp);
     }
 
@@ -508,8 +554,10 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
         }
 
         // BURN AMOUNT
-        if( burnAmount > 0 )
+        if( burnAmount > 0 ){
             crush.burn( burnAmount );
+            thisRound.burn = burnAmount;
+        }
         roundInfo[ currentRound + 1 ].pool = rollOver;
     }
 
@@ -519,7 +567,7 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
         // for zero match winners
         BonusCoin storage roundBonusCoin = bonusCoins[currentRound];
         uint256[6] memory winnerDigits = getDigits(info.winnerNumber);
-        uint256[6] memory matchPercents = [ match6, match5, match4, match3, match2, match1 ];
+        uint256[6] memory matchPercents = [ info.match6, info.match5, info.match4, info.match3, info.match2, info.match1 ];
         uint256 totalMatchHolders = 0;
         
         for( uint8 i = 0; i < 6; i ++){
@@ -543,9 +591,9 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
         uint256 nonWinners = info.totalTickets.sub(totalMatchHolders);
         // Are there any noMatch tickets
         if( nonWinners == 0 )
-            _rollover = _rollover.add(getFraction(info.pool, noMatch.sub(_forClaimer ), PERCENT_BASE));
+            _rollover = _rollover.add(getFraction(info.pool, info.noMatch.sub(_forClaimer ), PERCENT_BASE));
         else
-            roundBonusCoin.bonusMaxPercent = roundBonusCoin.bonusMaxPercent.add(noMatch);
+            roundBonusCoin.bonusMaxPercent = roundBonusCoin.bonusMaxPercent.add(info.noMatch);
         if( getFraction(info.pool, burnThreshold, PERCENT_BASE) <=  info.totalTickets.mul(ticketValue) )
             _burn = getFraction( info.pool, burn, PERCENT_BASE);
         else{
@@ -661,14 +709,14 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
     /// @notice HELPFUL FUNCTION TO TEST WINNERS LOCALLY THIS FUNCTION IS NOT MEANT TO GO LIVE
     /// This function sets the random value for the winner.
     /// @param randomness simulates a number given back by the randomness function
-    // function setWinner( uint256 randomness, address _claimer ) public operatorOnly{
-    //     calcNextHour();
-    //     currentIsActive = false;
-    //     RoundInfo storage info = roundInfo[currentRound];
-    //     info.winnerNumber = standardTicketNumber(randomness, WINNER_BASE, MAX_BASE);
-    //     claimers[currentRound] = Claimer(_claimer, 0);
-    //     emit WinnerPicked(currentRound, info.winnerNumber, "ADMIN_SET_WINNER");
-    //     distributeCrush();
-    //     startRound();
-    // }
+    function setWinner( uint256 randomness, address _claimer ) public operatorOnly{
+        currentIsActive = false;
+        RoundInfo storage info = roundInfo[currentRound];
+        info.winnerNumber = standardTicketNumber(randomness, WINNER_BASE, MAX_BASE);
+        claimers[currentRound] = Claimer(_claimer, 0);
+        distributeCrush();
+        startRound();
+        calcNextHour();
+        emit WinnerPicked(currentRound, info.winnerNumber, "ADMIN_SET_WINNER");
+    }
 }
