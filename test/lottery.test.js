@@ -136,99 +136,99 @@ contract( "LotteryTests", ([alice, bob, carol, dev, minter, partner, monkey, bul
     return true
   })
 
-  // it("should set the winner", async() => {
-  //   await this.lottery.firstStart({ from: minter });
-  //   await this.lottery.buyTickets([123456,123457], 0, { from: bob });
+  it("should set the winner", async() => {
+    await this.lottery.firstStart({ from: minter });
+    await this.lottery.buyTickets([123456,123457], 0, { from: bob });
 
-  //   const sentWinner = 234567
-  //   const comparedWinner = standardizeNumber(sentWinner)
-  //   console.log( 'initBalance', (await this.crush.balanceOf(alice)).toString())
-  //   await this.lottery.setWinner( sentWinner, alice,{ from: minter });
-  //   console.log( 'endBalance', (await this.crush.balanceOf(alice)).toString())
-  //   assert.equal( (await this.lottery.roundInfo(1)).winnerNumber.toString(), ""+comparedWinner , "winner number not set" )
-  // })
+    const sentWinner = 234567
+    const comparedWinner = standardizeNumber(sentWinner)
+    console.log( 'initBalance', (await this.crush.balanceOf(alice)).toString())
+    await this.lottery.setWinner( sentWinner, alice,{ from: minter });
+    console.log( 'endBalance', (await this.crush.balanceOf(alice)).toString())
+    assert.equal( (await this.lottery.roundInfo(1)).winnerNumber.toString(), ""+comparedWinner , "winner number not set" )
+  })
 
 
-  // it("first Round should only be called once", async()=>{
-  //   await this.lottery.firstStart({ from: minter });
-  //   // START ROUND
-  //   expectRevert(this.lottery.firstStart({ from: minter }), "First Round only")
-  // })
+  it("first Round should only be called once", async()=>{
+    await this.lottery.firstStart({ from: minter });
+    // START ROUND
+    expectRevert(this.lottery.firstStart({ from: minter }), "First Round only")
+  })
   
-  // it( "should create 2 tickets for user", async () => {
-  //   await this.lottery.firstStart({ from: minter });
-  //   // ALLOW CONTRACT TO SPEND MY CRUSH
-  //   await this.crush.approve( this.lottery.address, web3.utils.toBN('3000').mul( web3.utils.toBN('10').pow( web3.utils.toBN('18'))) ,{ from: bob });
-  //   const ticket1 = 112233
-  //   const ticket2 = 445566
+  it( "should create 2 tickets for user", async () => {
+    await this.lottery.firstStart({ from: minter });
+    // ALLOW CONTRACT TO SPEND MY CRUSH
+    await this.crush.approve( this.lottery.address, web3.utils.toBN('3000').mul( web3.utils.toBN('10').pow( web3.utils.toBN('18'))) ,{ from: bob });
+    const ticket1 = 112233
+    const ticket2 = 445566
 
-  //   await this.lottery.buyTickets([ticket1,ticket2], 0, { from: bob });
-  //   const tickets = await this.lottery.getRoundTickets(1, {from: bob});
-  //   assert.equal( tickets.length, 2, "Different number of tickets" );
-  //   assert.equal( tickets[0].ticketNumber, 1112233, "Ticket Number Mismatch"); //"NOTE THAT TICKET NUMBER HAS AN EXTRA 1 at the start"
-  //   assert.equal( (await this.lottery.holders(1,11)).toString(), "1", "digit 11 holders differ")
-  //   assert.equal( (await this.lottery.holders(1,111)).toString(), "1", "digit 111 holders differ")
-  //   assert.equal( (await this.lottery.holders(1,11122)).toString(), "1", "digit 11122 holders differ")
-  //   assert.equal( (await this.lottery.holders(1,111223)).toString(), "1", "digit 111223 holders differ")
-  //   assert.equal( (await this.lottery.holders(1,14)).toString(), "1", "digit 14 holders differ")
-  //   assert.equal( (await this.lottery.holders(1,144)).toString(), "1", "digit 144 holders differ")
-  // })
+    await this.lottery.buyTickets([ticket1,ticket2], 0, { from: bob });
+    const tickets = await this.lottery.getRoundTickets(1, {from: bob});
+    assert.equal( tickets.length, 2, "Different number of tickets" );
+    assert.equal( tickets[0].ticketNumber, 1112233, "Ticket Number Mismatch"); //"NOTE THAT TICKET NUMBER HAS AN EXTRA 1 at the start"
+    assert.equal( (await this.lottery.holders(1,11)).toString(), "1", "digit 11 holders differ")
+    assert.equal( (await this.lottery.holders(1,111)).toString(), "1", "digit 111 holders differ")
+    assert.equal( (await this.lottery.holders(1,11122)).toString(), "1", "digit 11122 holders differ")
+    assert.equal( (await this.lottery.holders(1,111223)).toString(), "1", "digit 111223 holders differ")
+    assert.equal( (await this.lottery.holders(1,14)).toString(), "1", "digit 14 holders differ")
+    assert.equal( (await this.lottery.holders(1,144)).toString(), "1", "digit 144 holders differ")
+  })
 
-  // it("should add another 3 tickets to initial tickets bought", async () => {
-  //   await this.lottery.firstStart({ from: minter });
-  //   // ALLOW CONTRACT TO SPEND MY CRUSH
-  //   await this.crush.approve( this.lottery.address, web3.utils.toBN('3000').mul( web3.utils.toBN('10').pow( web3.utils.toBN('18'))) ,{ from: bob });
+  it("should add another 3 tickets to initial tickets bought", async () => {
+    await this.lottery.firstStart({ from: minter });
+    // ALLOW CONTRACT TO SPEND MY CRUSH
+    await this.crush.approve( this.lottery.address, web3.utils.toBN('3000').mul( web3.utils.toBN('10').pow( web3.utils.toBN('18'))) ,{ from: bob });
 
-  //   await this.lottery.buyTickets([112233,445566], 0, { from: bob });
-  //   await this.lottery.buyTickets([456789,987365,578153], 0, { from: bob });
-  //   const tickets = await this.lottery.getRoundTickets(1, {from: bob});
-  //   assert.equal( tickets.length, 5, "Different number of tickets" );
-  //   assert.equal( tickets[4].ticketNumber, 1578153, "Ticket Number Mismatch"); //"NOTE THAT TICKET NUMBER HAS AN EXTRA 1 at the start"
-  //   assert.equal( (await this.lottery.holders(1,14)).toString(), "2", "digit 14 holders differ")
-  // })
+    await this.lottery.buyTickets([112233,445566], 0, { from: bob });
+    await this.lottery.buyTickets([456789,987365,578153], 0, { from: bob });
+    const tickets = await this.lottery.getRoundTickets(1, {from: bob});
+    assert.equal( tickets.length, 5, "Different number of tickets" );
+    assert.equal( tickets[4].ticketNumber, 1578153, "Ticket Number Mismatch"); //"NOTE THAT TICKET NUMBER HAS AN EXTRA 1 at the start"
+    assert.equal( (await this.lottery.holders(1,14)).toString(), "2", "digit 14 holders differ")
+  })
 
-  // it("should send 10% of ticket value to DEV", async () =>{
-  //   await this.lottery.firstStart({ from: minter });
-  //   const initDevBalance = new BgN(await this.crush.balanceOf(minter));
-  //   // ALLOW CONTRACT TO SPEND MY CRUSH
-  //   await this.lottery.buyTickets([112233,445566], 0, { from: bob });
+  it("should send 10% of ticket value to DEV", async () =>{
+    await this.lottery.firstStart({ from: minter });
+    const initDevBalance = new BgN(await this.crush.balanceOf(minter));
+    // ALLOW CONTRACT TO SPEND MY CRUSH
+    await this.lottery.buyTickets([112233,445566], 0, { from: bob });
 
-  //   assert.equal( 
-  //     new BgN( await this.crush.balanceOf(minter) ).div(10**18).toString(),
-  //     initDevBalance.div(10**18).plus( 6 ).toString(),
-  //     "Different Balances"
-  //   )
-  // } )
+    assert.equal( 
+      new BgN( await this.crush.balanceOf(minter) ).div(10**18).toString(),
+      initDevBalance.div(10**18).plus( 6 ).toString(),
+      "Different Balances"
+    )
+  } )
   //  // PARTNERS
-  // it("should be able to set the partners", async()=>{
-  //   await this.lottery.editPartner(alice, 20,{from: minter})
-  //   assert.equal( (await this.lottery.getProviderId(alice, {from: alice})).toString(), "1", "Alice wasn't set as first partner")
-  //   await expectRevert( this.lottery.getProviderId(bob, {from: bob}), "Not a partner");
-  // })
-  // it("partners should get the split when buy happens on their site", async()=>{
-  //   await this.lottery.editPartner(alice, 50,{from: minter})
-  //   await this.lottery.firstStart({ from: minter });
-  //   const ticket1 = 112233
-  //   const ticket2 = 445566
-  //   const aliceBalInit = parseFloat(web3.utils.fromWei(await this.crush.balanceOf.call(alice)))
-  //   await this.lottery.buyTickets([ticket1,ticket2], 1, { from: bob });
-  //   const aliceBal = parseFloat(web3.utils.fromWei(await this.crush.balanceOf.call(alice)))
-  //   assert.equal(aliceBalInit + 1.5*2, aliceBal, "Wrong distribution");
+  it("should be able to set the partners", async()=>{
+    await this.lottery.editPartner(alice, 20,{from: minter})
+    assert.equal( (await this.lottery.getProviderId(alice, {from: alice})).toString(), "1", "Alice wasn't set as first partner")
+    await expectRevert( this.lottery.getProviderId(bob, {from: bob}), "Not a partner");
+  })
+  it("partners should get the split when buy happens on their site", async()=>{
+    await this.lottery.editPartner(alice, 50,{from: minter})
+    await this.lottery.firstStart({ from: minter });
+    const ticket1 = 112233
+    const ticket2 = 445566
+    const aliceBalInit = parseFloat(web3.utils.fromWei(await this.crush.balanceOf.call(alice)))
+    await this.lottery.buyTickets([ticket1,ticket2], 1, { from: bob });
+    const aliceBal = parseFloat(web3.utils.fromWei(await this.crush.balanceOf.call(alice)))
+    assert.equal(aliceBalInit + 1.5*2, aliceBal, "Wrong distribution");
 
-  // })
+  })
 
-  // it("should set the end hours time", async()=>{
-  //   await this.lottery.setEndHours([10,19,21], {from: minter});
-  //   const endhour0 = (await this.lottery.endHours(0)).toString();
-  //   const endhour1 = (await this.lottery.endHours(1)).toString();
-  //   const endhour2 = (await this.lottery.endHours(2)).toString();
-  //   assert.equal(endhour0, "10", "end at 10 not done");
-  //   assert.equal(endhour1, "19", "end at 19 not done");
-  //   assert.equal(endhour2, "21", "end at 21 not done");
+  it("should set the end hours time", async()=>{
+    await this.lottery.setEndHours([10,19,21], {from: minter});
+    const endhour0 = (await this.lottery.endHours(0)).toString();
+    const endhour1 = (await this.lottery.endHours(1)).toString();
+    const endhour2 = (await this.lottery.endHours(2)).toString();
+    assert.equal(endhour0, "10", "end at 10 not done");
+    assert.equal(endhour1, "19", "end at 19 not done");
+    assert.equal(endhour2, "21", "end at 21 not done");
 
-  //   await expectRevert(this.lottery.setEndHours([1,5,3], {from: minter}),"Help a brother out, sort your times first");
-  //   await expectRevert(this.lottery.setEndHours([26], {from: minter}),"We all wish we had more hours per day");
-  // })
+    await expectRevert(this.lottery.setEndHours([1,5,3], {from: minter}),"Help a brother out, sort your times first");
+    await expectRevert(this.lottery.setEndHours([26], {from: minter}),"We all wish we had more hours per day");
+  })
 
   //CURRENT TIME FOR THESE TESTS IS 2021-12-07T22:24:00.000Z
   // it("should set the new Hour for same day", async () => {
@@ -248,119 +248,119 @@ contract( "LotteryTests", ([alice, bob, carol, dev, minter, partner, monkey, bul
   //   assert.equal( parseInt(roundEnd.toString())*1000, new Date('2021-12-08T10:00:00.000Z').getTime(), "Times mismatch" )
   // })
 
-  // it("should send the correct funds to winners", async()=>{
+  it("should send the correct funds to winners", async()=>{
 
-  //   const walletLogs = async() => {
-  //     console.log([
-  //       { user: 'totalTickets', balance: new BgN((await this.lottery.roundInfo(1)).totalTickets).toString() },
-  //       { user: 'claimer', balance: new BgN(await this.crush.balanceOf(claimer)).div(10**18).toString() },
-  //       { user: 'alice', balance: new BgN(await this.crush.balanceOf(alice)).div(10**18).toString() },
-  //       { user: 'bob', balance: new BgN(await this.crush.balanceOf(bob)).div(10**18).toString() },
-  //       { user: 'monkey', balance: new BgN(await this.crush.balanceOf(monkey)).div(10**18).toString() },
-  //       { user: 'bull', balance: new BgN(await this.crush.balanceOf(bull)).div(10**18).toString() },
-  //       { user: 'bull', balance: new BgN(await this.crush.balanceOf(bull)).div(10**18).toString() },
-  //       { user: 'bear', balance: new BgN(await this.crush.balanceOf(bear)).div(10**18).toString() },
-  //       { user: 'carol', balance: new BgN(await this.crush.balanceOf(carol)).div(10**18).toString() },
-  //       { user: 'dev', balance: new BgN(await this.crush.balanceOf(dev)).div(10**18).toString() },
-  //     ])
-  //   }
+    const walletLogs = async() => {
+      console.log([
+        { user: 'totalTickets', balance: new BgN((await this.lottery.roundInfo(1)).totalTickets).toString() },
+        { user: 'claimer', balance: new BgN(await this.crush.balanceOf(claimer)).div(10**18).toString() },
+        { user: 'alice', balance: new BgN(await this.crush.balanceOf(alice)).div(10**18).toString() },
+        { user: 'bob', balance: new BgN(await this.crush.balanceOf(bob)).div(10**18).toString() },
+        { user: 'monkey', balance: new BgN(await this.crush.balanceOf(monkey)).div(10**18).toString() },
+        { user: 'bull', balance: new BgN(await this.crush.balanceOf(bull)).div(10**18).toString() },
+        { user: 'bull', balance: new BgN(await this.crush.balanceOf(bull)).div(10**18).toString() },
+        { user: 'bear', balance: new BgN(await this.crush.balanceOf(bear)).div(10**18).toString() },
+        { user: 'carol', balance: new BgN(await this.crush.balanceOf(carol)).div(10**18).toString() },
+        { user: 'dev', balance: new BgN(await this.crush.balanceOf(dev)).div(10**18).toString() },
+      ])
+    }
 
-  //   // START ROUNDS
-  //   await this.lottery.firstStart({ from: minter });
-  //   const win0 = new Array(10).fill( standardizeNumber(0))
-  //   const win1 = new Array(10).fill( standardizeNumber(112233) )
-  //   const win2 = new Array(10).fill( standardizeNumber(102233) )
-  //   const win3 = new Array(10).fill( standardizeNumber(100233) )
-  //   const win4 = new Array(10).fill( standardizeNumber(100033) )
-  //   const win5 = new Array(10).fill( standardizeNumber(100003) )
-  //   const winJackpot = new Array(10).fill( standardizeNumber(100000) )
+    // START ROUNDS
+    await this.lottery.firstStart({ from: minter });
+    const win0 = new Array(10).fill( standardizeNumber(0))
+    const win1 = new Array(10).fill( standardizeNumber(112233) )
+    const win2 = new Array(10).fill( standardizeNumber(102233) )
+    const win3 = new Array(10).fill( standardizeNumber(100233) )
+    const win4 = new Array(10).fill( standardizeNumber(100033) )
+    const win5 = new Array(10).fill( standardizeNumber(100003) )
+    const winJackpot = new Array(10).fill( standardizeNumber(100000) )
 
-  //   await this.lottery.buyTickets( win0.slice(0,1), 0, { from: bob })
-  //   await this.lottery.buyTickets( win1.slice(0,1), 0, { from: monkey })
-  //   await this.lottery.buyTickets( win2.slice(0,1), 0, { from: bull })
-  //   await this.lottery.buyTickets( win3.slice(0,1), 0, { from: bear })
-  //   await this.lottery.buyTickets( win4.slice(0,1), 0, { from: alice })
-  //   await this.lottery.buyTickets( win5.slice(0,1), 0, { from: carol })
-  //   await this.lottery.buyTickets( winJackpot.slice(0,1), 0, { from: dev })
+    await this.lottery.buyTickets( win0.slice(0,1), 0, { from: bob })
+    await this.lottery.buyTickets( win1.slice(0,1), 0, { from: monkey })
+    await this.lottery.buyTickets( win2.slice(0,1), 0, { from: bull })
+    await this.lottery.buyTickets( win3.slice(0,1), 0, { from: bear })
+    await this.lottery.buyTickets( win4.slice(0,1), 0, { from: alice })
+    await this.lottery.buyTickets( win5.slice(0,1), 0, { from: carol })
+    await this.lottery.buyTickets( winJackpot.slice(0,1), 0, { from: dev })
 
-  //   await walletLogs()
+    await walletLogs()
     
-  //   const sentWinner = 100000
-  //   //   // to test SETWINNER fn needs to be public
-  //   const claimerInitBalance = new BgN(await this.crush.balanceOf(claimer)).div(10**18)
-  //   const aliceInitBalance = new BgN(await this.crush.balanceOf(alice)).div(10**18)
-  //   const bobInitBalance = new BgN(await this.crush.balanceOf(bob)).div(10**18)
-  //   const monkeyInitBalance = new BgN(await this.crush.balanceOf(monkey)).div(10**18)
-  //   const bullInitBalance = new BgN(await this.crush.balanceOf(bull)).div(10**18)
-  //   const bearInitBalance = new BgN(await this.crush.balanceOf(bear)).div(10**18)
-  //   const carolInitBalance = new BgN(await this.crush.balanceOf(carol)).div(10**18)
-  //   const devInitBalance = new BgN(await this.crush.balanceOf(dev)).div(10**18)
-  //   await this.lottery.setWinner( sentWinner, claimer,{ from: minter });
-  //   // claimers is private for the privacy of claimers.
-  //   const claimerPercent = new BgN( 600) // (await this.lottery.claimers(1)).percent)
-  //   const roundTotal = new BgN(await this.lottery.roundPool(1)).div(10**18)
+    const sentWinner = 100000
+    //   // to test SETWINNER fn needs to be public
+    const claimerInitBalance = new BgN(await this.crush.balanceOf(claimer)).div(10**18)
+    const aliceInitBalance = new BgN(await this.crush.balanceOf(alice)).div(10**18)
+    const bobInitBalance = new BgN(await this.crush.balanceOf(bob)).div(10**18)
+    const monkeyInitBalance = new BgN(await this.crush.balanceOf(monkey)).div(10**18)
+    const bullInitBalance = new BgN(await this.crush.balanceOf(bull)).div(10**18)
+    const bearInitBalance = new BgN(await this.crush.balanceOf(bear)).div(10**18)
+    const carolInitBalance = new BgN(await this.crush.balanceOf(carol)).div(10**18)
+    const devInitBalance = new BgN(await this.crush.balanceOf(dev)).div(10**18)
+    await this.lottery.setWinner( sentWinner, claimer,{ from: minter });
+    // claimers is private for the privacy of claimers.
+    const claimerPercent = new BgN( 600) // (await this.lottery.claimers(1)).percent)
+    const roundTotal = new BgN((await this.lottery.roundInfo(1)).pool).div(10**18)
     
-  //   assert.equal(
-  //     claimerPercent.times(roundTotal).div(100000).toNumber(),
-  //     new BgN(await this.crush.balanceOf(claimer)).div(10**18).minus(claimerInitBalance).toNumber(),
-  //     "issue with claimer fee"
-  //   )
-  //   assert.equal(
-  //     roundTotal.times(18).div(100).toNumber(),
-  //     new BgN(await this.crush.tokensBurned.call()).div(10**18).toNumber(),
-  //     "burn amount wrong"
-  //   )
-  //   await this.lottery.claimNumber(1,win0[0],{from: bob})
-  //   await expectRevert(this.lottery.claimNumber(1,win0[0],{from: bob}), "Not owner or Ticket already claimed")
-  //   await this.lottery.claimNumber(1,win1[0],{from: monkey})
-  //   await this.lottery.claimNumber(1,win2[0],{from: bull})
-  //   await this.lottery.claimNumber(1,win3[0],{from: bear})
-  //   await this.lottery.claimNumber(1,win4[0],{from: alice})
-  //   await this.lottery.claimNumber(1,win5[0],{from: carol})
-  //   await this.lottery.claimNumber(1,winJackpot[0],{from: dev})
-  //   console.log([
-  //     ['round pool', roundTotal.toString()],
-  //     ['bob amount', new BgN(await this.crush.balanceOf(bob)).div(10**18).toString()]
-  //   ])
-  //   assert.equal(
-  //     roundTotal.times( new BgN(2000).minus(claimerPercent).div(100000)).toNumber(),
-  //     new BgN(await this.crush.balanceOf(bob)).div(10**18).minus(bobInitBalance).toNumber(),
-  //     "issue with no Winner claim"
-  //   )
-  //   assert.equal(
-  //     roundTotal.times( new BgN(2000).div(100000)).toNumber(),
-  //     new BgN(await this.crush.balanceOf(monkey)).div(10**18).minus(monkeyInitBalance).toNumber(),
-  //     "issue with 1 match Winner claim"
-  //   )
-  //   assert.equal(
-  //     roundTotal.times( new BgN(3000).div(100000)).toNumber(),
-  //     new BgN(await this.crush.balanceOf(bull)).div(10**18).minus(bullInitBalance).toNumber(),
-  //     "issue with 2 match Winner claim"
-  //   )
-  //   assert.equal(
-  //     roundTotal.times( new BgN(5000).div(100000)).toNumber(),
-  //     new BgN(await this.crush.balanceOf(bear)).div(10**18).minus(bearInitBalance).toNumber(),
-  //     "issue with 3 match Winner claim"
-  //   )
-  //   assert.equal(
-  //     roundTotal.times( new BgN(10000).div(100000)).toNumber(),
-  //     new BgN(await this.crush.balanceOf(alice)).div(10**18).minus(aliceInitBalance).toNumber(),
-  //     "issue with 4 match Winner claim"
-  //   )
-  //   assert.equal(
-  //     roundTotal.times( new BgN(20000).div(100000)).toNumber(),
-  //     new BgN(await this.crush.balanceOf(carol)).div(10**18).minus(carolInitBalance).toNumber(),
-  //     "issue with 5 match Winner claim"
-  //   )
-  //   assert.equal(
-  //     roundTotal.times( new BgN(40000).div(100000)).toNumber(),
-  //     new BgN(await this.crush.balanceOf(dev)).div(10**18).minus(devInitBalance).toNumber(),
-  //     "issue with jackpot match Winner claim"
-  //   )
+    assert.equal(
+      claimerPercent.times(roundTotal).div(100000).toNumber(),
+      new BgN(await this.crush.balanceOf(claimer)).div(10**18).minus(claimerInitBalance).toNumber(),
+      "issue with claimer fee"
+    )
+    assert.equal(
+      roundTotal.times(18).div(100).toNumber(),
+      new BgN(await this.crush.tokensBurned.call()).div(10**18).toNumber(),
+      "burn amount wrong"
+    )
+    await this.lottery.claimNumber(1,win0[0],{from: bob})
+    await expectRevert(this.lottery.claimNumber(1,win0[0],{from: bob}), "Not owner or Ticket already claimed")
+    await this.lottery.claimNumber(1,win1[0],{from: monkey})
+    await this.lottery.claimNumber(1,win2[0],{from: bull})
+    await this.lottery.claimNumber(1,win3[0],{from: bear})
+    await this.lottery.claimNumber(1,win4[0],{from: alice})
+    await this.lottery.claimNumber(1,win5[0],{from: carol})
+    await this.lottery.claimNumber(1,winJackpot[0],{from: dev})
+    console.log([
+      ['round pool', roundTotal.toString()],
+      ['bob amount', new BgN(await this.crush.balanceOf(bob)).div(10**18).toString()]
+    ])
+    assert.equal(
+      roundTotal.times( new BgN(2000).minus(claimerPercent).div(100000)).toNumber(),
+      new BgN(await this.crush.balanceOf(bob)).div(10**18).minus(bobInitBalance).toNumber(),
+      "issue with no Winner claim"
+    )
+    assert.equal(
+      roundTotal.times( new BgN(2000).div(100000)).toNumber(),
+      new BgN(await this.crush.balanceOf(monkey)).div(10**18).minus(monkeyInitBalance).toNumber(),
+      "issue with 1 match Winner claim"
+    )
+    assert.equal(
+      roundTotal.times( new BgN(3000).div(100000)).toNumber(),
+      new BgN(await this.crush.balanceOf(bull)).div(10**18).minus(bullInitBalance).toNumber(),
+      "issue with 2 match Winner claim"
+    )
+    assert.equal(
+      roundTotal.times( new BgN(5000).div(100000)).toNumber(),
+      new BgN(await this.crush.balanceOf(bear)).div(10**18).minus(bearInitBalance).toNumber(),
+      "issue with 3 match Winner claim"
+    )
+    assert.equal(
+      roundTotal.times( new BgN(10000).div(100000)).toNumber(),
+      new BgN(await this.crush.balanceOf(alice)).div(10**18).minus(aliceInitBalance).toNumber(),
+      "issue with 4 match Winner claim"
+    )
+    assert.equal(
+      roundTotal.times( new BgN(20000).div(100000)).toNumber(),
+      new BgN(await this.crush.balanceOf(carol)).div(10**18).minus(carolInitBalance).toNumber(),
+      "issue with 5 match Winner claim"
+    )
+    assert.equal(
+      roundTotal.times( new BgN(40000).div(100000)).toNumber(),
+      new BgN(await this.crush.balanceOf(dev)).div(10**18).minus(devInitBalance).toNumber(),
+      "issue with jackpot match Winner claim"
+    )
 
-  //   await walletLogs()
-  //   return true
-  // })
+    await walletLogs()
+    return true
+  })
 
   // it("should send the correct bonus to winners", async()=>{
 
@@ -486,5 +486,51 @@ contract( "LotteryTests", ([alice, bob, carol, dev, minter, partner, monkey, bul
     const round4 = await this.lottery.roundInfo(4)
     console.log( web3.utils.fromWei(round1.pool), web3.utils.fromWei(round2.pool), web3.utils.fromWei(round3.pool), web3.utils.fromWei(round4.pool) )
     assert.equal( new BgN(await this.lottery.currentRound.call()).toNumber() , 3, "Rounds not advancing")
+  })
+
+  it("should set new match Values", async()=>{
+    await this.lottery.firstStart({from: minter})
+    const matches = {
+      match6: new BgN(await this.lottery.match6.call()).div(1000000000).toString(),
+      match5: new BgN(await this.lottery.match5.call()).div(1000000000).toString(),
+      match4: new BgN(await this.lottery.match4.call()).div(1000000000).toString(),
+      match3: new BgN(await this.lottery.match3.call()).div(1000000000).toString(),
+      match2: new BgN(await this.lottery.match2.call()).div(1000000000).toString(),
+      match1: new BgN(await this.lottery.match1.call()).div(1000000000).toString(),
+      noMatch: new BgN(await this.lottery.noMatch.call()).div(1000000000).toString(),
+      burn: new BgN(await this.lottery.burn.call()).div(1000000000).toString(),
+    }
+    await this.lottery.setDistributionPercentages(
+      [4100,1800, 1100,500,300,200,200,1800],
+      {from: minter}
+    )
+    await this.lottery.setWinner(456789, alice, {from: minter})
+    const matches2 = {
+      match6: new BgN(await this.lottery.match6.call()).div(1000000000).toString(),
+      match5: new BgN(await this.lottery.match5.call()).div(1000000000).toString(),
+      match4: new BgN(await this.lottery.match4.call()).div(1000000000).toString(),
+      match3: new BgN(await this.lottery.match3.call()).div(1000000000).toString(),
+      match2: new BgN(await this.lottery.match2.call()).div(1000000000).toString(),
+      match1: new BgN(await this.lottery.match1.call()).div(1000000000).toString(),
+      noMatch: new BgN(await this.lottery.noMatch.call()).div(1000000000).toString(),
+      burn: new BgN(await this.lottery.burn.call()).div(1000000000).toString(),
+    }
+    const roundInfo = await this.lottery.roundInfo(2)
+    const roundMatches = {
+      match6: new BgN(roundInfo.match6).div(1000000000).toString(),
+      match5: new BgN(roundInfo.match5).div(1000000000).toString(),
+      match4: new BgN(roundInfo.match4).div(1000000000).toString(),
+      match3: new BgN(roundInfo.match3).div(1000000000).toString(),
+      match2: new BgN(roundInfo.match2).div(1000000000).toString(),
+      match1: new BgN(roundInfo.match1).div(1000000000).toString(),
+      noMatch: new BgN(roundInfo.noMatch).div(1000000000).toString(),
+      burn: new BgN(roundInfo.burn).div(1000000000).toString(),
+    }
+    console.log({
+      matches,
+      matches2,
+      roundMatches
+    })
+    return true
   })
 })
