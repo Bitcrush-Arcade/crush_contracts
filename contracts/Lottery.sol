@@ -290,6 +290,61 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
         emit TicketClaimed(_round, msg.sender, ownedTickets[ticketIndex]);
     }
 
+    /// @notice Claim all user unclaimed tickets for a particular round
+    /// @param _round the round of tickets that will be claimed
+    function claimAll(uint256 _round) external nonReentrant{
+        RoundInfo storage info = roundInfo[_round];
+        require(info.winnerNumber > 0, "Round not done yet");
+        // GET AND TRANSFER TICKET CLAIM AMOUNT
+        uint256[6] memory matches = [info.match1, info.match2, info.match3, info.match4, info.match5, info.match6];
+        // check if Number belongs to caller
+        Ticket[] storage ownedTickets = userTickets[ _round ][ msg.sender ];
+        require( ownedTickets.length > 0, "It would be nice if I had tickets");
+        uint256 claimAmount;
+        uint256 bonusAmount;
+        for( uint i = 0; i < ownedTickets.length; i ++){
+            if(ownedTickets[i].claimed)
+                continue;
+            ownedTickets[i].claimed = true;
+            (bool isWinner, uint amountMatch) = isNumberWinner(_round, ownedTickets[i].ticketNumber);
+            uint256[6] memory digits = getDigits(standardTicketNumber(ownedTickets[i].ticketNumber, WINNER_BASE, MAX_BASE));
+            if(isWinner) {
+                claimAmount = claimAmount.add(
+                    getFraction(info.pool, matches[amountMatch - 1], PERCENT_BASE)
+                        .div(holders[_round][digits[6 - amountMatch]])
+                );
+                bonusAmount = bonusAmount.add(
+                    getBonusReward(holders[_round][digits[6 - amountMatch]], _round, matches[amountMatch - 1])
+                );
+            }
+            else{
+                uint256 matchReduction = info.noMatch.sub(claimers[_round].percent);
+                bonusAmount = bonusAmount.add(
+                    getBonusReward( calcNonWinners(_round),_round, matchReduction)
+                );
+                // -- matchAmount / nonWinners --
+                claimAmount = claimAmount.add(
+                    getFraction(info.pool, matchReduction, PERCENT_BASE)
+                        .div(calcNonWinners(_round))
+                );
+            }
+            emit TicketClaimed(_round, msg.sender, ownedTickets[i]);
+        }
+        if(claimAmount > 0)
+            crush.safeTransfer(msg.sender, claimAmount);
+        if(bonusAmount > 0){
+            BonusCoin storage bonus = bonusCoins[_round];
+            ERC20 bonusTokenContract = ERC20(bonus.bonusToken);
+            uint256 availableFunds = bonusTokenContract.balanceOf(address(this));
+            if( roundInfo[_round].totalTickets.sub(roundInfo[_round].ticketsClaimed) == 1)
+                bonusAmount = bonus.bonusAmount.sub(bonus.bonusClaimed);
+            if( bonusAmount > availableFunds)
+                bonusAmount = availableFunds;
+            bonus.bonusClaimed = bonus.bonusClaimed.add(bonusAmount);
+            bonusTokenContract.safeTransfer( msg.sender, bonusAmount);
+        }
+    }
+
     /// @notice Start of new Round. This function is only needed for the first round, next rounds will be automatically started once the winner number is received
     function firstStart() external operatorOnly{
         require(currentRound == 0, "First Round only");
@@ -492,6 +547,20 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
             winners = winners.add( holders[ _round ][ winnerDigits[tw] ]);
         }
         nonWinners = roundInfo[ _round ].totalTickets.sub( winners );
+    }
+
+    //
+    function getBonusReward(uint256 _holders, uint256 _round, uint256 _match) internal view returns (uint256 bonusAmount) {
+        BonusCoin storage bonus = bonusCoins[_round];
+        if(_holders == 0)
+            return 0;
+        if( bonus.bonusToken != address(0) ){
+            if(_match == 0)
+                return 0;
+            bonusAmount = getFraction( bonus.bonusAmount, _match, bonus.bonusMaxPercent ).div(_holders);
+            return bonusAmount;
+        }
+        return 0;
     }
 
     // Transfer bonus to
