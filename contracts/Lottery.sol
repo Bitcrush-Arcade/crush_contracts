@@ -786,6 +786,7 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
         distributeCrush();
         startRound();
         calcNextHour();
+        roundInfo[currentRound].endTime = roundEnd;
         emit WinnerPicked(currentRound, info.winnerNumber, "ADMIN_SET_WINNER");
     }
 }
