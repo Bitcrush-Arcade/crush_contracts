@@ -472,7 +472,7 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
         distribution[6] = roundInfo[_round].distribution[6];
     }
 
-    function claimAllPendingTickets(ClaimRounds[] memory _rounds, uint[] memory _ticketIds, uint[] memory _matches) external {
+    function claimAllPendingTickets(ClaimRounds[] calldata _rounds, uint[] calldata _ticketIds, uint[] calldata _matches) external {
         require(_ticketIds.length == _matches.length, "Arrays need to be the same" );
         require(_rounds.length > 0, "Need to claim something");
         uint claims = userLastTicketClaimed[msg.sender];
@@ -482,20 +482,21 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
         for( uint i = 0; i < _rounds.length; i ++){
             require(_rounds[i].roundId < currentRound, "Can't claim current round tickets");
             require(_rounds[i].nonWinners.add(_rounds[i].winners) == userRoundTickets[msg.sender][_rounds[i].roundId].totalTickets, "Missing Tickets, all rounds claimed equally");
-            RoundInfo storage roundChecked = roundInfo[_rounds[i].roundId];
-            BonusCoin storage roundBonus = bonusCoins[_rounds[i].roundId];
-            uint matchReduction = getNoMatchAmount(_rounds[i].roundId);
-            if( _rounds[i].nonWinners > 0){
+            require(_rounds[i].winners == _ticketIds.length, "round must have all tickets");
+            uint roundId = _rounds[i].roundId;
+            uint winners = _rounds[i].winners;
+            uint nonWinners = _rounds[i].nonWinners;
+            RoundInfo storage roundChecked = roundInfo[roundId];
+            BonusCoin storage roundBonus = bonusCoins[roundId];
+            uint matchReduction = getNoMatchAmount(roundId);
+            if( nonWinners > 0){
                 partnerBonusTokens[0] = partnerBonusTokens[0].add(
-                    matchReduction
-                        .mul(roundChecked.pool)
-                        .mul(_rounds[i].nonWinners)
-                        .div( roundChecked.totalTickets.sub(roundChecked.totalWinners).mul(PERCENT_BASE) )
+                    getFraction(roundChecked.pool,matchReduction.mul(nonWinners), roundChecked.totalTickets.sub(roundChecked.totalWinners).mul(PERCENT_BASE))
                 );
                 if(roundBonus.bonusToken != address(0)){
                     partnerBonusTokens[bonusTokenIndex[roundBonus.bonusToken]] = partnerBonusTokens[bonusTokenIndex[roundBonus.bonusToken]]
                         .add(
-                            _rounds[i].nonWinners.mul(
+                            nonWinners.mul(
                                 getBonusReward(
                                     roundChecked.totalTickets.sub(roundChecked.totalWinners),
                                     roundBonus,
@@ -505,33 +506,31 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
                         );
                 }
             }
-            if(_rounds[i].winners > 0){
-                for( uint j = 0; j < _rounds[i].winners; j++){
+            if(winners > 0){
+                for( uint j = 0; j < winners; j++){
+                    uint ticketId = _ticketIds[j + ticketIdCounter];
                     if(j == 0 && ticketIdCounter == 0)
-                        require(_ticketIds[j + ticketIdCounter] > claims, "Ticket already claimed");
+                        require(ticketId > claims, "Ticket already claimed");
                     if( j > 0 || ticketIdCounter > 0)
-                        require(_ticketIds[j + ticketIdCounter] > _ticketIds[j + ticketIdCounter - 1],"Tickets need to be ordered and only be claimed once" );
-                    require(userNewTickets[msg.sender][_ticketIds[j + ticketIdCounter]].ticketNumber > 0, "This ticket doesn't exist");
-                    require( _matches[j + ticketIdCounter] > 0 && _matches[j + ticketIdCounter] < 7, "Winner only if matched at least one");
-                    require(
-                        getDigits(userNewTickets[msg.sender][_ticketIds[j + ticketIdCounter]].ticketNumber)[_matches[j + ticketIdCounter]] == getDigits(roundChecked.winnerNumber)[_matches[j + ticketIdCounter]],
-                        "You don't own this ticket. Or data is incorrect"
-                    );
+                        require(ticketId > _ticketIds[j + ticketIdCounter - 1],"Tickets need to be ordered and only be claimed once" );
+
+                    checkTicketRequirements(ticketId, _matches[j + ticketIdCounter], roundChecked);
+                    uint batchDistribution = roundChecked.distribution[_matches[j + ticketIdCounter]];
                     partnerBonusTokens[0] = partnerBonusTokens[0].add(
                         getFraction(
                             roundChecked.pool,
-                            roundChecked.distribution[_matches[j + ticketIdCounter]],
+                            batchDistribution,
                             PERCENT_BASE
                         )
                     );
                     if(roundBonus.bonusToken != address(0)){
                         partnerBonusTokens[bonusTokenIndex[roundBonus.bonusToken]] = partnerBonusTokens[bonusTokenIndex[roundBonus.bonusToken]]
                             .add(
-                                _rounds[i].nonWinners.mul(
+                                nonWinners.mul(
                                     getBonusReward(
                                         roundChecked.totalTickets.sub(roundChecked.totalWinners),
                                         roundBonus,
-                                        roundChecked.distribution[_matches[j + ticketIdCounter]]
+                                        batchDistribution
                                     )
                                 )
                             );
@@ -539,7 +538,7 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
                 }
                 ticketIdCounter++;
             }
-            claims = claims.add(_rounds[i].nonWinners).add(_rounds[i].winners);
+            claims = claims.add(nonWinners).add(winners);
         }
         userLastTicketClaimed[msg.sender] = claims;
         if(partnerBonusTokens[0] > 0){
@@ -785,6 +784,15 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
         digits[3] = _ticketNumber.div(100);
         digits[4] = _ticketNumber.div(10);
         digits[5] = _ticketNumber.div(1);
+    }
+
+    function checkTicketRequirements( uint _ticketId, uint _matchBatch, RoundInfo storage _currentRound) internal view {
+        require(userNewTickets[msg.sender][_ticketId].ticketNumber > 0, "This ticket doesn't exist");
+        require( _matchBatch > 0 && _matchBatch < 7, "Winner only if matched at least one");
+        require(
+            getDigits(userNewTickets[msg.sender][_ticketId].ticketNumber)[_matchBatch -1 ] == getDigits(_currentRound.winnerNumber)[_matchBatch - 1],
+            "You don't own this ticket. Or data is incorrect"
+        );
     }
 
     // Get the requested ticketNumber from the defined range
