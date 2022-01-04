@@ -536,7 +536,7 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
                             );
                     }
                 }
-                ticketIdCounter++;
+                ticketIdCounter = ticketIdCounter.add(winners);
             }
             claims = claims.add(nonWinners).add(winners);
         }
