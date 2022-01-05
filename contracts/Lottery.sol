@@ -45,6 +45,7 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
         uint256[7] distribution;
         uint256 burn;
         uint256 totalWinners;
+        uint256[6] winnerDigits;
     }
 
     struct TicketView {
@@ -158,7 +159,7 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
     event UpdateTicketValue(uint256  _timeOfUpdate, uint256 _newValue);
     event PartnerUpdated(address indexed _partner);
     event PercentagesChanged( address indexed owner, string percentName, uint256 newPercent);
-    
+    event LogEvent(uint _data, string _annotation);
     // MODIFIERS
     modifier operatorOnly {
         require(operators[msg.sender] == true || msg.sender == owner(), 'Sorry Only Operators');
@@ -185,6 +186,8 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
         devAddress = msg.sender;
         operators[msg.sender] = true;
         bankAddress = Bankroll(_bankAddress);
+        bonusAddresses.push(_crush);
+        bonusTokenIndex[_crush] = 0;
     }
 
     // External functions
@@ -333,7 +336,9 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
         calcNextHour();
         startRound();
         // Rollover all of pool zero at start
-        roundInfo[currentRound] = RoundInfo(0,0,0,roundInfo[0].pool, roundEnd, [noMatch, match1, match2, match3, match4, match5, match6], 0,0);
+        roundInfo[currentRound].pool = roundInfo[0].pool;
+        roundInfo[currentRound].endTime = roundEnd;
+        roundInfo[currentRound].distribution = [noMatch, match1, match2, match3, match4, match5, match6];
     }
 
     /// @notice Ends current round
@@ -381,6 +386,10 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
         require(_round > currentRound, "This round has passed.");
         require(_partnerToken != address(0),"Cant set bonus Token" );
         require( bonusCoins[ _round ].bonusToken == address(0), "Bonus token has already been added to this round");
+        if(bonusTokenIndex[_partnerToken] == 0){
+            bonusTokenIndex[_partnerToken] = bonusAddresses.length;
+            bonusAddresses.push(_partnerToken);
+        }
         ERC20 bonusToken = ERC20(_partnerToken);
         require( bonusToken.balanceOf(msg.sender) >= _amount, "Funds are needed, can't conjure from thin air");
         require( bonusToken.allowance(msg.sender, address(this)) >= _amount, "Please approve this contract for spending :)");
@@ -513,26 +522,17 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
                         require(ticketId > claims, "Ticket already claimed");
                     if( j > 0 || ticketIdCounter > 0)
                         require(ticketId > _ticketIds[j + ticketIdCounter - 1],"Tickets need to be ordered and only be claimed once" );
-
-                    checkTicketRequirements(ticketId, _matches[j + ticketIdCounter], roundChecked);
-                    uint batchDistribution = roundChecked.distribution[_matches[j + ticketIdCounter]];
-                    partnerBonusTokens[0] = partnerBonusTokens[0].add(
-                        getFraction(
-                            roundChecked.pool,
-                            batchDistribution,
-                            PERCENT_BASE
-                        )
-                    );
+                    uint matchBatch = _matches[j + ticketIdCounter];
+                    uint distributedAmount = checkTicketRequirements(ticketId, matchBatch, roundChecked);
+                    partnerBonusTokens[0] = partnerBonusTokens[0].add(distributedAmount);
                     if(roundBonus.bonusToken != address(0)){
                         partnerBonusTokens[bonusTokenIndex[roundBonus.bonusToken]] = partnerBonusTokens[bonusTokenIndex[roundBonus.bonusToken]]
                             .add(
-                                nonWinners.mul(
                                     getBonusReward(
-                                        roundChecked.totalTickets.sub(roundChecked.totalWinners),
+                                        holders[roundId][roundChecked.winnerDigits[matchBatch-1]],
                                         roundBonus,
-                                        batchDistribution
+                                        roundChecked.distribution[matchBatch]
                                     )
-                                )
                             );
                     }
                 }
@@ -542,9 +542,10 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
         }
         userLastTicketClaimed[msg.sender] = claims;
         if(partnerBonusTokens[0] > 0){
+            emit LogEvent(partnerBonusTokens[0], "pre transfer Amount");
             crush.safeTransfer(msg.sender,partnerBonusTokens[0]);
         }
-        if(bonusAddresses.length > 0){
+        if(bonusAddresses.length > 1){
             for( uint p = 1; p < bonusAddresses.length; p ++ ){
                 if(partnerBonusTokens[p] == 0)
                     continue;
@@ -746,6 +747,7 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
         _forClaimer = _forClaimer.mul(claimFee).div(PERCENT_BASE);
         uint256 nonWinners = info.totalTickets.sub(totalMatchHolders);
         info.totalWinners = totalMatchHolders;
+        info.winnerDigits = winnerDigits;
         // Are there any noMatch tickets
         if( nonWinners == 0 )
             _rollover = _rollover.add(getFraction(info.pool, info.distribution[0].sub(_forClaimer ), PERCENT_BASE));
@@ -786,13 +788,24 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
         digits[5] = _ticketNumber.div(1);
     }
 
-    function checkTicketRequirements( uint _ticketId, uint _matchBatch, RoundInfo storage _currentRound) internal view {
+    function checkTicketRequirements( uint _ticketId, uint _matchBatch, RoundInfo storage _currentRound) internal view returns(uint _distributedAmount){
         require(userNewTickets[msg.sender][_ticketId].ticketNumber > 0, "This ticket doesn't exist");
         require( _matchBatch > 0 && _matchBatch < 7, "Winner only if matched at least one");
         require(
             getDigits(userNewTickets[msg.sender][_ticketId].ticketNumber)[_matchBatch -1 ] == getDigits(_currentRound.winnerNumber)[_matchBatch - 1],
             "You don't own this ticket. Or data is incorrect"
         );
+
+        uint batchDistribution = _currentRound.distribution[_matchBatch];
+        uint batchHolders = holders[userNewTickets[msg.sender][_ticketId].round][_currentRound.winnerDigits[_matchBatch -1]];
+        return getFraction( _currentRound.pool, batchDistribution, PERCENT_BASE).div(batchHolders);
+    }
+
+    function getWinnerDistribution(uint256 roundId, RoundInfo storage _currentRound, uint[] calldata _matches, uint256 _matchIndex) internal view returns(uint _batchDistribution){
+        uint _matchBatch = _matches[_matchIndex];
+        _batchDistribution = _currentRound.distribution[_matchBatch];
+        uint256 batchHolders = holders[roundId][_currentRound.winnerDigits[_matchBatch-1]];
+        _batchDistribution = _batchDistribution.div(batchHolders);
     }
 
     // Get the requested ticketNumber from the defined range
