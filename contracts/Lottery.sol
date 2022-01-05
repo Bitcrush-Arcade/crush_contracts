@@ -106,7 +106,6 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
     // Variables
     bool public currentIsActive = false;
     uint256 public currentRound = 0;
-    uint256 public roundStart; //Timestamp of roundstart
     uint256 public roundEnd;
     uint256 public ticketValue = 30 * 10**18 ; //Value of Ticket value in WEI
     uint256 public devTicketCut = 10 * ONE__PERCENT; // This is 10% of ticket sales taken on ticket sale
@@ -207,8 +206,9 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
         }
         // Add Tickets to respective Mappings
         for(uint i = 0; i < _ticketNumbers.length; i++){
-            createTicket(msg.sender, _ticketNumbers[i], currentRound);
+            createTicket(msg.sender, _ticketNumbers[i], currentRound,i);
         }
+        userTotalTickets[msg.sender] = userTotalTickets[msg.sender].add(_ticketNumbers.length);
         uint devCut = getFraction(ticketCost, devTicketCut, PERCENT_BASE);
         addToPool(ticketCost.sub(devCut));
         
@@ -266,69 +266,11 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
         require(currentIsActive, "Current round is not active please wait for next round start" );
         require(_ticketNumbers.length <= exchangeableTickets[msg.sender], "You don't have enough redeemable tickets.");
         for(uint256 exchange = 0; exchange < _ticketNumbers.length; exchange ++) {
-            createTicket(msg.sender, _ticketNumbers[ exchange ], currentRound);
+            createTicket(msg.sender, _ticketNumbers[ exchange ], currentRound,exchange);
             exchangeableTickets[msg.sender] -= 1;
         }
+        userTotalTickets[msg.sender] = userTotalTickets[msg.sender].add(_ticketNumbers.length);
     }
-
-    /// @notice Claim all user unclaimed tickets for a particular round
-    // function claimAll() external nonReentrant{
-    //     uint256 claimableTickets = userTotalTickets[msg.sender].sub(userLastTicketClaimed[msg.sender]);
-    //     require(claimableTickets > 0, "Already claimed previous rounds");
-    //     uint256 crushReward = 0;
-    //     uint lastClaimed = userLastTicketClaimed[msg.sender];
-    //     for( uint i = 1; i <= claimableTickets; i++){
-    //         NewTicket storage ticketToClaim = userNewTickets[msg.sender][ userLastTicketClaimed[msg.sender].add(i) ];
-    //         if(ticketToClaim.round >= currentRound)
-    //             break;
-    //         lastClaimed = userLastTicketClaimed[msg.sender].add(i);
-    //         RoundInfo storage ticketRound = roundInfo[ticketToClaim.round];
-    //         BonusCoin storage bonusForRound = bonusCoins[ticketToClaim.round];
-    //         (uint8 matches) = isNumberWinner(ticketToClaim.round, ticketToClaim.ticketNumber);
-    //         if(matches > 0){
-    //             uint matchedDigit = getDigits(ticketToClaim.ticketNumber)[matches-1];
-    //             crushReward = crushReward.add(
-    //                 getFraction(ticketRound.pool, ticketRound.distribution[matches], PERCENT_BASE)
-    //                     .div( holders[ticketToClaim.round][matchedDigit])
-    //             );
-    //             if(bonusForRound.bonusToken != address(0)){
-    //                 uint256 bonusAmount = getBonusReward(
-    //                     holders[ticketToClaim.round][matchedDigit],
-    //                     bonusForRound,
-    //                     ticketRound.distribution[matches]
-    //                 );
-    //                 ERC20 bonusTokenContract = ERC20(bonusForRound.bonusToken);
-    //                 uint256 availableFunds = bonusTokenContract.balanceOf(address(this));
-    //                 if( bonusAmount > availableFunds)
-    //                     bonusAmount = availableFunds;
-    //                 bonusTokenContract.safeTransfer( msg.sender, bonusAmount);
-    //             }
-    //         }
-    //         else{
-    //             uint256 matchReduction = ticketRound.distribution[0].sub(claimers[ticketToClaim.round].percent);
-    //             crushReward = crushReward.add(
-    //                 getFraction(ticketRound.pool, matchReduction, PERCENT_BASE)
-    //                     .div( calcNonWinners(ticketToClaim.round))
-    //             );
-    //             if(bonusForRound.bonusToken != address(0)){
-    //                 uint256 bonusAmount = getBonusReward(
-    //                     calcNonWinners(ticketToClaim.round),
-    //                     bonusForRound,
-    //                     matchReduction
-    //                 );
-    //                 ERC20 bonusTokenContract = ERC20(bonusForRound.bonusToken);
-    //                 uint256 availableFunds = bonusTokenContract.balanceOf(address(this));
-    //                 if( bonusAmount > availableFunds)
-    //                     bonusAmount = availableFunds;
-    //                 bonusTokenContract.safeTransfer( msg.sender, bonusAmount);
-    //             }
-    //         }
-    //     }
-    //     userLastTicketClaimed[msg.sender] = lastClaimed;
-    //     if(crushReward>0){
-    //         crush.safeTransfer(msg.sender, crushReward);
-    //     }
-    // }
 
     /// @notice Start of new Round. This function is only needed for the first round, next rounds will be automatically started once the winner number is received
     function firstStart() external operatorOnly{
@@ -570,7 +512,7 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
         uint256 roundWinner = roundInfo[_round].winnerNumber;
         require(roundWinner > 0 , "Winner not yet determined");
         _match = 0;
-        uint256 luckyNumber = standardTicketNumber(luckyTicket, WINNER_BASE, MAX_BASE);
+        uint256 luckyNumber = standardTicketNumber(luckyTicket, WINNER_BASE);
         uint256[6] memory winnerDigits = getDigits(roundWinner);
         uint256[6] memory luckyDigits = getDigits(luckyNumber);
         for( uint8 i = 0; i < 6; i++){
@@ -626,14 +568,15 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
         endHourIndex = newIndex;
     }
 
-    function createTicket( address _owner, uint32 _ticketNumber, uint256 _round) internal {
-        uint32 currentTicket = standardTicketNumber(_ticketNumber, WINNER_BASE, MAX_BASE);
-        uint256[6] memory digits = getDigits( currentTicket );
-        for( uint256 digit = 0; digit < 6; digit++){
-            holders[ _round ][ digits[digit] ] = holders[ _round ][ digits[digit] ].add(1);
-        }
-        userTotalTickets[_owner] = userTotalTickets[_owner].add(1);
-        userNewTickets[_owner][userTotalTickets[_owner]] = NewTicket(currentTicket,_round);
+    function createTicket( address _owner, uint32 _ticketNumber, uint256 _round, uint256 _ticketCount) internal {
+        uint32 currentTicket =_ticketNumber%WINNER_BASE +WINNER_BASE;
+        holders[ _round ][ currentTicket/100000 ] ++;
+        holders[ _round ][ currentTicket/10000 ] ++;
+        holders[ _round ][ currentTicket/1000 ] ++;
+        holders[ _round ][ currentTicket/100 ] ++;
+        holders[ _round ][ currentTicket/10 ] ++;
+        holders[ _round ][ currentTicket ] ++;
+        userNewTickets[_owner][userTotalTickets[_owner].add(_ticketCount + 1)] = NewTicket(currentTicket,_round);
     }
 
     function calcNonWinners( uint256 _round) internal view returns (uint256 nonWinners){
@@ -685,7 +628,6 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
         // Add new Round
         currentRound ++;
         currentIsActive = true;
-        roundStart = block.timestamp;
         RoundInfo storage newRound = roundInfo[currentRound];
         newRound.distribution = [noMatch, match1, match2, match3, match4, match5, match6];
         emit RoundStarted( currentRound, msg.sender, block.timestamp);
@@ -767,7 +709,7 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
     // This gets called by VRF Contract only
     function fulfillRandomness(bytes32 requestId, uint256 randomness) internal override {
         RoundInfo storage info = roundInfo[currentRound];
-        info.winnerNumber = standardTicketNumber(uint32(randomness), WINNER_BASE, MAX_BASE);
+        info.winnerNumber = standardTicketNumber(uint32(randomness), WINNER_BASE);
         distributeCrush();
         emit WinnerPicked(currentRound, info.winnerNumber, requestId);
         startRound();
@@ -809,17 +751,8 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
     }
 
     // Get the requested ticketNumber from the defined range
-    function standardTicketNumber( uint32 _ticketNumber, uint32 _base, uint32 maxBase) internal pure returns( uint32 ){
-        uint32 ticketNumber;
-        if(_ticketNumber < _base ){
-            ticketNumber = _ticketNumber + _base;
-        }
-        else if( _ticketNumber > maxBase ){
-            ticketNumber = (_ticketNumber % _base) + _base;
-        }
-        else{
-            ticketNumber = _ticketNumber;
-        }
+    function standardTicketNumber( uint32 _ticketNumber, uint32 _base) internal pure returns( uint32 ){
+        uint32 ticketNumber = _ticketNumber%_base +_base ;
         return ticketNumber;
     }
 
@@ -891,7 +824,7 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
     function setWinner( uint256 randomness, address _claimer ) public operatorOnly{
         currentIsActive = false;
         RoundInfo storage info = roundInfo[currentRound];
-        info.winnerNumber = standardTicketNumber(uint32(randomness), WINNER_BASE, MAX_BASE);
+        info.winnerNumber = standardTicketNumber(uint32(randomness), WINNER_BASE);
         claimers[currentRound] = Claimer(_claimer, 0);
         distributeCrush();
         startRound();
