@@ -107,11 +107,11 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
     bool public currentIsActive = false;
     uint256 public currentRound = 0;
     uint256 public roundEnd;
-    uint256 public ticketValue = 30 * 10**18 ; //Value of Ticket value in WEI
+    uint256 public ticketValue = 10 * 10**18 ; //Value of Ticket value in WEI
     uint256 public devTicketCut = 10 * ONE__PERCENT; // This is 10% of ticket sales taken on ticket sale
 
     uint256 public burnThreshold = 10 * ONE__PERCENT;
-    uint256 public distributionThreshold = 10 * ONE__PERCENT;
+    uint256 public distributionShare = 5 * ONE__PERCENT;
     
     // Fee Distributions
     /// @dev these values are used with PERCENT_BASE as 100%
@@ -635,22 +635,18 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
 
     // BURN AND ROLLOVER
     function distributeCrush() internal {
-        uint256 rollOver;
-        uint256 burnAmount;
-        uint256 forClaimer;
         RoundInfo storage thisRound = roundInfo[currentRound];
-        (rollOver, burnAmount, forClaimer) = calculateRollover();
+        (uint rollOver, uint burnAmount, uint forClaimer, uint distributed) = calculateRollover();
         // Transfer Amount to Claimer
         Claimer storage roundClaimer = claimers[currentRound];
         if(forClaimer > 0)
             crush.safeTransfer( roundClaimer.claimer, forClaimer );
         transferBonus( roundClaimer.claimer, 1 ,currentRound, roundClaimer.percent );
         // Can distribute rollover
-        if( rollOver > 0 && thisRound.totalTickets.mul(ticketValue) >= getFraction(thisRound.pool, distributionThreshold, PERCENT_BASE)){
-            uint256 profitDistribution = getFraction(rollOver, distributionThreshold, PERCENT_BASE);
-            crush.approve( address(bankAddress), profitDistribution);
-            bankAddress.addUserLoss(profitDistribution);
-            rollOver = rollOver.sub(profitDistribution);
+        if(distributed > 0){
+            crush.approve( address(bankAddress), distributed);
+            bankAddress.addUserLoss(distributed);
+            rollOver = rollOver.sub(distributed);
         }
 
         // BURN AMOUNT
@@ -661,7 +657,7 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
         roundInfo[ currentRound + 1 ].pool = rollOver;
     }
 
-    function calculateRollover() internal returns ( uint256 _rollover, uint256 _burn, uint256 _forClaimer ) {
+    function calculateRollover() internal returns ( uint256 _rollover, uint256 _burn, uint256 _forClaimer, uint256 _distributed ) {
         RoundInfo storage info = roundInfo[currentRound];
         _rollover = 0;
         // for zero match winners
@@ -680,12 +676,27 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
                     totalMatchHolders = totalMatchHolders.add( matchHolders );
                     holders[currentRound][digitToCheck] = matchHolders;
                 }
-                _forClaimer = _forClaimer.add(info.distribution[6-i]);
-                roundBonusCoin.bonusMaxPercent = roundBonusCoin.bonusMaxPercent.add(info.distribution[6-i]);
+                if(matchHolders > 0){
+                    _forClaimer = _forClaimer.add(info.distribution[6-i]);
+                    roundBonusCoin.bonusMaxPercent = roundBonusCoin.bonusMaxPercent.add(info.distribution[6-i]);
+                }
             }
             else
                 _rollover = _rollover.add( getFraction(info.pool, info.distribution[6-i], PERCENT_BASE) );
         }
+        emit LogEvent(_forClaimer, "Winner Percent");
+        if(_forClaimer < 10*ONE__PERCENT ){
+            //Total Won by ticket holders
+            _distributed = getFraction( info.pool, _forClaimer, PERCENT_BASE);
+            if(_distributed < getFraction(info.totalTickets.mul(ticketValue), devTicketCut, PERCENT_BASE)){
+                _distributed = getFraction(info.totalTickets.mul(ticketValue), devTicketCut, PERCENT_BASE).sub(_distributed);
+                _distributed = getFraction( _distributed, distributionShare, devTicketCut);
+            }
+            else
+                _distributed = 0;
+        }
+        else
+            _distributed = 0;
         _forClaimer = _forClaimer.mul(claimFee).div(PERCENT_BASE);
         uint256 nonWinners = info.totalTickets.sub(totalMatchHolders);
         info.totalWinners = totalMatchHolders;

@@ -1,8 +1,8 @@
-// const CRUSHToken = artifacts.require('CRUSHToken');
+const CRUSHToken = artifacts.require('CRUSHToken');
 // const BitcrushStaking = artifacts.require("BitcrushStaking");
 // const Timelock = artifacts.require("Timelock");
 const Lottery = artifacts.require('BitcrushLottery');
-// const BankTest = artifacts.require('BankTest');
+const BankTest = artifacts.require('BankTest');
 
 module.exports = async function ( deployer ) {
    // await deployer.deploy(CRUSHToken);
