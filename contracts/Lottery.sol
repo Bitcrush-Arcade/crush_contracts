@@ -350,7 +350,7 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
     /// @param _newValue the new value of the ticket
     /// @dev Ticket value MUST BE IN WEI format, minimum is left as greater than 1 due to the deflationary nature of CRUSH
     function setTicketValue(uint256 _newValue) external onlyOwner{
-        require(_newValue < 50 * 10**18 && _newValue > 1, "Ticket value exceeds MAX");
+        require(_newValue < 100 * 10**18 && _newValue > 1, "Ticket value exceeds MAX");
         ticketValue = _newValue;
         emit UpdateTicketValue(block.timestamp, _newValue);
     }
