@@ -46,6 +46,7 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
         uint256 burn;
         uint256 totalWinners;
         uint256[6] winnerDigits;
+        uint256 ticketValue;
     }
 
     struct TicketView {
@@ -112,7 +113,6 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
 
     uint256 public burnThreshold = 10 * ONE__PERCENT;
     uint256 public distributionShare = 5 * ONE__PERCENT;
-    
     // Fee Distributions
     /// @dev these values are used with PERCENT_BASE as 100%
     uint256 public match6 = 40 * ONE__PERCENT;
@@ -199,7 +199,7 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
         require(currentIsActive == true, "Round not active");
         // Check if User has funds for ticket
         uint userCrushBalance = crush.balanceOf(msg.sender);
-        uint ticketCost = ticketValue.mul(_ticketNumbers.length);
+        uint ticketCost = roundInfo[currentRound].ticketValue.mul(_ticketNumbers.length);
         require(userCrushBalance >= ticketCost, "Not enough funds to purchase Tickets");
         if(userRoundTickets[msg.sender][currentRound].firstTicketId == 0){
             userRoundTickets[msg.sender][currentRound].firstTicketId = userTotalTickets[msg.sender].add(1);
@@ -281,6 +281,7 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
         roundInfo[currentRound].pool = roundInfo[0].pool;
         roundInfo[currentRound].endTime = roundEnd;
         roundInfo[currentRound].distribution = [noMatch, match1, match2, match3, match4, match5, match6];
+        roundInfo[currentRound].ticketValue = ticketValue;
     }
 
     /// @notice Ends current round
@@ -300,6 +301,7 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
     }
 
     /// @notice Add or remove operator
+    /// @param _operator address to add / remove operator
     function toggleOperator(address _operator) external operatorOnly{
         bool operatorIsActive = operators[_operator];
         if(operatorIsActive) {
@@ -484,7 +486,6 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
         }
         userLastTicketClaimed[msg.sender] = claims;
         if(partnerBonusTokens[0] > 0){
-            emit LogEvent(partnerBonusTokens[0], "pre transfer Amount");
             crush.safeTransfer(msg.sender,partnerBonusTokens[0]);
         }
         if(bonusAddresses.length > 1){
@@ -630,6 +631,7 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
         currentIsActive = true;
         RoundInfo storage newRound = roundInfo[currentRound];
         newRound.distribution = [noMatch, match1, match2, match3, match4, match5, match6];
+        newRound.ticketValue = ticketValue;
         emit RoundStarted( currentRound, msg.sender, block.timestamp);
     }
 
@@ -684,12 +686,11 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
             else
                 _rollover = _rollover.add( getFraction(info.pool, info.distribution[6-i], PERCENT_BASE) );
         }
-        emit LogEvent(_forClaimer, "Winner Percent");
         if(_forClaimer < 10*ONE__PERCENT ){
             //Total Won by ticket holders
             _distributed = getFraction( info.pool, _forClaimer, PERCENT_BASE);
-            if(_distributed < getFraction(info.totalTickets.mul(ticketValue), devTicketCut, PERCENT_BASE)){
-                _distributed = getFraction(info.totalTickets.mul(ticketValue), devTicketCut, PERCENT_BASE).sub(_distributed);
+            if(_distributed < getFraction(info.totalTickets.mul(info.ticketValue), devTicketCut, PERCENT_BASE)){
+                _distributed = getFraction(info.totalTickets.mul(info.ticketValue), devTicketCut, PERCENT_BASE).sub(_distributed);
                 _distributed = getFraction( _distributed, distributionShare, devTicketCut);
             }
             else
@@ -706,7 +707,7 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
             _rollover = _rollover.add(getFraction(info.pool, info.distribution[0].sub(_forClaimer ), PERCENT_BASE));
         else
             roundBonusCoin.bonusMaxPercent = roundBonusCoin.bonusMaxPercent.add(info.distribution[0]);
-        if( getFraction(info.pool, burnThreshold, PERCENT_BASE) <=  info.totalTickets.mul(ticketValue) )
+        if( getFraction(info.pool, burnThreshold, PERCENT_BASE) <=  info.totalTickets.mul(info.ticketValue) )
             _burn = getFraction( info.pool, burn, PERCENT_BASE);
         else{
             _burn = 0;
