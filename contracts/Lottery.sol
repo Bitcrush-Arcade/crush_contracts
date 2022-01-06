@@ -106,6 +106,7 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
     uint32 constant MAX_BASE = 2000000; //6 digits are necessary
     // Variables
     bool public currentIsActive = false;
+    bool public pause = false;
     uint256 public currentRound = 0;
     uint256 public roundEnd;
     uint256 public ticketValue = 10 * 10**18 ; //Value of Ticket value in WEI
@@ -282,6 +283,7 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
         roundInfo[currentRound].endTime = roundEnd;
         roundInfo[currentRound].distribution = [noMatch, match1, match2, match3, match4, match5, match6];
         roundInfo[currentRound].ticketValue = ticketValue;
+        pause = false;
     }
 
     /// @notice Ends current round
@@ -376,6 +378,33 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
     function setBurnThreshold( uint256 _threshold ) external onlyOwner{
         require(_threshold <= 50, "Out of range");
         burnThreshold = _threshold * ONE__PERCENT;
+    }
+
+    function togglePauseStatus() external onlyOwner{
+        pause = !pause;
+        if(currentIsActive == false && !pause){
+            startRound();
+        }
+        emit LogEvent( pause ? 1 : 0 , "Pause Status Changed");
+    }
+
+    function crushContract() external onlyOwner{
+        require( pause , "Contract has not been paused");
+        require( block.timestamp > roundEnd.add(2629743), "Need to wait a month of non activity to call this fn");
+        // Transfer Held CRUSH
+        uint currentLotteryBalance = crush.balanceOf(address(this));
+        crush.safeTransfer(msg.sender, currentLotteryBalance);
+        // Transfer held Link
+        currentLotteryBalance = LINK.balanceOf(address(this));
+        LINK.transfer(msg.sender, currentLotteryBalance);
+        // Transfer Held Bonus Tokens
+        for( uint i = 1; i < bonusAddresses.length; i++){
+            ERC20 bonusToken = ERC20(bonusAddresses[i]);
+            currentLotteryBalance = bonusToken.balanceOf(address(this));
+            bonusToken.safeTransfer(msg.sender, currentLotteryBalance);
+        }
+        address payable owner = payable(msg.sender);
+        selfdestruct(owner);
     }
     /// @notice Set the distribution percentage amounts... all amounts must be given for this to work
     /// @param _newDistribution array of distribution amounts 
@@ -626,6 +655,7 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
 
     function startRound() internal {
         require( currentIsActive == false, "Current Round is not over");
+        require( pause == false, "Lottery is paused");
         // Add new Round
         currentRound ++;
         currentIsActive = true;
@@ -724,7 +754,8 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
         info.winnerNumber = standardTicketNumber(uint32(randomness), WINNER_BASE);
         distributeCrush();
         emit WinnerPicked(currentRound, info.winnerNumber, requestId);
-        startRound();
+        if(!pause)
+            startRound();
     }
 
     // Function to get the fraction amount from a value
@@ -839,9 +870,11 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
         info.winnerNumber = standardTicketNumber(uint32(randomness), WINNER_BASE);
         claimers[currentRound] = Claimer(_claimer, 0);
         distributeCrush();
-        startRound();
-        calcNextHour();
-        roundInfo[currentRound].endTime = roundEnd;
+        if(!pause){
+            startRound();
+            calcNextHour();
+            roundInfo[currentRound].endTime = roundEnd;
+        }
         emit WinnerPicked(currentRound, info.winnerNumber, "ADMIN_SET_WINNER");
     }
 }
