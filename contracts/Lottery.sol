@@ -109,7 +109,7 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
     bool public pause = false;
     uint256 public currentRound = 0;
     uint256 public roundEnd;
-    uint256 public ticketValue = 10 * 10**18 ; //Value of Ticket value in WEI
+    uint256 public ticketValue = 30 * 10**18 ; //Value of Ticket value in WEI
     uint256 public devTicketCut = 10 * ONE__PERCENT; // This is 10% of ticket sales taken on ticket sale
 
     uint256 public burnThreshold = 10 * ONE__PERCENT;
@@ -610,14 +610,66 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
     /// @param _ticketCount the ticket id offset
     /// @dev Depending on how many tickets, the gas usage for this function can be quite high.
     function createTicket( address ticketOwner, uint32 _ticketNumber, uint256 _round, uint256 _ticketCount) internal {
-        uint32 currentTicket =_ticketNumber%WINNER_BASE +WINNER_BASE;
-        holders[ _round ][ currentTicket/100000 ] ++;
-        holders[ _round ][ currentTicket/10000 ] ++;
-        holders[ _round ][ currentTicket/1000 ] ++;
-        holders[ _round ][ currentTicket/100 ] ++;
-        holders[ _round ][ currentTicket/10 ] ++;
-        holders[ _round ][ currentTicket ] ++;
-        userNewTickets[ticketOwner][userTotalTickets[ticketOwner].add(_ticketCount + 1)] = NewTicket(currentTicket,_round);
+        assembly{
+            let currentTicket := add(mod(_ticketNumber,WINNER_BASE),WINNER_BASE)
+            // save ticket to userNewTickets
+            mstore(0,ticketOwner)
+            mstore(32,userTotalTickets.slot)
+            let baseOffset:= keccak256(0,64)
+            let secondaryVal := add(add(sload(keccak256(0,64)),1),_ticketCount)
+            mstore(0,ticketOwner)
+            mstore(32,userNewTickets.slot)
+            baseOffset:= keccak256(0,64)
+            mstore(0,secondaryVal)
+            mstore(32,baseOffset)
+            sstore(keccak256(0,64),currentTicket)
+            sstore(add(keccak256(0,64),1),_round)
+            // Get base again
+            mstore(0,_round)
+            mstore(32,holders.slot)
+            baseOffset:= keccak256(0,64)
+            // save 6
+            mstore(0,currentTicket)
+            mstore(32,baseOffset)
+            let offset:= keccak256(0,64)
+            secondaryVal := sload(offset)
+            sstore(offset, add(secondaryVal,1))
+            // save 5
+            currentTicket:= div(currentTicket,10)
+            mstore(0,currentTicket)
+            mstore(32,baseOffset)
+            offset:= keccak256(0,64)
+            secondaryVal := sload(offset)
+            sstore(offset, add(secondaryVal,1))
+            // save 4
+            currentTicket:= div(currentTicket,10)
+            mstore(0,currentTicket)
+            mstore(32,baseOffset)
+            offset:= keccak256(0,64)
+            secondaryVal := sload(offset)
+            sstore(offset, add(secondaryVal,1))
+            // save 3
+            currentTicket:= div(currentTicket,10)
+            mstore(0,currentTicket)
+            mstore(32,baseOffset)
+            offset:= keccak256(0,64)
+            secondaryVal := sload(offset)
+            sstore(offset, add(secondaryVal,1))
+            // save 2
+            currentTicket:= div(currentTicket,10)
+            mstore(0,currentTicket)
+            mstore(32,baseOffset)
+            offset:= keccak256(0,64)
+            secondaryVal := sload(offset)
+            sstore(offset, add(secondaryVal,1))
+            // save 1
+            currentTicket:= div(currentTicket,10)
+            mstore(0,currentTicket)
+            mstore(32,baseOffset)
+            offset:= keccak256(0,64)
+            secondaryVal := sload(offset)
+            sstore(offset, add(secondaryVal,1))
+        }
     }
     //
     function getBonusReward(uint256 _holders, BonusCoin storage bonus, uint256 _match) internal view returns (uint256 bonusAmount) {
