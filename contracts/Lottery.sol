@@ -379,7 +379,8 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
         require(_threshold <= 50, "Out of range");
         burnThreshold = _threshold * ONE__PERCENT;
     }
-
+    /// @notice toggle pause state of lottery
+    /// @dev if the round is over and the lottery is unpaused then the round is started
     function togglePauseStatus() external onlyOwner{
         pause = !pause;
         if(currentIsActive == false && !pause){
@@ -387,7 +388,8 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
         }
         emit LogEvent( pause ? 1 : 0 , "Pause Status Changed");
     }
-
+    /// @notice Destroy contract and retrieve funds
+    /// @dev This function is meant to retrieve funds in case of non usage and/or upgrading in the future.
     function crushContract() external onlyOwner{
         require( pause , "Contract has not been paused");
         require( block.timestamp > roundEnd.add(2629743), "Need to wait a month of non activity to call this fn");
@@ -433,27 +435,11 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
         emit PercentagesChanged(msg.sender, "burnPercent", burn);
     }
 
-    // External functions that are view
-    /// @notice Get Tickets for the caller for during a specific round
-    /// @param _round The round to query
-    function getRoundTickets(uint256 _round) external view returns(NewTicket[] memory) {
-        RoundTickets storage roundReview = userRoundTickets[msg.sender][_round];
-        NewTicket[] memory tickets = new NewTicket[](roundReview.totalTickets);
-        for( uint i = 0; i < roundReview.totalTickets; i++)
-            tickets[i] =  userNewTickets[msg.sender][ roundReview.firstTicketId.add(i) ];
-        return tickets;
-    }
-
-    function getRoundDistribution(uint256 _round) external view returns( uint256[7] memory distribution){
-        distribution[0] = roundInfo[_round].distribution[0];
-        distribution[1] = roundInfo[_round].distribution[1];
-        distribution[2] = roundInfo[_round].distribution[2];
-        distribution[3] = roundInfo[_round].distribution[3];
-        distribution[4] = roundInfo[_round].distribution[4];
-        distribution[5] = roundInfo[_round].distribution[5];
-        distribution[6] = roundInfo[_round].distribution[6];
-    }
-
+    /// @notice Claim all tickets for selected Rounds
+    /// @param _rounds the round info to look at
+    /// @param _ticketIds array of ticket Ids that will be claimed
+    /// @param _matches array of match per ticket Id
+    /// @dev _ticketIds and _matches have to be same length since they are matched 1-to-1
     function claimAllPendingTickets(ClaimRounds[] calldata _rounds, uint[] calldata _ticketIds, uint[] calldata _matches) external {
         require(_ticketIds.length == _matches.length, "Arrays need to be the same" );
         require(_rounds.length > 0, "Need to claim something");
@@ -533,6 +519,45 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
         }
     }
 
+    // External functions that are view
+    /// @notice Get Tickets for the caller for during a specific round
+    /// @param _round The round to query
+    function getRoundTickets(uint256 _round) external view returns(NewTicket[] memory) {
+        RoundTickets storage roundReview = userRoundTickets[msg.sender][_round];
+        NewTicket[] memory tickets = new NewTicket[](roundReview.totalTickets);
+        for( uint i = 0; i < roundReview.totalTickets; i++)
+            tickets[i] =  userNewTickets[msg.sender][ roundReview.firstTicketId.add(i) ];
+        return tickets;
+    }
+
+    /// @notice Get a specific round's distribution percentages
+    /// @param _round the round to check
+    /// @dev this is necessary since solidity doesn't return the nested array in a struct when calling the variable containing the struct
+    function getRoundDistribution(uint256 _round) external view returns( uint256[7] memory distribution){
+        distribution[0] = roundInfo[_round].distribution[0];
+        distribution[1] = roundInfo[_round].distribution[1];
+        distribution[2] = roundInfo[_round].distribution[2];
+        distribution[3] = roundInfo[_round].distribution[3];
+        distribution[4] = roundInfo[_round].distribution[4];
+        distribution[5] = roundInfo[_round].distribution[5];
+        distribution[6] = roundInfo[_round].distribution[6];
+    }
+
+    /// @notice Get all Claimable Tickets
+    /// @return TicketView array
+    /// @dev this is specific to UI, returns ID and ROUND number in order to make the necessary calculations.
+    function ticketsToClaim () external view returns(TicketView[] memory){
+        uint256 claimableTickets = userTotalTickets[msg.sender].sub(userLastTicketClaimed[msg.sender]);
+        if(claimableTickets == 0)
+            return new TicketView[](0);
+        TicketView[] memory pendingTickets = new TicketView[](claimableTickets);
+        for( uint i = 0; i < claimableTickets; i ++){
+            NewTicket storage viewTicket = userNewTickets[msg.sender][userLastTicketClaimed[msg.sender].add(i + 1)];
+            pendingTickets[i] = TicketView(userLastTicketClaimed[msg.sender].add(i + 1),viewTicket.round, viewTicket.ticketNumber);
+        }
+        return pendingTickets;
+    }
+
     // Public functions
     /// @notice Check if number is the winning number
     /// @param _round Round the requested ticket belongs to
@@ -564,26 +589,16 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
         emit FundPool( currentRound, _amount);
     }
 
-    // Get all Claimable Tickets
-    function ticketsToClaim () public view returns(TicketView[] memory){
-        uint256 claimableTickets = userTotalTickets[msg.sender].sub(userLastTicketClaimed[msg.sender]);
-        if(claimableTickets == 0)
-            return new TicketView[](0);
-        TicketView[] memory pendingTickets = new TicketView[](claimableTickets);
-        for( uint i = 0; i < claimableTickets; i ++){
-            NewTicket storage viewTicket = userNewTickets[msg.sender][userLastTicketClaimed[msg.sender].add(i + 1)];
-            pendingTickets[i] = TicketView(userLastTicketClaimed[msg.sender].add(i + 1),viewTicket.round, viewTicket.ticketNumber);
-        }
-        return pendingTickets;
-    }
-
     // Internal functions
-
+    /// @notice Get the percentage to use for non winners difference after claimer fee
+    /// @param _round the round to get the info from.
     function getNoMatchAmount(uint _round) internal view returns(uint _matchReduction){
         _matchReduction = roundInfo[_round].distribution[0].sub( claimers[_round].percent );
     }
 
     /// @notice Set the next start hour and next hour index
+    /// @dev if only 1 element in array, then it always pushes to next day
+    /// @dev epoch is UTC so make sure to check when this is called it might roll over for more than 24 hours
     function calcNextHour() internal {
         uint256 tempEnd = roundEnd;
         uint8 newIndex = endHourIndex;
@@ -597,7 +612,12 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
         roundEnd = tempEnd;
         endHourIndex = newIndex;
     }
-
+    /// @notice Adds the ticket to chain
+    /// @param _owner the owner of the ticket
+    /// @param _ticketNumber the number playing
+    /// @param _round the round currently being played
+    /// @param _ticketCount the ticket id offset
+    /// @dev Depending on how many tickets, the gas usage for this function can be quite high.
     function createTicket( address _owner, uint32 _ticketNumber, uint256 _round, uint256 _ticketCount) internal {
         uint32 currentTicket =_ticketNumber%WINNER_BASE +WINNER_BASE;
         holders[ _round ][ currentTicket/100000 ] ++;
@@ -608,16 +628,6 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
         holders[ _round ][ currentTicket ] ++;
         userNewTickets[_owner][userTotalTickets[_owner].add(_ticketCount + 1)] = NewTicket(currentTicket,_round);
     }
-
-    function calcNonWinners( uint256 _round) internal view returns (uint256 nonWinners){
-        uint256[6] memory winnerDigits = getDigits( roundInfo[_round].winnerNumber );
-        uint256 winners=0;
-        for( uint tw = 0; tw < 6; tw++ ){
-            winners = winners.add( holders[ _round ][ winnerDigits[tw] ]);
-        }
-        nonWinners = roundInfo[ _round ].totalTickets.sub( winners );
-    }
-
     //
     function getBonusReward(uint256 _holders, BonusCoin storage bonus, uint256 _match) internal view returns (uint256 bonusAmount) {
         if(_holders == 0)
@@ -785,14 +795,7 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
         uint batchHolders = holders[userNewTickets[msg.sender][_ticketId].round][_currentRound.winnerDigits[_matchBatch -1]];
         return getFraction( _currentRound.pool, batchDistribution, PERCENT_BASE).div(batchHolders);
     }
-
-    function getWinnerDistribution(uint256 roundId, RoundInfo storage _currentRound, uint[] calldata _matches, uint256 _matchIndex) internal view returns(uint _batchDistribution){
-        uint _matchBatch = _matches[_matchIndex];
-        _batchDistribution = _currentRound.distribution[_matchBatch];
-        uint256 batchHolders = holders[roundId][_currentRound.winnerDigits[_matchBatch-1]];
-        _batchDistribution = _batchDistribution.div(batchHolders);
-    }
-
+    
     // Get the requested ticketNumber from the defined range
     function standardTicketNumber( uint32 _ticketNumber, uint32 _base) internal pure returns( uint32 ){
         uint32 ticketNumber = _ticketNumber%_base +_base ;
