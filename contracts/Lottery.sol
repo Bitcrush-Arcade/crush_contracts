@@ -195,13 +195,12 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
     /// @param _ticketNumbers takes in an array of uint values as the ticket number to buy
     /// @param _partnerId the id of the partner to send the funds to if 0, no partner is checked.
     function buyTickets(uint32[] calldata _ticketNumbers, uint256 _partnerId) external nonReentrant {
-        require(_ticketNumbers.length > 0, "Cant buy zero tickets");
-        require(_ticketNumbers.length <= 100, "Cant buy more than 100 tickets at any given time");
+        require(_ticketNumbers.length > 0, "Need 1");
+        require(_ticketNumbers.length <= 100, "no more than 100");
         require(currentIsActive == true, "Round not active");
         // Check if User has funds for ticket
-        uint userCrushBalance = crush.balanceOf(msg.sender);
         uint ticketCost = roundInfo[currentRound].ticketValue.mul(_ticketNumbers.length);
-        require(userCrushBalance >= ticketCost, "Not enough funds to purchase Tickets");
+        require(crush.balanceOf(msg.sender) >= ticketCost, "Can't purchase");
         if(userRoundTickets[msg.sender][currentRound].firstTicketId == 0){
             userRoundTickets[msg.sender][currentRound].firstTicketId = userTotalTickets[msg.sender].add(1);
         }
@@ -214,7 +213,7 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
         addToPool(ticketCost.sub(devCut));
         
         if(_partnerId > 0){
-            require(_partnerId <= partners.length, "Cheeky aren't you, partner Id doesn't exist. Contact us for partnerships");
+            require(_partnerId <= partners.length, "partner Id doesn't exist");
             Partner storage _p = partnerSplit[partners[_partnerId -1]];
             require(_p.set, "Partnership ended");
             // Split cut with partner
@@ -234,14 +233,13 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
     /// @dev their ID doesn't change, nor is it removed once partnership ends.
     function editPartner(address _partnerAddress, uint8 _split) external operatorOnly {
         require(_split <= 90, "No greedyness, thanks");
-        Partner storage _p = partnerSplit[_partnerAddress];
-        if(!_p.set){
+        if(!partnerSplit[_partnerAddress].set){
             partners.push(_partnerAddress);
-            _p.id = partners.length;
+            partnerSplit[_partnerAddress].id = partners.length;
         }
-        _p.spread = _split;
+        partnerSplit[_partnerAddress].spread = _split;
         if(_split > 0)
-            _p.set = true;
+            partnerSplit[_partnerAddress].set = true;
         emit PartnerUpdated(_partnerAddress);
     }
     /// @notice retrieve a provider wallet ID
@@ -264,8 +262,8 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
     /// @notice Exchange awarded tickets for the current round
     /// @param _ticketNumbers array of numbers to add to the caller as tickets
     function exchangeForTicket(uint32[] calldata _ticketNumbers) external {
-        require(currentIsActive, "Current round is not active please wait for next round start" );
-        require(_ticketNumbers.length <= exchangeableTickets[msg.sender], "You don't have enough redeemable tickets.");
+        require(currentIsActive, "round is not active" );
+        require(_ticketNumbers.length <= exchangeableTickets[msg.sender], "not enough tickets");
         for(uint256 exchange = 0; exchange < _ticketNumbers.length; exchange ++) {
             createTicket(msg.sender, _ticketNumbers[ exchange ], currentRound,exchange);
             exchangeableTickets[msg.sender] -= 1;
@@ -290,8 +288,8 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
     /// @dev WIP - the end of the round will always happen at set intervals
     function endRound() external {
         require(LINK.balanceOf(address(this)) >= feeVRF, "Not enough LINK - please contact mod to fund to contract");
-        require(currentIsActive == true, "Current Round is over");
-        require(block.timestamp > roundInfo[currentRound].endTime, "Can't end round just yet");
+        require(currentIsActive == true, "Round is over");
+        require(block.timestamp > roundInfo[currentRound].endTime, "Not yet");
 
         calcNextHour();
         currentIsActive = false;
@@ -328,21 +326,19 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
     /// @param _partnerToken Token address
     /// @param _round round where this token applies
     function setBonusCoin( address _partnerToken, uint256 _amount ,uint256 _round, uint256 _roundAmount ) external operatorOnly{
-        require(_roundAmount > 0, "Thanks for the tokens, but these need to go.");
-        require(_round > currentRound, "This round has passed.");
-        require(_partnerToken != address(0),"Cant set bonus Token" );
-        require( bonusCoins[ _round ].bonusToken == address(0), "Bonus token has already been added to this round");
+        require(_roundAmount > 0, "Need at least 1");
+        require(_round > currentRound, "No past rounds");
+        require(_partnerToken != address(0) && bonusCoins[ _round ].bonusToken == address(0), "issue with address");
         if(bonusTokenIndex[_partnerToken] == 0){
             bonusTokenIndex[_partnerToken] = bonusAddresses.length;
             bonusAddresses.push(_partnerToken);
         }
         ERC20 bonusToken = ERC20(_partnerToken);
-        require( bonusToken.balanceOf(msg.sender) >= _amount, "Funds are needed, can't conjure from thin air");
-        require( bonusToken.allowance(msg.sender, address(this)) >= _amount, "Please approve this contract for spending :)");
+        require( bonusToken.balanceOf(msg.sender) >= _amount, "Funds are needed");
         uint256 spreadAmount = _amount.div(_roundAmount);
         uint256 totalAmount = spreadAmount.mul(_roundAmount);//get the actual total to take into account division issues
         for( uint rounds = _round; rounds < _round.add(_roundAmount); rounds++){
-            require( bonusCoins[ rounds ].bonusToken == address(0), "Bonus token has already been added to round");
+            require( bonusCoins[ rounds ].bonusToken == address(0), "Already has bonus");
             // Uses the claimFee as the base since that will always be distributed to the claimer.
             bonusCoins[ rounds ] = BonusCoin(_partnerToken, spreadAmount, 0, 0);
         }
@@ -354,7 +350,7 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
     /// @param _newValue the new value of the ticket
     /// @dev Ticket value MUST BE IN WEI format, minimum is left as greater than 1 due to the deflationary nature of CRUSH
     function setTicketValue(uint256 _newValue) external onlyOwner{
-        require(_newValue < 100 * 10**18 && _newValue > 1, "Ticket value exceeds MAX");
+        require(_newValue < 100 * 10**18 && _newValue > 1, "exceeds MAX");
         ticketValue = _newValue;
         emit UpdateTicketValue(block.timestamp, _newValue);
     }
@@ -363,11 +359,11 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
     /// @param _newTimes Array of hours when Lottery will end
     /// @dev adding a sorting algorithm would be nice but honestly we have too much going on to add that in. So help us out and add your times sorted
     function setEndHours( uint8[] calldata _newTimes) external operatorOnly{
-        require( _newTimes.length > 0, "There must be a time somewhere");
+        require( _newTimes.length > 0, "need time");
         for( uint i = 0; i < _newTimes.length; i ++){
-            require(_newTimes[i] < 24, "We all wish we had more hours per day");
+            require(_newTimes[i] < 24, "wrong time");
             if(i>0)
-                require( _newTimes[i] > _newTimes[i-1], "Help a brother out, sort your times first");
+                require( _newTimes[i] > _newTimes[i-1], "Help out sort times");
         }
         endHours = _newTimes;
     }
@@ -390,23 +386,19 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
     }
     /// @notice Destroy contract and retrieve funds
     /// @dev This function is meant to retrieve funds in case of non usage and/or upgrading in the future.
-    function crushContract() external onlyOwner{
-        require( pause , "Contract has not been paused");
-        require( block.timestamp > roundEnd.add(2629743), "Need to wait a month of non activity to call this fn");
+    function crushTheContract() external onlyOwner{
+        require( pause , "not paused");
+        require( block.timestamp > roundEnd.add(2629743), "Wait no activity");
         // Transfer Held CRUSH
-        uint currentLotteryBalance = crush.balanceOf(address(this));
-        crush.safeTransfer(msg.sender, currentLotteryBalance);
+        crush.safeTransfer(msg.sender, crush.balanceOf(address(this)));
         // Transfer held Link
-        currentLotteryBalance = LINK.balanceOf(address(this));
-        LINK.transfer(msg.sender, currentLotteryBalance);
+        LINK.transfer(msg.sender, LINK.balanceOf(address(this)));
         // Transfer Held Bonus Tokens
         for( uint i = 1; i < bonusAddresses.length; i++){
             ERC20 bonusToken = ERC20(bonusAddresses[i]);
-            currentLotteryBalance = bonusToken.balanceOf(address(this));
-            bonusToken.safeTransfer(msg.sender, currentLotteryBalance);
+            bonusToken.safeTransfer(msg.sender, bonusToken.balanceOf(address(this)));
         }
-        address payable owner = payable(msg.sender);
-        selfdestruct(owner);
+        selfdestruct( payable(msg.sender) );
     }
     /// @notice Set the distribution percentage amounts... all amounts must be given for this to work
     /// @param _newDistribution array of distribution amounts 
@@ -414,8 +406,7 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
     /// @dev all values are in the one onehundreth percentile amount.
     /// @dev expected order [ jackpot, match5, match4, match3, match2, match1, noMatch, burn]
     function setDistributionPercentages( uint256[] calldata _newDistribution ) external onlyOwner{
-        require(_newDistribution.length == 8, "Missed a few values");
-        require(_newDistribution[7] > 0, "We need to burn something");
+        require(_newDistribution[7] > 0 && _newDistribution.length == 8, "Wrong configs");
         match6 = _newDistribution[0].mul(ONE100PERCENT);
         match5 = _newDistribution[1].mul(ONE100PERCENT);
         match4 = _newDistribution[2].mul(ONE100PERCENT);
@@ -480,7 +471,7 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
                     if(j == 0 && ticketIdCounter == 0)
                         require(ticketId > claims, "Ticket already claimed");
                     if( j > 0 || ticketIdCounter > 0)
-                        require(ticketId > _ticketIds[j + ticketIdCounter - 1],"Tickets need to be ordered and only be claimed once" );
+                        require(ticketId > _ticketIds[j + ticketIdCounter - 1],"sort tickets, claim once" );
                     uint matchBatch = _matches[j + ticketIdCounter];
                     uint distributedAmount = checkTicketRequirements(ticketId, matchBatch, roundChecked);
                     partnerBonusTokens[0] = partnerBonusTokens[0].add(distributedAmount);
@@ -613,12 +604,12 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
         endHourIndex = newIndex;
     }
     /// @notice Adds the ticket to chain
-    /// @param _owner the owner of the ticket
+    /// @param ticketOwner the owner of the ticket
     /// @param _ticketNumber the number playing
     /// @param _round the round currently being played
     /// @param _ticketCount the ticket id offset
     /// @dev Depending on how many tickets, the gas usage for this function can be quite high.
-    function createTicket( address _owner, uint32 _ticketNumber, uint256 _round, uint256 _ticketCount) internal {
+    function createTicket( address ticketOwner, uint32 _ticketNumber, uint256 _round, uint256 _ticketCount) internal {
         uint32 currentTicket =_ticketNumber%WINNER_BASE +WINNER_BASE;
         holders[ _round ][ currentTicket/100000 ] ++;
         holders[ _round ][ currentTicket/10000 ] ++;
@@ -626,7 +617,7 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
         holders[ _round ][ currentTicket/100 ] ++;
         holders[ _round ][ currentTicket/10 ] ++;
         holders[ _round ][ currentTicket ] ++;
-        userNewTickets[_owner][userTotalTickets[_owner].add(_ticketCount + 1)] = NewTicket(currentTicket,_round);
+        userNewTickets[ticketOwner][userTotalTickets[ticketOwner].add(_ticketCount + 1)] = NewTicket(currentTicket,_round);
     }
     //
     function getBonusReward(uint256 _holders, BonusCoin storage bonus, uint256 _match) internal view returns (uint256 bonusAmount) {
@@ -640,29 +631,6 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
         }
         return 0;
     }
-
-    // Transfer bonus to
-    function transferBonus(address _to, uint256 _holders, uint256 _round, uint256 _match) internal {
-        BonusCoin storage bonus = bonusCoins[_round];
-        if(_holders == 0)
-            return;
-        if( bonus.bonusToken != address(0) ){
-            ERC20 bonusTokenContract = ERC20(bonus.bonusToken);
-            uint256 availableFunds = bonusTokenContract.balanceOf(address(this));
-            if(_match == 0)
-                return;
-            uint256 bonusReward = getFraction( bonus.bonusAmount, _match, bonus.bonusMaxPercent ).div(_holders);
-            if(bonusReward == 0)
-                return;
-            if( roundInfo[_round].totalTickets.sub(roundInfo[_round].ticketsClaimed) == 1)
-                bonusReward = bonus.bonusAmount.sub(bonus.bonusClaimed);
-            if( bonusReward > availableFunds)
-                bonusReward = availableFunds;
-            bonus.bonusClaimed = bonus.bonusClaimed.add(bonusReward);
-            bonusTokenContract.safeTransfer( _to, bonusReward);
-        }
-    }
-
     function startRound() internal {
         require( currentIsActive == false, "Current Round is not over");
         require( pause == false, "Lottery is paused");
@@ -683,7 +651,10 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
         Claimer storage roundClaimer = claimers[currentRound];
         if(forClaimer > 0)
             crush.safeTransfer( roundClaimer.claimer, forClaimer );
-        transferBonus( roundClaimer.claimer, 1 ,currentRound, roundClaimer.percent );
+        if(bonusCoins[currentRound].bonusToken != address(0)){
+            ERC20 bonusTokenContract = ERC20(bonusCoins[currentRound].bonusToken);
+            bonusTokenContract.safeTransfer(roundClaimer.claimer, getBonusReward(1,bonusCoins[currentRound], roundClaimer.percent));
+        }
         // Can distribute rollover
         if(distributed > 0){
             crush.approve( address(bankAddress), distributed);
@@ -784,11 +755,11 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
     }
 
     function checkTicketRequirements( uint _ticketId, uint _matchBatch, RoundInfo storage _currentRound) internal view returns(uint _distributedAmount){
-        require(userNewTickets[msg.sender][_ticketId].ticketNumber > 0, "This ticket doesn't exist");
-        require( _matchBatch > 0 && _matchBatch < 7, "Winner only if matched at least one");
+        require(userNewTickets[msg.sender][_ticketId].ticketNumber > 0, "!exists");
+        require( _matchBatch > 0 && _matchBatch < 7, "minimum match 1");
         require(
             getDigits(userNewTickets[msg.sender][_ticketId].ticketNumber)[_matchBatch -1 ] == getDigits(_currentRound.winnerNumber)[_matchBatch - 1],
-            "You don't own this ticket. Or data is incorrect"
+            "Not owner|wrong data"
         );
 
         uint batchDistribution = _currentRound.distribution[_matchBatch];
