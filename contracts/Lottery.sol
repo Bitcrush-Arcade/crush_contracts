@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity 0.8.9;
 
 // VRF
 import "@chainlink/contracts/src/v0.8/VRFConsumerBase.sol";
@@ -103,17 +103,16 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
     uint256 constant ONE__PERCENT = 1000000000;
     uint256 constant PERCENT_BASE = 100000000000;
     uint32 constant WINNER_BASE = 1000000; //6 digits are necessary
-    uint32 constant MAX_BASE = 2000000; //6 digits are necessary
+    uint256 constant devTicketCut = 10 * ONE__PERCENT; // This is 10% of ticket sales taken on ticket sale
+    uint256 constant distributionShare = 5 * ONE__PERCENT;
     // Variables
     bool public currentIsActive = false;
     bool public pause = false;
     uint256 public currentRound = 0;
     uint256 public roundEnd;
     uint256 public ticketValue = 30 * 10**18 ; //Value of Ticket value in WEI
-    uint256 public devTicketCut = 10 * ONE__PERCENT; // This is 10% of ticket sales taken on ticket sale
 
     uint256 public burnThreshold = 10 * ONE__PERCENT;
-    uint256 public distributionShare = 5 * ONE__PERCENT;
     // Fee Distributions
     /// @dev these values are used with PERCENT_BASE as 100%
     uint256 public match6 = 40 * ONE__PERCENT;
@@ -170,18 +169,13 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
     constructor (address _crush, address _bankAddress)
         VRFConsumerBase(
             // BSC MAINNET
-            // 0x747973a5A2a4Ae1D3a8fDF5479f1514F65Db9C31, //VRFCoordinator
-            // 0x404460C6A5EdE2D891e8297795264fDe62ADBB75,  //LINK Token
-            // BSC TESTNET
-            0xa555fC018435bef5A13C6c6870a9d4C11DEC329C, // VRF Coordinator
-            0x84b9B910527Ad5C03A9Ca831909E21e236EA7b06  // LINK Token
+            0x747973a5A2a4Ae1D3a8fDF5479f1514F65Db9C31, //VRFCoordinator
+            0x404460C6A5EdE2D891e8297795264fDe62ADBB75 //LINK Token
         ) 
     {
         // VRF Init
-        // keyHash = 0xc251acd21ec4fb7f31bb8868288bfdbaeb4fbfec2df3735ddbd4f7dc8d60103c; //MAINNET HASH
-        keyHashVRF = 0xcaf3c3727e033261d383b315559476f48034c13b18f8cafed4d871abe5049186; //TESTNET HASH
-        // fee = 0.2 * 10 ** 18; // 0.2 LINK (MAINNET)
-        feeVRF = 0.1 * 10 ** 18; // 0.1 LINK (TESTNET)
+        keyHash = 0xc251acd21ec4fb7f31bb8868288bfdbaeb4fbfec2df3735ddbd4f7dc8d60103c; //MAINNET HASH
+        fee = 0.2 * 10 ** 18; // 0.2 LINK (MAINNET)
         crush = CRUSHToken(_crush);
         devAddress = msg.sender;
         operators[msg.sender] = true;
@@ -392,7 +386,7 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
         // Transfer Held CRUSH
         crush.safeTransfer(msg.sender, crush.balanceOf(address(this)));
         // Transfer held Link
-        LINK.transfer(msg.sender, LINK.balanceOf(address(this)));
+        LINK.safeTransfer(msg.sender, LINK.balanceOf(address(this)));
         // Transfer Held Bonus Tokens
         for( uint i = 1; i < bonusAddresses.length; i++){
             ERC20 bonusToken = ERC20(bonusAddresses[i]);
@@ -885,22 +879,5 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
           - OFFSET19700101;
 
         _days = uint(__days);
-    }
-    
-    /// @notice HELPFUL FUNCTION TO TEST WINNERS LOCALLY THIS FUNCTION IS NOT MEANT TO GO LIVE
-    /// This function sets the random value for the winner.
-    /// @param randomness simulates a number given back by the randomness function
-    function setWinner( uint256 randomness, address _claimer ) public operatorOnly{
-        currentIsActive = false;
-        RoundInfo storage info = roundInfo[currentRound];
-        info.winnerNumber = standardTicketNumber(uint32(randomness), WINNER_BASE);
-        claimers[currentRound] = Claimer(_claimer, 0);
-        distributeCrush();
-        if(!pause){
-            startRound();
-            calcNextHour();
-            roundInfo[currentRound].endTime = roundEnd;
-        }
-        emit WinnerPicked(currentRound, info.winnerNumber, "ADMIN_SET_WINNER");
     }
 }
