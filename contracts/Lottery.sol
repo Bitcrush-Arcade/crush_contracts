@@ -174,8 +174,8 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
         ) 
     {
         // VRF Init
-        keyHash = 0xc251acd21ec4fb7f31bb8868288bfdbaeb4fbfec2df3735ddbd4f7dc8d60103c; //MAINNET HASH
-        fee = 0.2 * 10 ** 18; // 0.2 LINK (MAINNET)
+        keyHashVRF = 0xc251acd21ec4fb7f31bb8868288bfdbaeb4fbfec2df3735ddbd4f7dc8d60103c; //MAINNET HASH
+        feeVRF = 0.2 * 10 ** 18; // 0.2 LINK (MAINNET)
         crush = CRUSHToken(_crush);
         devAddress = msg.sender;
         operators[msg.sender] = true;
@@ -386,7 +386,8 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
         // Transfer Held CRUSH
         crush.safeTransfer(msg.sender, crush.balanceOf(address(this)));
         // Transfer held Link
-        LINK.safeTransfer(msg.sender, LINK.balanceOf(address(this)));
+        // Hardcoded LinkToken address since LINK does not have SafeERC20 functions
+        ERC20(0x404460C6A5EdE2D891e8297795264fDe62ADBB75).safeTransfer(msg.sender, LINK.balanceOf(address(this)));
         // Transfer Held Bonus Tokens
         for( uint i = 1; i < bonusAddresses.length; i++){
             ERC20 bonusToken = ERC20(bonusAddresses[i]);
@@ -665,7 +666,11 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
             sstore(offset, add(secondaryVal,1))
         }
     }
-    //
+    /// @notice Get bonus reward amount based on holders and match amount
+    /// @param _holders amount of holders
+    /// @param bonus The bonus token data, used to obtain the bonus amount and maxpercent
+    /// @param _match The percentage matched
+    /// @return bonusAmount total amount to be distributed
     function getBonusReward(uint256 _holders, BonusCoin storage bonus, uint256 _match) internal view returns (uint256 bonusAmount) {
         if(_holders == 0)
             return 0;
@@ -677,6 +682,8 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
         }
         return 0;
     }
+    /// @notice Function that starts a round, it's only internal since it's for use of VRF
+    /// @dev distribution array is setup on a round basis as to simplify matching
     function startRound() internal {
         require( currentIsActive == false, "Current Round is not over");
         require( pause == false, "Lottery is paused");
@@ -689,7 +696,9 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
         emit RoundStarted( currentRound, msg.sender, block.timestamp);
     }
 
-    // BURN AND ROLLOVER
+    /// @notice function that calculates distribution and transfers rewards to claimer
+    /// @dev From calculations on calculateRollover fn, it transfers the claimer fee to claimer and the distributes rewards to bankroll
+    /// @dev finally it sets the pool amount in the next round
     function distributeCrush() internal {
         RoundInfo storage thisRound = roundInfo[currentRound];
         (uint rollOver, uint burnAmount, uint forClaimer, uint distributed) = calculateRollover();
@@ -715,7 +724,11 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
         }
         roundInfo[ currentRound + 1 ].pool = rollOver;
     }
-
+    /// @notice checks for winner holders and returns distribution info
+    /// @return _rollover the amount to be rolled over to next round
+    /// @return _burn the amount to burn
+    /// @return _forClaimer the claimer fee
+    /// @return _distributed the amount to be distributed to bankroll
     function calculateRollover() internal returns ( uint256 _rollover, uint256 _burn, uint256 _forClaimer, uint256 _distributed ) {
         RoundInfo storage info = roundInfo[currentRound];
         _rollover = 0;
@@ -774,8 +787,9 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
         _forClaimer = getFraction(info.pool, _forClaimer, PERCENT_BASE);
     }
 
-    // GET Verifiable RandomNumber from VRF
-    // This gets called by VRF Contract only
+    /// @notice Function that gets called by VRF to deliver number and distribute
+    /// @param requestId id of VRF request
+    /// @param randomness Random number delivered by VRF
     function fulfillRandomness(bytes32 requestId, uint256 randomness) internal override {
         RoundInfo storage info = roundInfo[currentRound];
         info.winnerNumber = standardTicketNumber(uint32(randomness), WINNER_BASE);
