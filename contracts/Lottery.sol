@@ -787,7 +787,7 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
         _forClaimer = getFraction(info.pool, _forClaimer, PERCENT_BASE);
     }
 
-    /// @notice Function that gets called by VRF to deliver number and distribute
+    /// @notice Function that gets called by VRF to deliver number and distribute claimer reward
     /// @param requestId id of VRF request
     /// @param randomness Random number delivered by VRF
     function fulfillRandomness(bytes32 requestId, uint256 randomness) internal override {
@@ -799,12 +799,18 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
             startRound();
     }
 
-    // Function to get the fraction amount from a value
+    /// @notice Function to get the fraction amount from a value
+    /// @param _amount total to be fractioned
+    /// @param _percent percentage to be applied
+    /// @param _base  percentage base, most cases will use PERCENT_BASE since percentage is not used as 100
+    /// @return fraction -> the result of the fraction computation
     function getFraction(uint256 _amount, uint256 _percent, uint256 _base) internal pure returns(uint256 fraction) {
         fraction = _amount.mul( _percent ).div( _base );
     }
 
-    // Get all participating digits from number
+    /// @notice Get all participating digits from number
+    /// @param _ticketNumber the ticket number to extract digits from
+    /// @return digits Array of 6, each with the matching pattern
     function getDigits( uint256 _ticketNumber ) internal pure returns(uint256[6] memory digits){
         digits[0] = _ticketNumber.div(100000); // WINNER_BASE
         digits[1] = _ticketNumber.div(10000);
@@ -813,7 +819,11 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
         digits[4] = _ticketNumber.div(10);
         digits[5] = _ticketNumber.div(1);
     }
-
+    /// @notice requirements to check per round and calculate distributed amount
+    /// @param _ticketId the ticket Id to check
+    /// @param _matchBatch the matching amount of the ticket Id
+    /// @param _currentRound round to check
+    /// @return _distributedAmount Total amount to be distributed
     function checkTicketRequirements( uint _ticketId, uint _matchBatch, RoundInfo storage _currentRound) internal view returns(uint _distributedAmount){
         require(userNewTickets[msg.sender][_ticketId].ticketNumber > 0, "!exists");
         require( _matchBatch > 0 && _matchBatch < 7, "minimum match 1");
@@ -827,13 +837,20 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
         return getFraction( _currentRound.pool, batchDistribution, PERCENT_BASE).div(batchHolders);
     }
     
-    // Get the requested ticketNumber from the defined range
+    /// @notice convert a number into the ticket range
+    /// @param _ticketNumber any number, the used values are the least significant digits
+    /// @param _base base of the ticket, usually WINNER_BASE
+    /// @return uint32 with ticket number value
     function standardTicketNumber( uint32 _ticketNumber, uint32 _base) internal pure returns( uint32 ){
         uint32 ticketNumber = _ticketNumber%_base +_base ;
         return ticketNumber;
     }
 
-    // Get timestamp end for next round to be at the specified _hour
+    /// @notice calculate the next round end time
+    /// @param _currentTimestamp current block's timestamp
+    /// @param _hour the next hour to set
+    /// @param _sameDay should the time set be in the next day
+    /// @return _endTimestamp the next end hour
     function setNextRoundEndTime(uint256 _currentTimestamp, uint256 _hour, bool _sameDay) internal pure returns (uint256 _endTimestamp ) {
         uint nextDay = _sameDay ? _currentTimestamp : SECONDS_PER_DAY.add(_currentTimestamp);
         (uint year, uint month, uint day) = timestampToDateTime(nextDay);
