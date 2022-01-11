@@ -12,6 +12,7 @@ CrushCoin Contract (CRUSH) is a simple BEP-20 token.
 ## Lottery
 
 Function to test locally only, it's been removed from the contract
+```
 /// @notice HELPFUL FUNCTION TO TEST WINNERS LOCALLY THIS FUNCTION IS NOT MEANT TO GO LIVE
 /// This function sets the random value for the winner.
 /// @param randomness simulates a number given back by the randomness function
@@ -28,3 +29,4 @@ function setWinner( uint256 randomness, address _claimer ) public operatorOnly{
     }
     emit WinnerPicked(currentRound, info.winnerNumber, "ADMIN_SET_WINNER");
 }
+```
