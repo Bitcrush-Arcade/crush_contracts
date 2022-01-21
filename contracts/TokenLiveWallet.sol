@@ -183,6 +183,7 @@ contract BitcrushTokenLiveWallet is Ownable {
         require(betAmounts[msg.sender].balance >= _amount, "bet less than amount withdraw");
         require(betAmounts[msg.sender].lockTimeStamp == 0 || betAmounts[msg.sender].lockTimeStamp.add(lockPeriod) < block.timestamp, "Bet Amount locked, please try again later");
         betAmounts[msg.sender].balance = betAmounts[msg.sender].balance.sub(_amount);
+        fetchAmountOwed(_amount, msg.sender);
         token.safeTransfer(msg.sender, _amount);
         emit Withdraw(msg.sender, _amount);
     }
@@ -192,6 +193,7 @@ contract BitcrushTokenLiveWallet is Ownable {
     function withdrawBetForUser(uint256 _amount, address _user) public onlyOwner {
         require(betAmounts[_user].balance >= _amount, "bet less than amount withdraw");
         betAmounts[_user].balance = betAmounts[_user].balance.sub(_amount);
+        fetchAmountOwed(_amount, _user);
         emit Withdraw(_user, _amount);
         uint256 withdrawalFee = _amount.mul(earlyWithdrawFee).div(DIVISOR);
         _amount = _amount.sub(withdrawalFee);
