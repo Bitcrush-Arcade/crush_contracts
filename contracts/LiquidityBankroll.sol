@@ -1,18 +1,15 @@
 //SPDX-License-Identifier: MIT
 pragma solidity >=0.6.5;
 import "@pancakeswap/pancake-swap-lib/contracts/access/Ownable.sol";
-
 import "@pancakeswap/pancake-swap-lib/contracts/math/SafeMath.sol";
 import "@pancakeswap/pancake-swap-lib/contracts/token/BEP20/SafeBEP20.sol";
 import "@pancakeswap/pancake-swap-lib/contracts/token/BEP20/BEP20.sol";
-import "./LiveWallet.sol";
+import "./TokenLiveWallet.sol";
 
 contract BitcrushLiquidityBankroll is Ownable {
     using SafeMath for uint256;
-
     using SafeBEP20 for BEP20;
-    uint256 public totalBankroll;
-    BEP20 public immutable token;
+    mapping (address => uint256) public bankroll;
     address admin;
     // MODIFIERS
     modifier adminOnly() {
@@ -26,8 +23,7 @@ contract BitcrushLiquidityBankroll is Ownable {
     //authorized addresses
     mapping(address => bool) public authorizedAddresses;
 
-    constructor(BEP20 _token, address _admin) public {
-        token = _token;
+    constructor( address _admin) public {
         admin = _admin;
     }
 
@@ -48,29 +44,30 @@ contract BitcrushLiquidityBankroll is Ownable {
     /// Add funds to the bankroll
     /// @param _amount the amount to add
     /// @dev adds funds to the bankroll
-    function addToBankroll(uint256 _amount) public adminOnly {
-        token.safeTransferFrom(msg.sender, address(this), _amount);
-        totalBankroll = totalBankroll.add(_amount);
+    function addToBankroll(uint256 _amount, address _token) public adminOnly {
+        BEP20(_token).safeTransferFrom(msg.sender, address(this), _amount);
+        bankroll[_token] = bankroll[_token].add(_amount);
     }
 
     /// Add users loss to the bankroll
     /// @param _amount the amount to add
     /// @dev adds funds to the bankroll if bankroll is in positive, otherwise its transfered to the staking pool to recover frozen funds
-    function addUserLoss(uint256 _amount) public {
-        token.safeTransferFrom(msg.sender, address(this), _amount);
-        totalBankroll = totalBankroll.add(_amount);
+    function addUserLoss(uint256 _amount, address _token) public {
+        BEP20(_token).safeTransferFrom(msg.sender, address(this), _amount);
+        bankroll[_token] = bankroll[_token].add(_amount);
     }
+
 
     /// Deduct users win from the bankroll
     /// @param _amount the amount to deduct
     /// @dev deducts funds from the bankroll if bankroll is in positive, otherwise theyre pulled from staking pool and bankroll marked as negative
-    function payOutUserWinning(uint256 _amount, address _winner) public {
+    function payOutUserWinning(uint256 _amount, address _winner, address _token) public {
         require(
             authorizedAddresses[msg.sender] == true,
             "Caller must be authorized"
         );
-        transferWinnings(_amount, _winner, msg.sender);
-        totalBankroll = totalBankroll.sub(_amount);
+        transferWinnings(_amount, _winner, msg.sender, _token);
+        bankroll[_token] = bankroll[_token].sub(_amount);
     }
     /// transfer winnings from bankroll contract to live wallet
     /// @param _amount the amount to tranfer
@@ -79,16 +76,17 @@ contract BitcrushLiquidityBankroll is Ownable {
     function transferWinnings(
         uint256 _amount,
         address _winner,
-        address _lwAddress
+        address _lwAddress,
+        address _token
     ) internal {
-        token.safeTransfer(_lwAddress, _amount);
-        BitcrushLiveWallet currentLw = BitcrushLiveWallet( _lwAddress);
-        currentLw.addToUserWinnings(_amount, _winner);
+        BEP20(_token).safeTransfer(_lwAddress, _amount);
+        BitcrushTokenLiveWallet currentLw = BitcrushTokenLiveWallet( _lwAddress);
+        currentLw.addToUserWinningsNative(_amount, _winner);
     }
     /// return the current balance of user in the live wallet
     /// @dev return current the balance of provided user addrss in the live wallet
-    function balance() public view returns (uint256) {
-        return totalBankroll;
+    function balance(address _token) public view returns (uint256) {
+        return bankroll[_token];
     }
 
     ///store new address in admin address

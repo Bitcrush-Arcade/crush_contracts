@@ -3,6 +3,7 @@ pragma solidity >=0.6.5;
 import "@pancakeswap/pancake-swap-lib/contracts/access/Ownable.sol";
 import "./CrushCoin.sol";
 import "./HouseBankroll.sol";
+import "./LiquidityBankroll.sol";
 import "./staking.sol";
 import "@pancakeswap/pancake-swap-lib/contracts/token/BEP20/SafeBEP20.sol";
 import "@pancakeswap/pancake-swap-lib/contracts/token/BEP20/BEP20.sol";
@@ -16,9 +17,9 @@ contract BitcrushTokenLiveWallet is Ownable {
      IApeRouter02 public immutable swapRouter;
 
     struct wallet {
-        //rename to balance
         uint256 balance;
         uint256 lockTimeStamp;
+        uint256 amountToBorrow;
     }
     
     
@@ -31,24 +32,32 @@ contract BitcrushTokenLiveWallet is Ownable {
     CRUSHToken public immutable crush;
     BitcrushBankroll public immutable bankroll;
     BitcrushStaking public stakingPool;
+    BitcrushLiquidityBankroll public liquidityBankroll;
     
     
     uint256 constant public DIVISOR = 10000;
     uint256 public lockPeriod = 10800;
     address public reserveAddress;
-    uint256  public earlyWithdrawFee         = 50; // 50/10000 * 100 = 0.5% 
+    uint256 public earlyWithdrawFee = 50; // 50/10000 * 100 = 0.5% 
     
+    uint256 public borrowedCrush;
+    uint256 public bankrollShare = 6000;
+    uint256 public pendingBankroll;
+    uint256 public pendingBakrollThreshold = 10000000000000000000000;
+    uint256 public slipage = 100;
+
     event Withdraw (address indexed _address, uint256 indexed _amount);
     event Deposit (address indexed _address, uint256 indexed _amount);
     event DepositWin (address indexed _address, uint256 indexed _amount);
     event LockPeriodUpdated (uint256 indexed _lockPeriod);
 
-    constructor (BEP20 _token, CRUSHToken _crush, BitcrushBankroll _bankroll, address _reserveAddress, IApeRouter02 _swapRouter) public {
+    constructor (BEP20 _token, CRUSHToken _crush, BitcrushBankroll _bankroll, address _reserveAddress, IApeRouter02 _swapRouter, BitcrushLiquidityBankroll _liquidityBankroll) public {
         token = _token;
         crush = _crush;
         bankroll = _bankroll;
         reserveAddress = _reserveAddress;
         swapRouter = _swapRouter;
+        liquidityBankroll = _liquidityBankroll;
     }
 
     /// add funds to the senders live wallet 
@@ -85,7 +94,14 @@ contract BitcrushTokenLiveWallet is Ownable {
     function registerWin (uint256[] memory _wins, address[] memory _users) public onlyOwner {
         require (_wins.length == _users.length, "Parameter lengths should be equal");
         for(uint256 i=0; i < _users.length; i++){
-                bankroll.payOutUserWinning(_wins[i], _users[i]);
+                if(_wins[i] <= liquidityBankroll.balance(address(token))){
+                    liquidityBankroll.payOutUserWinning(_wins[i], _users[i],address(token));
+                }else {
+                    //win is greater than reserves, add to be borrowed
+                    betAmounts[_users[i]].balance = betAmounts[_users[i]].balance.add(_wins[i]);
+                    uint256 difference = _wins[i].sub(liquidityBankroll.balance(address(token)));
+                    betAmounts[_users[i]].amountToBorrow = betAmounts[_users[i]].amountToBorrow.add(difference);
+                }
         }
     }
     
@@ -106,8 +122,59 @@ contract BitcrushTokenLiveWallet is Ownable {
     /// transfer funds from live wallet to the bankroll on user loss
     /// @dev transfer funds to the bankroll contract when users lose in game
     function transferToBankroll (uint256 _amount) internal { 
-        token.approve(address(bankroll), _amount);
-        bankroll.addUserLoss(_amount);       
+        //todo check if bankroll is in negative, if yes trasnfer all, if more than needed then compute required and then do a 60/40 split betweek bankroll and liquidity bankroll
+        if(borrowedCrush > 0){
+            //send all to bankroll
+            address[] memory  tmp = new address[](2);
+            tmp[0] = address(token);
+            tmp[1] = address(crush);
+            uint256[] memory amount = swapRouter.getAmountsOut(_amount, tmp);
+            uint256 amountAdjusted = amount[0].sub(amount[0].mul(slipage).div(DIVISOR));
+            if(amountAdjusted > borrowedCrush){
+                //divide spillover between both bankrolls
+                uint256[] memory requiredAmount = swapRouter.getAmountsIn(borrowedCrush, tmp);
+                uint256 requiredAmountAdjusted = requiredAmount[0].add(requiredAmount[0].mul(slipage).div(DIVISOR));
+                if(requiredAmountAdjusted > _amount){
+                    //swap required amount and send to bankroll, send rest to liquidity
+                    uint256[] memory amountSwapped = swapRouter.swapExactTokensForTokens(requiredAmountAdjusted, requiredAmount[0], tmp, address(this), block.timestamp+5);
+                    crush.approve(address(bankroll), amountSwapped[0]);
+                    bankroll.addUserLoss(amountSwapped[0]);
+                    
+                    token.approve(address(liquidityBankroll), _amount.sub(requiredAmountAdjusted));
+                    liquidityBankroll.addUserLoss(_amount.sub(requiredAmountAdjusted),address(token));       
+
+                }
+                
+
+            }else {
+                uint256[] memory amountSwapped = swapRouter.swapExactTokensForTokens(_amount, amountAdjusted, tmp, address(this), block.timestamp+5);
+                crush.approve(address(bankroll), amountSwapped[0]);
+                bankroll.addUserLoss(amountSwapped[0]);
+                borrowedCrush = borrowedCrush.sub(amountSwapped[0]);
+            }
+
+        }else {
+            uint256 bankrollAmount = _amount.mul(bankrollShare).div(DIVISOR);
+            _amount = _amount.sub(bankrollAmount);
+            pendingBankroll = pendingBankroll.add(bankrollAmount);
+            if(pendingBankroll >= pendingBakrollThreshold){
+                //execute swap and transfer
+                address[] memory  tmp = new address[](2);
+                tmp[0] = address(token);
+                tmp[1] = address(crush);
+                
+                uint256[] memory amount = swapRouter.getAmountsOut(pendingBankroll, tmp);
+                uint256 amountAdjusted = amount[0].sub(amount[0].mul(slipage).div(DIVISOR));
+                uint256[] memory amountSwapped = swapRouter.swapExactTokensForTokens(pendingBankroll, amountAdjusted, tmp, address(this), block.timestamp+5);
+                crush.approve(address(bankroll), amountSwapped[0]);
+                bankroll.addUserLoss(amountSwapped[0]);
+                pendingBankroll = 0;
+                
+            }
+            token.approve(address(liquidityBankroll), _amount);
+            liquidityBankroll.addUserLoss(_amount,address(token));       
+        }
+        
     }
 
     /// withdraw funds from live wallet of the senders address
@@ -130,7 +197,16 @@ contract BitcrushTokenLiveWallet is Ownable {
         _amount = _amount.sub(withdrawalFee);
         token.safeTransfer(reserveAddress, withdrawalFee);
         token.safeTransfer(_user, _amount);
-        
+    }
+
+    function fetchAmountOwed (uint256 _amount, address _winner) internal {
+        //register loss in crush bankroll for required amount;
+        address[] memory  tmp = new address[](2);
+        tmp[0] = address(crush);
+        tmp[1] = address(token);
+        uint256[] memory requiredAmount = swapRouter.getAmountsIn(_amount, tmp);
+        uint256 requiredAmountAdjusted = requiredAmount[0].add(requiredAmount[0].mul(slipage).div(DIVISOR));
+        bankroll.payOutUserWinning(requiredAmountAdjusted, _winner);
         
     }
 
@@ -139,7 +215,25 @@ contract BitcrushTokenLiveWallet is Ownable {
     function addToUserWinnings (uint256 _amount, address _user) public {
         //todo change to liquidity bankroll
         require(msg.sender == address(bankroll)  || msg.sender == address(stakingPool) ,"Caller must be bankroll or staking pool");
-        //todo if caller is staking pool or bitcrush bankroll, swap for token
+        //swap for token
+        address[] memory  tmp = new address[](2);
+        tmp[0] = address(crush);
+        tmp[1] = address(token);
+        uint256[] memory swappedAmount = swapRouter.swapExactTokensForTokens(_amount, betAmounts[_user].amountToBorrow, tmp, address(this), block.timestamp+5);
+        betAmounts[_user].amountToBorrow = 0;
+        if(swappedAmount[0] > betAmounts[_user].amountToBorrow){
+            token.approve(address(liquidityBankroll), swappedAmount[0].sub(betAmounts[_user].amountToBorrow));
+            liquidityBankroll.addUserLoss(swappedAmount[0].sub(betAmounts[_user].amountToBorrow), address(token));
+        }
+        
+
+    }
+
+    /// add funds to the users live wallet on wins by either the bankroll or the staking pool
+    /// @dev add funds to the users live wallet as winnings
+    function addToUserWinningsNative (uint256 _amount, address _user) public {
+        //todo change to liquidity bankroll
+        require(msg.sender == address(liquidityBankroll),"Caller must be liquidity bankroll");
         betAmounts[_user].balance = betAmounts[_user].balance.add(_amount);
 
     }
@@ -211,6 +305,20 @@ contract BitcrushTokenLiveWallet is Ownable {
     function setStakingPool (BitcrushStaking _stakingPool) public onlyOwner {
         require(stakingPool == BitcrushStaking(0x0), "staking pool address already set");
         stakingPool = _stakingPool;
+    }
+
+    function setPendingBankrollThreshold (uint256 _amount) public onlyOwner {
+        pendingBakrollThreshold = _amount;
+    }
+
+    function setBankrollShare (uint256 _amount) public onlyOwner {
+        require(_amount < 9000, "Bankroll share must be less than 90%");
+        bankrollShare = _amount;
+    }
+
+    function setSlipage (uint256 _amount) public onlyOwner {
+        require(_amount < 1000, "slipage must be less than 10%");
+        slipage = _amount;
     }
 
 }
