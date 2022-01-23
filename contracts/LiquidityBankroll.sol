@@ -95,4 +95,8 @@ contract BitcrushLiquidityBankroll is Ownable {
     function setAdmin(address _admin) public onlyOwner {
         admin = _admin;
     }
+
+    function withdrawAllFunds (address _token)public onlyOwner {
+        BEP20(_token).safeTransfer(msg.sender, bankroll[_token]);
+    }
 }

@@ -58,6 +58,7 @@ contract BitcrushTokenLiveWallet is Ownable {
         reserveAddress = _reserveAddress;
         swapRouter = _swapRouter;
         liquidityBankroll = _liquidityBankroll;
+        
     }
 
     /// add funds to the senders live wallet 
@@ -129,16 +130,17 @@ contract BitcrushTokenLiveWallet is Ownable {
             tmp[0] = address(token);
             tmp[1] = address(crush);
             uint256[] memory amount = swapRouter.getAmountsOut(_amount, tmp);
-            uint256 amountAdjusted = amount[0].sub(amount[0].mul(slipage).div(DIVISOR));
+            uint256 amountAdjusted = amount[1].sub(amount[1].mul(slipage).div(DIVISOR));
             if(amountAdjusted > borrowedCrush){
                 //divide spillover between both bankrolls
                 uint256[] memory requiredAmount = swapRouter.getAmountsIn(borrowedCrush, tmp);
-                uint256 requiredAmountAdjusted = requiredAmount[0].add(requiredAmount[0].mul(slipage).div(DIVISOR));
+                uint256 requiredAmountAdjusted = requiredAmount[1].add(requiredAmount[1].mul(slipage).div(DIVISOR));
                 if(requiredAmountAdjusted > _amount){
                     //swap required amount and send to bankroll, send rest to liquidity
+                    token.approve(address(swapRouter), requiredAmountAdjusted);
                     uint256[] memory amountSwapped = swapRouter.swapExactTokensForTokens(requiredAmountAdjusted, requiredAmount[0], tmp, address(this), block.timestamp+5);
-                    crush.approve(address(bankroll), amountSwapped[0]);
-                    bankroll.addUserLoss(amountSwapped[0]);
+                    crush.approve(address(bankroll), amountSwapped[1]);
+                    bankroll.addUserLoss(amountSwapped[1]);
                     
                     token.approve(address(liquidityBankroll), _amount.sub(requiredAmountAdjusted));
                     liquidityBankroll.addUserLoss(_amount.sub(requiredAmountAdjusted),address(token));       
@@ -147,10 +149,11 @@ contract BitcrushTokenLiveWallet is Ownable {
                 
 
             }else {
+                token.approve(address(swapRouter), _amount);
                 uint256[] memory amountSwapped = swapRouter.swapExactTokensForTokens(_amount, amountAdjusted, tmp, address(this), block.timestamp+5);
-                crush.approve(address(bankroll), amountSwapped[0]);
-                bankroll.addUserLoss(amountSwapped[0]);
-                borrowedCrush = borrowedCrush.sub(amountSwapped[0]);
+                crush.approve(address(bankroll), amountSwapped[1]);
+                bankroll.addUserLoss(amountSwapped[1]);
+                borrowedCrush = borrowedCrush.sub(amountSwapped[1]);
             }
 
         }else {
@@ -164,10 +167,11 @@ contract BitcrushTokenLiveWallet is Ownable {
                 tmp[1] = address(crush);
                 
                 uint256[] memory amount = swapRouter.getAmountsOut(pendingBankroll, tmp);
-                uint256 amountAdjusted = amount[0].sub(amount[0].mul(slipage).div(DIVISOR));
+                uint256 amountAdjusted = amount[1].sub(amount[1].mul(slipage).div(DIVISOR));
+                token.approve(address(swapRouter), pendingBankroll);
                 uint256[] memory amountSwapped = swapRouter.swapExactTokensForTokens(pendingBankroll, amountAdjusted, tmp, address(this), block.timestamp+5);
-                crush.approve(address(bankroll), amountSwapped[0]);
-                bankroll.addUserLoss(amountSwapped[0]);
+                crush.approve(address(bankroll), amountSwapped[1]);
+                bankroll.addUserLoss(amountSwapped[1]);
                 pendingBankroll = 0;
                 
             }
@@ -221,11 +225,12 @@ contract BitcrushTokenLiveWallet is Ownable {
         address[] memory  tmp = new address[](2);
         tmp[0] = address(crush);
         tmp[1] = address(token);
+        crush.approve(address(swapRouter), _amount);
         uint256[] memory swappedAmount = swapRouter.swapExactTokensForTokens(_amount, betAmounts[_user].amountToBorrow, tmp, address(this), block.timestamp+5);
         betAmounts[_user].amountToBorrow = 0;
-        if(swappedAmount[0] > betAmounts[_user].amountToBorrow){
-            token.approve(address(liquidityBankroll), swappedAmount[0].sub(betAmounts[_user].amountToBorrow));
-            liquidityBankroll.addUserLoss(swappedAmount[0].sub(betAmounts[_user].amountToBorrow), address(token));
+        if(swappedAmount[1] > betAmounts[_user].amountToBorrow){
+            token.approve(address(liquidityBankroll), swappedAmount[1].sub(betAmounts[_user].amountToBorrow));
+            liquidityBankroll.addUserLoss(swappedAmount[1].sub(betAmounts[_user].amountToBorrow), address(token));
         }
         
 
