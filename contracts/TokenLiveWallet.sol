@@ -99,8 +99,10 @@ contract BitcrushTokenLiveWallet is Ownable {
                     liquidityBankroll.payOutUserWinning(_wins[i], _users[i],address(token));
                 }else {
                     //win is greater than reserves, add to be borrowed
-                    betAmounts[_users[i]].balance = betAmounts[_users[i]].balance.add(_wins[i]);
-                    uint256 difference = _wins[i].sub(liquidityBankroll.balance(address(token)));
+                    uint256 balanceInReserve = liquidityBankroll.balance(address(token));
+                    uint256 difference = _wins[i].sub(balanceInReserve);
+                    liquidityBankroll.payOutUserWinning(balanceInReserve, _users[i],address(token));
+                    betAmounts[_users[i]].balance = betAmounts[_users[i]].balance.add(_wins[i].sub(balanceInReserve));
                     betAmounts[_users[i]].amountToBorrow = betAmounts[_users[i]].amountToBorrow.add(difference);
                 }
         }
@@ -148,7 +150,7 @@ contract BitcrushTokenLiveWallet is Ownable {
                 }
                 
 
-            }else {
+            } else {
                 token.approve(address(swapRouter), _amount);
                 uint256[] memory amountSwapped = swapRouter.swapExactTokensForTokens(_amount, amountAdjusted, tmp, address(this), block.timestamp+5);
                 crush.approve(address(bankroll), amountSwapped[1]);
@@ -186,8 +188,10 @@ contract BitcrushTokenLiveWallet is Ownable {
     function withdrawBet(uint256 _amount) public {
         require(betAmounts[msg.sender].balance >= _amount, "bet less than amount withdraw");
         require(betAmounts[msg.sender].lockTimeStamp == 0 || betAmounts[msg.sender].lockTimeStamp.add(lockPeriod) < block.timestamp, "Bet Amount locked, please try again later");
+        if(betAmounts[msg.sender].balance.sub(betAmounts[msg.sender].amountToBorrow) < _amount){
+            fetchAmountOwed(_amount, msg.sender);
+        }
         betAmounts[msg.sender].balance = betAmounts[msg.sender].balance.sub(_amount);
-        fetchAmountOwed(_amount, msg.sender);
         token.safeTransfer(msg.sender, _amount);
         emit Withdraw(msg.sender, _amount);
     }
@@ -196,6 +200,9 @@ contract BitcrushTokenLiveWallet is Ownable {
     /// @dev withdraw preapproved amount from users wallet sidestepping the timelock on withdrawals
     function withdrawBetForUser(uint256 _amount, address _user) public onlyOwner {
         require(betAmounts[_user].balance >= _amount, "bet less than amount withdraw");
+        if(betAmounts[msg.sender].balance.sub(betAmounts[msg.sender].amountToBorrow) < _amount){
+            fetchAmountOwed(_amount, msg.sender);
+        }
         betAmounts[_user].balance = betAmounts[_user].balance.sub(_amount);
         fetchAmountOwed(_amount, _user);
         emit Withdraw(_user, _amount);
@@ -227,13 +234,12 @@ contract BitcrushTokenLiveWallet is Ownable {
         tmp[1] = address(token);
         crush.approve(address(swapRouter), _amount);
         uint256[] memory swappedAmount = swapRouter.swapExactTokensForTokens(_amount, betAmounts[_user].amountToBorrow, tmp, address(this), block.timestamp+5);
-        betAmounts[_user].amountToBorrow = 0;
+        
         if(swappedAmount[1] > betAmounts[_user].amountToBorrow){
             token.approve(address(liquidityBankroll), swappedAmount[1].sub(betAmounts[_user].amountToBorrow));
             liquidityBankroll.addUserLoss(swappedAmount[1].sub(betAmounts[_user].amountToBorrow), address(token));
         }
-        
-
+        betAmounts[_user].amountToBorrow = 0;
     }
 
     /// add funds to the users live wallet on wins by either the bankroll or the staking pool
@@ -324,7 +330,7 @@ contract BitcrushTokenLiveWallet is Ownable {
     }
 
     function setSlipage (uint256 _amount) public onlyOwner {
-        require(_amount < 1000, "slipage must be less than 10%");
+        require(_amount < 3000, "slipage must be less than 30%");
         slipage = _amount;
     }
 
