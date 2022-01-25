@@ -60,7 +60,7 @@ module.exports = {
       networkCheckTimeout: 1000000000,
       timeoutBlocks: 200000, 
       provider : function(){
-        return new HDWalletProvider('', "https://data-seed-prebsc-1-s1.binance.org/");
+        return new HDWalletProvider('0x47b8bfcd9a9ee97c13ba6f94b164d8fe3b5d07137a1193a37ca02e65838b6ead', "https://data-seed-prebsc-1-s1.binance.org/");
        }
      },
      /* mainnet: {

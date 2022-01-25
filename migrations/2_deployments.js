@@ -18,11 +18,9 @@ module.exports = async function (deployer) {
     
     await bankrollInstance.authorizeAddress(liveWalletInstance.address);
     
-    //await bankrollInstance.setLiveWallet(liveWalletInstance.address);
-    //await bankrollInstance.setBitcrushStaking (stakingInstance.address);
-
-    //await liveWalletInstance.setBitcrushBankroll(bankrollInstance.address);
-    await liveWalletInstance.setStakingPool(stakingInstance.address);
+    
+    
+    //await liveWalletInstance.setStakingPool(stakingInstance.address);
 
     
     
