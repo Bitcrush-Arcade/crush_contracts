@@ -66,8 +66,8 @@ contract('mainBridgeTest', (accounts) => {
     // Adding valid chain
     await this.bridge.addValidChain(2222, {from: accounts[0]});
 
-     // Adding token
-     await this.bridge.addToken(this.bridge.addToken(1111, 1, false, true, {from: accounts[0]}));
+    // Adding token
+    await this.bridge.addToken(this.bridge.addToken(1111, 1, false, true, {from: accounts[0]}));
 
     // Minting tokens to user
     await this.token.mint(accounts[1], 5,{ from: accounts[0]});
@@ -98,8 +98,8 @@ contract('mainBridgeTest', (accounts) => {
     await expectRevert(this.bridge.sendTransactionSuccess(3333, {from: accounts[1]}), 'onlyGateway');
 
     // Checking if transaction success event is being emitted
-    await this.bridge.sendTransactionSuccess(3333, {from: accounts[3]});
-    assert.ok(txnHash, 'txn success event is not being emitted');
+    const wasSent = await this.bridge.sendTransactionSuccess(3333, {from: accounts[3]});
+    assert.ok(wasSent, 'txn success event is not being emitted');
 
   });
 
@@ -121,6 +121,12 @@ contract('mainBridgeTest', (accounts) => {
   // recieveTransactionSuccess(address userAddress, uint256 amount, uint256 fromChainID) onlyGateway
   it('Should recieve transaction success', async() => {
 
+    // Checking valid chainId
+    await expectRevert(this.bridge.recieveTransactionSuccess(accounts[1], 3, 1234, {from: accounts[3]}), 'Invalid chainId' );
+
+    // Adding token
+    await this.bridge.addToken(this.bridge.addToken(1111, 1, false, true, {from: accounts[0]}));
+
     // Checking if onlyGateway
     await expectRevert(this.bridge.recieveTransactionSuccess(accounts[1], 3, 2222, {from: accounts[1]}), 'onlyGateway');
 
@@ -129,7 +135,6 @@ contract('mainBridgeTest', (accounts) => {
     const userFinalBalance = new BN(await this.token.balanceOf(accounts[1])).toString();
       
     // Checking if function was executed and if it minted
-    assert.ok(txnHash, 'Recieved txn success event is not being emitted');
     assert.equal(userFinalBalance, '3', 'Amount is not being refunded');
 
   });
