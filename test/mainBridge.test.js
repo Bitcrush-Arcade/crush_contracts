@@ -21,23 +21,6 @@ contract('mainBridgeTest', (accounts) => {
   
   });
 
-  // //setFee(uint 256 amount) onlyOwner
-  // it('Should allow only owner to edit the bridge fee', async() => {
-
-  //   // Checking if starting fee value is 0
-  //   const initialFee = new BN(await this.bridge.fee()).toString();
-  //   assert.equal(fee, '0', 'fee should be 0'); 
-
-  //   // Checking if onlyOwner
-  //   await expectRevert(this.bridge.setFee(1, {from: accounts[1]}), 'onlyOwner');
-  
-  //   // Setting fee
-  //   await this.bridge.setFee(1, {from: accounts[0]});
-  //   const finalFee = new BN(await this.bridge.fee()).toString();
-  //   assert.equal(fee, '1', 'fee is not assigned correctly'); 
-
-  // });
-
   // addValidChain(struct chainId) onlyOwner
   // validChains stores all the chains where we have implemented bridges and token contracts
   it('Should allow owner only to add valid chainId', async() => {
