@@ -11,6 +11,7 @@ const MetaCoin = artifacts.require("MainBridge");
 // accounts[1] user address
 // accounts[2] bridge address
 // accounts[3] gateway address
+// accounts[4] user address in the other blockchain
 
 contract('mainBridgeTest', (accounts) => {
   beforeEach( async() => {
@@ -20,22 +21,22 @@ contract('mainBridgeTest', (accounts) => {
   
   });
 
-  //setFee(uint 256 amount) onlyOwner
-  it('Should allow only owner to edit the bridge fee', async() => {
+  // //setFee(uint 256 amount) onlyOwner
+  // it('Should allow only owner to edit the bridge fee', async() => {
 
-    // Checking if starting fee value is 0
-    const initialFee = new BN(await this.bridge.fee()).toString();
-    assert.equal(fee, '0', 'fee should be 0'); 
+  //   // Checking if starting fee value is 0
+  //   const initialFee = new BN(await this.bridge.fee()).toString();
+  //   assert.equal(fee, '0', 'fee should be 0'); 
 
-    // Checking if onlyOwner
-    await expectRevert(this.bridge.setFee(1, {from: accounts[1]}), 'onlyOwner');
+  //   // Checking if onlyOwner
+  //   await expectRevert(this.bridge.setFee(1, {from: accounts[1]}), 'onlyOwner');
   
-    // Setting fee
-    await this.bridge.setFee(1, {from: accounts[0]});
-    const finalFee = new BN(await this.bridge.fee()).toString();
-    assert.equal(fee, '1', 'fee is not assigned correctly'); 
+  //   // Setting fee
+  //   await this.bridge.setFee(1, {from: accounts[0]});
+  //   const finalFee = new BN(await this.bridge.fee()).toString();
+  //   assert.equal(fee, '1', 'fee is not assigned correctly'); 
 
-  });
+  // });
 
   // addValidChain(struct chainId) onlyOwner
   // validChains stores all the chains where we have implemented bridges and token contracts
@@ -76,35 +77,35 @@ contract('mainBridgeTest', (accounts) => {
   });
 
 
-  // RequestBridge(address userAddress, uint256 chainId, uint256 tokenContractAddress, uint256 amount) external
+  // RequestBridge(address userAddress, uint256 chainId, uint256 tokenAddress, uint256 amount) external
   it('Should allow user to request bridge to send tokens to another chain', async () => {
-
-    // Setting fee amount
-    await this.bridge.setFee(1, {from: accounts[0]});
-    const fee = new BN(await this.bridge.fee).toString();
-    assert.equal(fee, '1', 'fee is not assigned correctly'); 
-
+    
     // Adding valid chain
     await this.bridge.addValidChain(2222, {from: accounts[0]});
+
+     // Adding token
+     await this.bridge.addToken(this.bridge.addToken(1111, 1, false, true, {from: accounts[0]}));
 
     // Minting tokens to user
     await this.token.mint(accounts[1], 5,{ from: accounts[0]});
 
-    // Checking that the bridge only happens to valid chain ID. Valid chain ID is string '2222', checking revert first.
-    await expectRevert(this.token.requestBridge(1111, 1234, 3, {from: accounts[3]}), 'requestBridge to invalid chainId' );
+    // User approves bridge
+    await this.token.approve(accounts[2], 3, {from: accounts[1]});
 
-    // Checking if onlyGateway
-    await expectRevert(this.token.requestBridge(1111, 2222, 3, {from: accounts[1]}), 'requestBridge can only be called by gateway');
+    // Checking that the bridge only happens to valid chain ID. Valid chain ID is 2222 checking revert first.
+    await expectRevert(this.bridge.requestBridge(accounts[4], 1234, 1111, 3, {from: accounts[1]}), 'requestBridge to invalid chain ID' );
+
+    // Checking that the bridge only happens to added tokens. Working token address is 1111 checking revert first.
+    await expectRevert(this.bridge.requestBridge(accounts[4], 2222, 1234, 3, {from: accounts[1]}), 'requestBridge to invalid token address' );
+
+    // Checking if external
+    await expectRevert(this.bridge.requestBridge(accounts[4], 2222, 1111, 3, {from: accounts[0]}), 'External');
 
     // Executing the function from Gateway address and valid chainId
-    await this.bridge.requestBridge(1111, 2222, 3, {from: accounts[3]});
+    await this.bridge.requestBridge(accounts[4], 2222, 1111, 3, {from: accounts[1]});
     const finalBalance = new BN(await this.bridge.balanceOf(accounts[1])).toString();
     assert.equal(finalBalance, '2', 'Tokens are not burned from user account correctly');
-
-    // Checking that nonce/hash is created correctly. REVISAR ARGUMENTOS DE genTxnHash
-    const txnHash = await this.bridge.genTxnHash()   
-    assert.ok(txnHash, 'txn hash not created');
-       
+      
   });
 
   // sendTransactionSuccess(Hash) onlyBridge
