@@ -108,44 +108,41 @@ contract('mainBridgeTest', (accounts) => {
       
   });
 
-  // sendTransactionSuccess(Hash) onlyBridge
+  // sendTransactionSuccess(uint256 hash) onlyGateway
   it('Should emit bridge success', async() => {
-
-    // Checking that nonce/hash is created. REVISAR ARGUMENTOS DE GENTXNHASH
-    const txnHash = await this.bridge.genTxnHash({from: accounts[2]});   
-
+    
     // Checking if onlyGateway
-    await expectRevert(this.bridge.sendTransactionSuccess(txnHash, {from: accounts[1]}), 'Transaction success event should only be emitted by gateway');
+    await expectRevert(this.bridge.sendTransactionSuccess(3333, {from: accounts[1]}), 'onlyGateway');
 
     // Checking if transaction success event is being emitted
-    await this.bridge.sendTransactionSuccess(txnHash, {from: accounts[3]});
+    await this.bridge.sendTransactionSuccess(3333, {from: accounts[3]});
     assert.ok(txnHash, 'txn success event is not being emitted');
 
   });
 
-  // sendTransactionFailiure(uint 256 txnHash, address userAddress, amount) onlyBridge
+  // sendTransactionFailiure(uint256 hash, address userAddress, uint256 amount) onlyGateway
   it('Should emit bridge failiure and refund', async() => {
-    // Checking that nonce/hash is created. REVISAR ARGUMENTOS DE GENTXNHASH
-    const txnHash = await this.bridge.genTxnHash({from: accounts[2]});   
   
     // Checking if onlyGateway
-    await expectRevert(this.bridge.sendTransactionFailiure(txnHash, {from: accounts[1]}), 'Transaction success event should only be emitted by gateway');
+    await expectRevert(this.bridge.sendTransactionFailiure(3333, accounts[1], 3, {from: accounts[1]}), 'onlyGateway');
 
     // Checking transaction failiure
-    await this.bridge.sendTransactionFailiure(txnHash, accounts[1], 2, {from: accounts[3]});
+    await this.bridge.sendTransactionFailiure(3333, accounts[1], 3, {from: accounts[3]});
     const userFinalBalance = new BN(await this.token.balanceOf(accounts[1])).toString();
     
     // Checking if function was executed and if it refunded 
-    assert.ok(txnHash, 'txn success event is not being emitted');
     assert.equal(userFinalBalance, '3', 'Amount is not being refunded');
     
   });
 
-  // recieveTransactionSuccess(userAddress, amount, fromChainID) onlyGateway
+  // recieveTransactionSuccess(address userAddress, uint256 amount, uint256 fromChainID) onlyGateway
   it('Should recieve transaction success', async() => {
 
+    // Checking if onlyGateway
+    await expectRevert(this.bridge.recieveTransactionSuccess(accounts[1], 3, 2222, {from: accounts[1]}), 'onlyGateway');
+
     // Recieving from valid chain, should mint to user
-    await this.bridge.recieveTransactionSuccess(accounts[1], 3, '2222', {from: accounts[3]});
+    await this.bridge.recieveTransactionSuccess(accounts[1], 3, 2222, {from: accounts[3]});
     const userFinalBalance = new BN(await this.token.balanceOf(accounts[1])).toString();
       
     // Checking if function was executed and if it minted
