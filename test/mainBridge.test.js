@@ -59,6 +59,23 @@ contract('mainBridgeTest', (accounts) => {
 
   });
 
+  // setBridge(bool type) onlyOwner allows owner to set this type of bridge to true (lock/unlock)  or false (mint/burn)
+  // const bridgeType = bool
+  it('Should allow owner to set this bridge type', async() => {
+
+    // Checking if lock/unlock by default
+    const bridgeType = await this.bridge.bridgeType;
+    assert.ok(!bridgeType, 'Bridge should be mint/burn by default');
+
+    // Checking if onlyOwner
+    await expectRevert(this.bridge.setBridge(true, {from: accounts[1]}), 'onlyOwner');
+
+    // setBridge
+    await this.bridge.setBridge(true);
+    assert.ok(bridgeType, 'Bridge was not correctly set');
+
+  });
+
 
   // RequestBridge(address userAddress, uint256 chainId, uint256 tokenAddress, uint256 amount) external
   it('Should allow user to request bridge to send tokens to another chain', async () => {
@@ -70,10 +87,10 @@ contract('mainBridgeTest', (accounts) => {
     await this.bridge.addToken(this.bridge.addToken(1111, 1, false, true, {from: accounts[0]}));
 
     // Minting tokens to user
-    await this.token.mint(accounts[1], 5,{ from: accounts[0]});
+    await this.token.mint(accounts[1], 10,{ from: accounts[0]});
 
     // User approves bridge
-    await this.token.approve(accounts[2], 3, {from: accounts[1]});
+    await this.token.approve(accounts[2], 8, {from: accounts[1]});
 
     // Checking that the bridge only happens to valid chain ID. Valid chain ID is 2222 checking revert first.
     await expectRevert(this.bridge.requestBridge(accounts[4], 1234, 1111, 3, {from: accounts[1]}), 'requestBridge to invalid chain ID' );
@@ -84,11 +101,25 @@ contract('mainBridgeTest', (accounts) => {
     // Checking if external
     await expectRevert(this.bridge.requestBridge(accounts[4], 2222, 1111, 3, {from: accounts[0]}), 'External');
 
-    // Executing the function from Gateway address and valid chainId
+    // bridgeType == false (mint/burn)
+    // Executing the function from user address and valid chainId main chain. 
     await this.bridge.requestBridge(accounts[4], 2222, 1111, 3, {from: accounts[1]});
-    const finalBalance = new BN(await this.bridge.balanceOf(accounts[1])).toString();
-    assert.equal(finalBalance, '2', 'Tokens are not burned from user account correctly');
-      
+    const burnedBalance = new BN(await this.token.balanceOf(accounts[1])).toString();
+    assert.equal(burnedBalance, '5', 'Tokens are not burned from user account correctly');
+
+    // bridgeType == true (lock/unlock)
+    // Executing the function from user address and valid chainId main chain. 
+    await this.bridge.setBridge(true);
+    await this.bridge.requestBridge(accounts[4], 2222, 1111, 4, {from: accounts[1]});
+    
+    // Checking user balance
+    const userLockedBalance = new BN(await this.token.balanceOf(accounts[1])).toString();
+    assert.equal(userLockedBalance, '1', 'Tokens are not being locked correctly');
+
+    // Checking bridge balance
+    const bridgeLockedBalance = new BN(await this.token.balanceOf(accounts[2])).toString();
+    assert.equal(bridgeBalance, '4', 'Tokens are not being locked correctly');
+
   });
 
   // sendTransactionSuccess(uint256 hash) onlyGateway
@@ -97,7 +128,7 @@ contract('mainBridgeTest', (accounts) => {
     // Checking if onlyGateway
     await expectRevert(this.bridge.sendTransactionSuccess(3333, {from: accounts[1]}), 'onlyGateway');
 
-    // Checking if transaction success event is being emitted
+    // Checking if transaction success event is being emitted/ 
     const wasSent = await this.bridge.sendTransactionSuccess(3333, {from: accounts[3]});
     assert.ok(wasSent, 'txn success event is not being emitted');
 
@@ -138,6 +169,10 @@ contract('mainBridgeTest', (accounts) => {
     assert.equal(userFinalBalance, '3', 'Amount is not being refunded');
 
   });
+
+
+
+
     
 });
 
