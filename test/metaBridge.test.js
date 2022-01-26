@@ -70,8 +70,9 @@ contract('mainBridgeTest', (accounts) => {
     await expectRevert(this.bridge.setBridge(true, {from: accounts[1]}), 'onlyOwner');
 
     // setBridge
-    await this.bridge.setBridge(true);
-    assert.ok(bridgeType, 'Bridge was not correctly set');
+    await this.bridge.setBridge(true, {from: accounts[0]});
+    const isSet = await this.bridge.bridgeType;
+    assert.ok(isSet, 'Bridge was not correctly set');
 
   });
 
