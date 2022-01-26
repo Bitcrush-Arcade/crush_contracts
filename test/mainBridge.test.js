@@ -4,8 +4,8 @@ const { BN, web3 } = require('@openzeppelin/test-helpers/src/setup');
 const MetaCoin = artifacts.require("MetaCoin");
 const MetaCoin = artifacts.require("MainBridge");
 
-// These tests are for a general bridge contract that can work both as a main chain bridge (lock/unlock) and as a side bridge (mint/burn). 
-// In order to bridge or recieve tokens correctly, the tipe of bridge involved in the other chain has to be specified when adding
+// These tests are for our main bridge contract that can work both as a main chain bridge (lock/unlock) and as a side bridge (mint/burn). 
+// In order to bridge or recieve tokens correctly, the type of bridge involved in the other chain has to be specified when adding
 // the token with the addToken function. 
 // accounts[0] contract owner address
 // accounts[1] user address
@@ -37,17 +37,18 @@ contract('mainBridgeTest', (accounts) => {
 
   });
 
-  //addValidChain(struct chainId) onlyOwner
+  // addValidChain(struct chainId) onlyOwner
+  // validChains stores all the chains where we have implemented bridges and token contracts
   it('Should allow owner only to add valid chainId', async() => {
   
-    //Checking if onlyOwner
+    // Checking if onlyOwner
     await expectRevert(this.bridge.addValidChain(2222, {from: accounts[1]}), 'onlyOwner');
         
-    //Checking if chain was already valid
+    // Checking if chain was already valid
     const isValid = await this.bridge.validChains('2222');
     assert.ok(!isValid, 'Chain was already valid');
 
-    //Adding valid chainId 
+    // Adding valid chainId 
     await this.bridge.addValidChain(2222, {from: accounts[0]});
     const validChain = await this.bridge.validChains('2222');
     assert.ok(validChain, 'Chain was not valid');
