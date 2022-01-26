@@ -5,8 +5,7 @@ const MetaCoin = artifacts.require("MetaCoin");
 const MetaCoin = artifacts.require("MainBridge");
 
 // These tests are for our main bridge contract that can work both as a main chain bridge (lock/unlock) and as a side bridge (mint/burn). 
-// In order to bridge or recieve tokens correctly, the type of bridge involved in the other chain has to be specified when adding
-// the token with the addToken function. 
+// In order to bridge or recieve tokens correctly, the type of the bridge has to be specified both bridges. 
 // accounts[0] contract owner address
 // accounts[1] user address
 // accounts[2] bridge address
@@ -16,8 +15,8 @@ const MetaCoin = artifacts.require("MainBridge");
 contract('mainBridgeTest', (accounts) => {
   beforeEach( async() => {
 
-    this.token = await MetaCoin.new('Nice Token','NICE');
-    this.bridge = await MainBridge.new();
+    this.token = await metaCoin.new('Nice Token','NICE');
+    this.bridge = await metaBridge.new();
   
   });
 
@@ -113,8 +112,8 @@ contract('mainBridgeTest', (accounts) => {
     await this.bridge.requestBridge(accounts[4], 2222, 1111, 4, {from: accounts[1]});
     
     // Checking user balance
-    const userLockedBalance = new BN(await this.token.balanceOf(accounts[1])).toString();
-    assert.equal(userLockedBalance, '1', 'Tokens are not being locked correctly');
+    const userBalance = new BN(await this.token.balanceOf(accounts[1])).toString();
+    assert.equal(userBalance, '1', 'Tokens are not being locked correctly');
 
     // Checking bridge balance
     const bridgeLockedBalance = new BN(await this.token.balanceOf(accounts[2])).toString();
@@ -140,12 +139,21 @@ contract('mainBridgeTest', (accounts) => {
     // Checking if onlyGateway
     await expectRevert(this.bridge.sendTransactionFailiure(3333, accounts[1], 3, {from: accounts[1]}), 'onlyGateway');
 
-    // Checking transaction failiure
+    // Checking transaction failiure, mint refund
     await this.bridge.sendTransactionFailiure(3333, accounts[1], 3, {from: accounts[3]});
-    const userFinalBalance = new BN(await this.token.balanceOf(accounts[1])).toString();
-    
-    // Checking if function was executed and if it refunded 
-    assert.equal(userFinalBalance, '3', 'Amount is not being refunded');
+    const mintedBalance = new BN(await this.token.balanceOf(accounts[1])).toString();
+    assert.equal(userFinalBalance, '3', 'Amount is not minted back');
+
+    // Checking transaction failiure, unlock refund 
+    await this.bridge.setBridge(true);
+    await this.token.mint(accounts[2], 5,{ from: accounts[0]});
+    await this.bridge.sendTransactionFailiure(3333, accounts[1], 5, {from: accounts[3]});
+
+    const transferedUserBalance = new BN(await this.token.balanceOf(accounts[1])).toString();
+    const transferedBridgeBalance = new BN(await this.token.balanceOf(accounts[2])).toString();
+
+    assert.equal(transferedUserBalance, '8', 'Amount is not transfered back');
+    assert.equal(transferedBridgeBalance, '0', 'Amount is not transfered from bridge');
     
   });
 
@@ -169,10 +177,6 @@ contract('mainBridgeTest', (accounts) => {
     assert.equal(userFinalBalance, '3', 'Amount is not being refunded');
 
   });
-
-
-
-
     
 });
 
