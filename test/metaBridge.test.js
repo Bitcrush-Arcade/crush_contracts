@@ -127,7 +127,7 @@ contract('mainBridgeTest', (accounts) => {
     // Checking if onlyGateway
     await expectRevert(this.bridge.sendTransactionSuccess(3333, {from: accounts[1]}), 'onlyGateway');
 
-    // Checking if transaction success event is being emitted/ 
+    // Checking if transaction success event is being emitted 
     const wasSent = await this.bridge.sendTransactionSuccess(3333, {from: accounts[3]});
     assert.ok(wasSent, 'txn success event is not being emitted');
 
@@ -163,18 +163,30 @@ contract('mainBridgeTest', (accounts) => {
     // Checking valid chainId
     await expectRevert(this.bridge.recieveTransactionSuccess(accounts[1], 3, 1234, {from: accounts[3]}), 'Invalid chainId' );
 
+     // Adding valid chain
+     await this.bridge.addValidChain(2222, {from: accounts[0]});
+
     // Adding token
     await this.bridge.addToken(this.bridge.addToken(1111, 1, false, true, {from: accounts[0]}));
 
     // Checking if onlyGateway
     await expectRevert(this.bridge.recieveTransactionSuccess(accounts[1], 3, 2222, {from: accounts[1]}), 'onlyGateway');
 
-    // Recieving from valid chain, should mint to user
+    // Recieving from valid chain, bridgeType == false (mint/burn), should mint to user
     await this.bridge.recieveTransactionSuccess(accounts[1], 3, 2222, {from: accounts[3]});
     const userFinalBalance = new BN(await this.token.balanceOf(accounts[1])).toString();
-      
-    // Checking if function was executed and if it minted
     assert.equal(userFinalBalance, '3', 'Amount is not being refunded');
+
+    // Recieving from valid chain, bridgeType == true (lock/unlock), should transfer to user
+    await this.bridge.setBridge(true);
+    await this.token.mint(accounts[2], 5,{ from: accounts[0]});
+    await this.bridge.recieveTransactionSuccess(accounts[1], 5, 2222, {from: accounts[3]});
+    
+    const transferUserBalance = new BN(await this.token.balanceOf(accounts[1])).toString();
+    const transferBridgeBalance = new BN(await this.token.balanceOf(accounts[2])).toString();
+    
+    assert.equal(transferUserBalance, '8', 'Amount is not being refunded');
+    assert.equal(transferBridgeBalance, '0', 'Amount is not being refunded');
 
   });
     
