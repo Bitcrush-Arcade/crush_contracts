@@ -219,10 +219,10 @@
     
   });
 
-  //Total burned para la chain. Sólo para calcular total burned en mi chain.
-  it('Should return total void burned', async () => {
+  // //Total for the chain. (bridge operations do not count)
+  // it('Should return total void burned', async () => {
 
-      // token.burn(amount).send()
-      // token.totalSupply().call() decreases by amount burned
-      // token.totalBurned().call() increases by amount burned
-  });
+  //     // token.burn(amount).send()
+  //     // token.totalSupply().call() decreases by amount burned
+  //     // token.totalBurned().call() increases by amount burned
+  // });
