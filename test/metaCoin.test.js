@@ -1,3 +1,8 @@
+const { expectRevert } = require('@openzeppelin/test-helpers');
+const { BN, web3 } = require('@openzeppelin/test-helpers/src/setup');
+
+const MetaCoin = artifacts.require("MetaCoin");  
+
   //Tests for the main chain token. 
 
   //accounts[0] contract owner address
@@ -5,6 +10,13 @@
   //accounts[2] bridge address
   //accounts[3] gateway address
   
+contract('metaCoinTest', ([minter, user, user2, gateway, receiver1, dev, receiver2]) => {
+  beforeEach( async() => {
+  
+    this.token1 = await MetaCoin.new('Nice Token','NICE',{from: minter});
+    
+    });
+
   //getOwner
   it('Should return owner adress.', async () => {
     const ownerAddress = await this.token.getOwner();
@@ -43,7 +55,6 @@
     assert.equal(finalBalance, '10', 'Final balance not returned properly. Error may be in getBalance or mint function.');
   });
 
-
   //transfer 
   it('Should transfer between accounts correctly.', async () => {
     
@@ -69,7 +80,6 @@
 
   });
 
-
   //allowance, approve
   //Checking that allowance is 0 by default
   it('Should approve and display allowance correctly.', async () => {
@@ -82,7 +92,6 @@
     assert.equal(finalAllowance, '5', 'Allowance is not approved correctly.'); 
     
   });
-    
 
   //increaseAllowance
   it("should increase Allowance", async() =>{
@@ -107,10 +116,7 @@
     const finalAllowance = new BN(await this.token.allowance(accounts[1], accounts[2])).toString();
     assert.equal(finalAllowance, '4', 'Allowance is not assigned correctly.'); 
 
-
   });
-
-
 
   //mint
   it('Should return new minted balance.', async () => {
@@ -137,7 +143,6 @@
     assert.equal(finalBalance_one, '7', 'Incorrect burn amount.');
     assert.equal(totalBurned, '3', 'Incorrect total burned');
   });
-
 
   //totalSupply
   it('Should return total token supply correctly', async () => {
@@ -192,10 +197,13 @@
     //Testing if burn is onlyBridge
     await this.token.bridgeMint(accounts[2], 10, {from: accounts[2]});
     await expectRevert(this.token.bridgeBurn(accounts[2], 5, {from: accounts[0]}), "Only bridge should be able to burn");
-        
     await this.token.bridgeBurn(accounts[2], 3, {from: accounts[2]});
+
     const finalBalance_one = new BN(await this.token.balanceOf(accounts[2])).toString();
+    const totalBurned = new BN(await this.token.totalBurned).toString();
+
     assert.equal(finalBalance_one, '7', 'Incorrect burn amount.');
+    assert.equal(totalBurned, '0', 'Incorrect total burned'); // Burned amount should be 0
     
   });
 
@@ -214,9 +222,12 @@
     //Checking balances
     const finalBalance_one = new BN(await this.token.balanceOf(accounts[1])).toString();
     const finalAllowance = await this.token.allowance(accounts[1], accounts[2]);
+    const totalBurned = new BN(await this.token.totalBurned).toString();
+
     assert.equal(finalAllowance, '0', 'Allowance is not being calculated properly');
     assert.equal(finalBalance_one, '5', 'Incorrect withdrawal from owner account.');
+    assert.equal(totalBurned, '0', 'Incorrect total burned'); // Burned amount should be 0
     
   });
 
-
+});

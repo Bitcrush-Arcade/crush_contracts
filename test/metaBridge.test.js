@@ -14,7 +14,7 @@ const MetaBridge = artifacts.require("MainBridge");
 // accounts[5] dev wallet
 // accounts[6] user2 receiving wallet on other chain
 
-contract('mainBridgeTest', ([minter, user, user2, gateway, receiver1, dev, receiver2]) => {
+contract('metaBridgeTest', ([minter, user, user2, gateway, receiver1, dev, receiver2]) => {
   beforeEach( async() => {
 
     this.token1 = await MetaCoin.new('Nice Token','NICE',{from: minter});
