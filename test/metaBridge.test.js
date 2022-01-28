@@ -4,8 +4,9 @@ const { BN, web3 } = require('@openzeppelin/test-helpers/src/setup');
 const MetaCoin = artifacts.require("MetaCoin");
 const MetaBridge = artifacts.require("MainBridge");
 
-// These tests are for our main bridge contract that connects tokens in EVM that can work both as a main chain bridge (lock/unlock) and as a side bridge (mint/burn). 
-// In order to bridge or recieve tokens correctly, the type of the bridge has to be specified both bridges. 
+// These tests are for our main bridge contract that connects tokens in EVM chains. This bridge contract can work both as a main chain bridge (lock/unlock) 
+// and as a side bridge (mint/burn), depending on the token that's being bridged or recieved.  
+// The type of bridge has to be specified for the token on both bridges. 
 // accounts[0] contract owner address
 // accounts[1] user1
 // accounts[2] other user

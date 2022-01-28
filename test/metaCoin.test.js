@@ -49,7 +49,7 @@ contract('metaCoinTest', ([minter, user1, bridge]) => {
 
   });
 
-  // balanceOf es el balance de cualquier address
+  // balanceOf is the balance of any address
   it('Should return account balance correctly.', async () => {
 
     const startingBalance = new BN(await this.token1.balanceOf(user1)).toString();
