@@ -7,14 +7,14 @@ const MetaBridge = artifacts.require("MainBridge");
 // These tests are for our main bridge contract that connects tokens in EVM that can work both as a main chain bridge (lock/unlock) and as a side bridge (mint/burn). 
 // In order to bridge or recieve tokens correctly, the type of the bridge has to be specified both bridges. 
 // accounts[0] contract owner address
-// accounts[1] user
+// accounts[1] user1
 // accounts[2] other user
 // accounts[3] gateway address
-// accounts[4] user recieving wallet on other chain
+// accounts[4] user1 recieving wallet on other chain
 // accounts[5] dev wallet
 // accounts[6] user2 receiving wallet on other chain
 
-contract('metaBridgeTest', ([minter, user, user2, gateway, receiver1, dev, receiver2]) => {
+contract('metaBridgeTest', ([minter, user1, user2, gateway, receiver1, dev, receiver2]) => {
   beforeEach( async() => {
 
     this.token1 = await MetaCoin.new('Nice Token','NICE',{from: minter});
@@ -30,7 +30,7 @@ contract('metaBridgeTest', ([minter, user, user2, gateway, receiver1, dev, recei
   it('Should allow owner only to add valid chainId', async() => {
   
     // Checking if onlyOwner
-    await expectRevert(this.bridge1.addValidChain(2222, {from: user}), 'onlyOwner');
+    await expectRevert(this.bridge1.addValidChain(2222, {from: user1}), 'onlyOwner');
         
     // Checking if chain was already valid
     const isValid = await this.bridge1.validChains('2222');
@@ -50,7 +50,7 @@ contract('metaBridgeTest', ([minter, user, user2, gateway, receiver1, dev, recei
   it('Should allow owner only to add valid token', async() => {
 
     // Checking if onlyOwner
-    await expectRevert(this.bridge1.addToken(this.token1.address, 1, false, true, {from: user}), 'onlyOwner');
+    await expectRevert(this.bridge1.addToken(this.token1.address, 1, false, true, {from: user1}), 'onlyOwner');
         
     // Checking if token was already added
     const isValid = (await this.bridge1.tokenMap(this.token1.address)).status;
@@ -64,7 +64,7 @@ contract('metaBridgeTest', ([minter, user, user2, gateway, receiver1, dev, recei
   });
  
   // RequestBridge(reciever Address, uint256 chainId, uint256 tokenAddress, uint256 amount) external
-  it('Should allow user to request bridge to send tokens to another chain', async () => {
+  it('Should allow user1 to request bridge to send tokens to another chain', async () => {
     
     // Adding valid chain
     await this.bridge1.addValidChain(2222, {from: gateway});
@@ -73,40 +73,40 @@ contract('metaBridgeTest', ([minter, user, user2, gateway, receiver1, dev, recei
     await this.bridge1.addToken(this.token1.address, 1, false, true, {from: gateway}); //Token that needs mint/burn on this blockchain
     await this.bridge1.addToken(this.token2.address, 1, true, true, {from: gateway}); //Token that needs lock/unlock on this blockchain
 
-    // Minting tokens to user
-    await this.token1.mint(user, 10,{ from: minter});
+    // Minting tokens to user1
+    await this.token1.mint(user1, 10,{ from: minter});
     await this.token1.mint(user2, 10,{ from: minter});
-    await this.token2.mint(user, 20,{ from: minter});
+    await this.token2.mint(user1, 20,{ from: minter});
 
-    // User approves bridge
-    await this.token1.approve( this.bridge1.address, 100, {from: user});
-    await this.token2.approve( this.bridge1.address, 100, {from: user});
+    // user1 approves bridge
+    await this.token1.approve( this.bridge1.address, 100, {from: user1});
+    await this.token2.approve( this.bridge1.address, 100, {from: user1});
 
     // Checking that the bridge only happens to valid chain ID. Valid chain ID is 2222 checking revert first.
     // PARAMS (receiverAddress, receivingChain, tokenAddress, amount)
-    await expectRevert(this.bridge1.requestBridge(receiver1, 1234, this.token1.address, 3, {from: user}), 'requestBridge to invalid chain ID' );
+    await expectRevert(this.bridge1.requestBridge(receiver1, 1234, this.token1.address, 3, {from: user1}), 'requestBridge to invalid chain ID' );
 
     // Checking that the bridge only happens to added tokens. Working token address is 1111 checking revert first.
-    await expectRevert(this.bridge1.requestBridge(receiver1, 2222, this.token3.address, 3, {from: user}), 'requestBridge to invalid token address' );
+    await expectRevert(this.bridge1.requestBridge(receiver1, 2222, this.token3.address, 3, {from: user1}), 'requestBridge to invalid token address' );
 
     // bridgeType == false (mint/burn)
-    // Executing the function from user address and valid chainId main chain.
+    // Executing the function from user1 address and valid chainId main chain.
     const sendAmount = 3;
     const testFee = 0.1/100;
-    await this.bridge.requestBridge(receiver1, 2222, this.token1.adress, sendAmount, {from: user});
+    await this.bridge.requestBridge(receiver1, 2222, this.token1.adress, sendAmount, {from: user1});
     const feeRequired = new BN(sendAmount).mul(testFee);
     const devBalance = new BN( await this.token1.balanceOf(dev)).toString();
     const totalSupply = new BN(await this.token1.totalSupply()).toString();
-    assert.equal(totalSupply, '17', 'Tokens are not burned from user account correctly');
+    assert.equal(totalSupply, '17', 'Tokens are not burned from user1 account correctly');
     assert.equal( devBalance, feeRequired, "fee not deducted");
 
     // bridgeType == true (lock/unlock)
-    // Executing the function from user address and valid chainId main chain. 
-    await this.bridge1.requestBridge(receiver2, 2222, this.token2.address, 4, {from: user});
+    // Executing the function from user1 address and valid chainId main chain. 
+    await this.bridge1.requestBridge(receiver2, 2222, this.token2.address, 4, {from: user1});
     
-    // Checking user balance
+    // Checking user1 balance
     const totalSupply = new BN(await this.token2.totalSupply() ).toString()
-    const userBalance = new BN(await this.token2.balanceOf(user)).toString();
+    const userBalance = new BN(await this.token2.balanceOf(user1)).toString();
     assert.equal(userBalance, '16', 'Tokens are not being locked correctly');
     assert.equal(totalSupply, '20', 'Were the tokens burned?');
     // Checking bridge balance
@@ -116,13 +116,13 @@ contract('metaBridgeTest', ([minter, user, user2, gateway, receiver1, dev, recei
 
   // sendTransactionSuccess(uint256 nonce) onlyGateway
   it('Should emit bridge success', async() => {
-    await this.token1.mint(user, 10, {from: minter});
-    await this.token1.approve(this.bridge1.address, 100, {from: user});
+    await this.token1.mint(user1, 10, {from: minter});
+    await this.token1.approve(this.bridge1.address, 100, {from: user1});
     await this.bridge1.addToken(this.token1.address, 1, false, true, {from: gateway}); //Token that needs mint/burn on this blockchain
 
-    const nonce = new BN(await this.bridge1.requestBridge(receiver4, 2222, this.token1.address, 4, {from: user})).toString();
+    const nonce = new BN(await this.bridge1.requestBridge(receiver4, 2222, this.token1.address, 4, {from: user1})).toString();
     // Checking if onlyGateway
-    await expectRevert(this.bridge1.sendTransactionSuccess(nonce, {from: user}), 'onlyGateway');
+    await expectRevert(this.bridge1.sendTransactionSuccess(nonce, {from: user1}), 'onlyGateway');
 
     // Checking if transaction success event is being emitted
     //require nonce exists 
@@ -136,29 +136,29 @@ contract('metaBridgeTest', ([minter, user, user2, gateway, receiver1, dev, recei
   it('Should emit bridge failiure and refund', async() => {
     await this.bridge1.addValidChain(2222, {from: gateway});
 
-    await this.token1.mint(user, 10, {from: minter});
-    await this.token1.approve(this.bridge1.address, 100, {from: user});
+    await this.token1.mint(user1, 10, {from: minter});
+    await this.token1.approve(this.bridge1.address, 100, {from: user1});
     await this.bridge1.addToken(this.token1.address, 10, false, true, {from: gateway}); //Token that needs mint/burn on this blockchain
     await this.bridge1.addToken(this.token2.address, 10, false, true, {from: gateway}); //Token that needs lock/unlock on this blockchain
 
-    const nonce = new BN(await this.bridge1.requestBridge(receiver1, 2222, this.token1.address, 4, {from: user})).toString();
+    const nonce = new BN(await this.bridge1.requestBridge(receiver1, 2222, this.token1.address, 4, {from: user1})).toString();
     // Checking if onlyGateway
-    await expectRevert(this.bridge1.sendTransactionFailiure( nonce, user,{from: user}), 'onlyGateway');
+    await expectRevert(this.bridge1.sendTransactionFailiure( nonce, user1,{from: user1}), 'onlyGateway');
 
     // Checking transaction failiure, mint refund
     await this.bridge.sendTransactionFailiure(nonce, {from: gateway});
-    const mintedBalance = new BN(await this.token.balanceOf(user)).toString();
+    const mintedBalance = new BN(await this.token.balanceOf(user1)).toString();
     assert.equal(userFinalBalance, "" + (10-(4*0.001)), 'Amount is not minted back');
 
     // Checking transaction failiure, unlock refund 
     await this.token2.mint(user2, 10,{ from: minter});
-    await this.token2.approve(this.bridge1.address, 100, {from: user});
+    await this.token2.approve(this.bridge1.address, 100, {from: user1});
     
-    const nonce2 = new BN(await this.bridge1.requestBridge(receiver1, 2222, this.token2.address, 5, {from: user})).toString();
+    const nonce2 = new BN(await this.bridge1.requestBridge(receiver1, 2222, this.token2.address, 5, {from: user1})).toString();
     
-    await this.bridge1.sendTransactionFailiure(nonce2, user, 5, {from: accounts[3]});
+    await this.bridge1.sendTransactionFailiure(nonce2, user1, 5, {from: accounts[3]});
 
-    const transferedUserBalance = new BN(await this.token.balanceOf(user)).toString();
+    const transferedUserBalance = new BN(await this.token.balanceOf(user1)).toString();
     const transferedBridgeBalance = new BN(await this.token.balanceOf(this.bridge1.address)).toString();
 
     assert.equal(transferedUserBalance, "" + (10-(5*0.001)), 'Amount is not transfered back');
@@ -180,18 +180,18 @@ contract('metaBridgeTest', ([minter, user, user2, gateway, receiver1, dev, recei
     await this.bridge1.addToken(this.token2.address, 1, true, true, {from: gateway});
 
     // Checking if onlyGateway
-    await expectRevert(this.bridge1.fulfillBridge(user, 3, 2222, {from: user}), 'onlyGateway');
+    await expectRevert(this.bridge1.fulfillBridge(user1, 3, 2222, {from: user1}), 'onlyGateway');
 
-    // Recieving from valid chain, bridgeType == false (mint/burn), should mint to user
-    await this.bridge1.fulfillBridge(user, 3, 2222, {from: gateway});
-    const userFinalBalance = new BN(await this.token1.balanceOf(user)).toString();
+    // Recieving from valid chain, bridgeType == false (mint/burn), should mint to user1
+    await this.bridge1.fulfillBridge(user1, 3, 2222, {from: gateway});
+    const userFinalBalance = new BN(await this.token1.balanceOf(user1)).toString();
     assert.equal(userFinalBalance, '3', 'Amount is not being minted');
 
-    // Recieving from valid chain, bridgeType == true (lock/unlock), should transfer to user
-    await this.token2.mint(this.bridge1.address, 5,{ from: user});
-    await this.bridge1.fulfillBridge(user, 5, 2222, {from: gateway});
+    // Recieving from valid chain, bridgeType == true (lock/unlock), should transfer to user1
+    await this.token2.mint(this.bridge1.address, 5,{ from: user1});
+    await this.bridge1.fulfillBridge(user1, 5, 2222, {from: gateway});
     
-    const transferUserBalance = new BN(await this.token2.balanceOf(user)).toString();
+    const transferUserBalance = new BN(await this.token2.balanceOf(user1)).toString();
     const transferBridgeBalance = new BN(await this.token2.balanceOf(this.bridge1.address)).toString();
     
     assert.equal(transferUserBalance, '5', 'Amount is not transfered');
