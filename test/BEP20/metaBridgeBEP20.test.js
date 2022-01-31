@@ -65,7 +65,7 @@ contract('metaBridgeTest', ([minter, user1, user2, gateway, receiver1, dev, rece
   });
  
   // RequestBridge(reciever Address, uint256 chainId, uint256 tokenAddress, uint256 amount) external
-  it('Should allow user1 to request bridge to send tokens to another chain', async () => {
+  it('Should allow user to request bridge to send tokens to another chain', async () => {
     
     // Adding valid chain
     await this.bridge1.addValidChain(2222, {from: gateway});
@@ -98,7 +98,7 @@ contract('metaBridgeTest', ([minter, user1, user2, gateway, receiver1, dev, rece
     const feeRequired = new BN(sendAmount).mul(testFee);
     const devBalance = new BN( await this.token1.balanceOf(dev)).toString();
     const totalSupply = new BN(await this.token1.totalSupply()).toString();
-    assert.equal(totalSupply, '17', 'Tokens are not burned from user1 account correctly');
+    assert.equal(totalSupply, '17', 'Tokens are not burned from user1 account properly');
     assert.equal( devBalance, feeRequired, "fee not deducted");
 
     // bridgeType == true (lock/unlock)
@@ -108,29 +108,38 @@ contract('metaBridgeTest', ([minter, user1, user2, gateway, receiver1, dev, rece
     // Checking user1 balance
     const totalSupply = new BN(await this.token2.totalSupply() ).toString()
     const userBalance = new BN(await this.token2.balanceOf(user1)).toString();
-    assert.equal(userBalance, '16', 'Tokens are not being locked correctly');
+    assert.equal(userBalance, '16', 'Tokens are not being locked properly');
     assert.equal(totalSupply, '20', 'Were the tokens burned?');
     // Checking bridge balance
     const bridgeBalance = new BN(await this.token2.balanceOf(this.bridge1.address)).toString();
-    assert.equal(bridgeBalance, '4', 'Tokens are not being locked correctly');
+    assert.equal(bridgeBalance, '4', 'Tokens are not being locked properly');
   });
 
   // sendTransactionSuccess(uint256 nonce) onlyGateway
   it('Should emit bridge success', async() => {
+
+    // Setting up
     await this.token1.mint(user1, 10, {from: minter});
     await this.token1.approve(this.bridge1.address, 100, {from: user1});
     await this.bridge1.addToken(this.token1.address, 1, false, true, {from: gateway}); //Token that needs mint/burn on this blockchain
 
-    const nonce = new BN(await this.bridge1.requestBridge(receiver4, 2222, this.token1.address, 4, {from: user1})).toString();
+    const nonce = new BN(await this.bridge1.requestBridge(receiver1, 2222, this.token1.address, 4, {from: user1})).toString();
+
     // Checking if onlyGateway
     await expectRevert(this.bridge1.sendTransactionSuccess(nonce, {from: user1}), 'onlyGateway');
 
-    // Checking if transaction success event is being emitted
-    //require nonce exists 
-    const wasSent = await this.bridge1.sendTransactionSuccess(nonce, {from: gateway});
-    /// @dev Forcibly fail the test to check events for Success
-    assert.ok(false, "Check events emitted");
-    // assert.ok(wasSent, 'txn success event is not being emitted');
+    // Checking if event was emitted
+    const {logs} =  await this.bridge1.sendTransactionSuccess(nonce, {from: gateway});
+    assert.ok(Array.isArray(logs));
+    assert.equal(logs.length, 1);
+
+    const log = logs[0];
+    assert.equal(log.event, 'SendTransactionSuccessful');
+    assert.equal(log.args.userAddress.toString(), user1.toString());
+    assert.equal(log.args.receiverAddress.toString(), receiver1.toString());
+    assert.equal(log.args.nonce.toString(), nonce);
+    //assert.equal(log.args.otherChainNonce.toString(), "NONCE FROM THE OTHER CHAIN");
+
   });
 
   // sendTransactionFailiure(uint256 nonce) onlyGateway
@@ -173,7 +182,7 @@ contract('metaBridgeTest', ([minter, user1, user2, gateway, receiver1, dev, rece
     // Checking valid chainId
     await expectRevert(this.bridge1.fulfillBridge(receiver1, 3, 1234, {from: gateway}), 'Invalid chainId' );
 
-     // Adding valid chain
+    // Adding valid chain
      await this.bridge.addValidChain(2222, {from: gateway});
 
     // Adding token

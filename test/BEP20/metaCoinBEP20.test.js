@@ -255,4 +255,12 @@ contract('metaCoinTest', ([minter, user1, bridge]) => {
     
   });
 
+  // toggleMinter(address newMinter) onlyOwner adds minter address to map
+  it('Should add minter', async () => {
+
+    // 
+            
+  });
+
+
 });
