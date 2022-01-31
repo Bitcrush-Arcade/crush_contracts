@@ -258,9 +258,18 @@ contract('metaCoinTest', ([minter, user1, bridge]) => {
   // toggleMinter(address newMinter) onlyOwner adds minter address to map
   it('Should add minter', async () => {
 
-    // 
+    // Checking if onlyOwner
+    await expectRevert(this.token1.toggleMinter(this.bridge.address, {from: user1}), 'onlyOwner');
+        
+    // Checking if token was already added
+    const isValid = (await this.token1.validMinters(this.bridge.address));
+    assert.ok(!isValid, 'Minter was already added');
+
+    // Adding minter
+    await this.token1.toggleMinter(this.bridge.address, {from: minter});
+    const addedMinter = (await this.token1.validMinters(this.bridge.address));
+    assert.ok(addedToken, 'Minter was not added');
             
   });
-
 
 });
