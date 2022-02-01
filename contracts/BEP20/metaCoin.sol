@@ -338,13 +338,14 @@ contract MetaCoin is Ownable {
       return true;
     }
 
-    // Adds minter address to validMinters
+    // Adds bridge address on this chain to turn it into a valid minter for the crosschain bridge transfers. 
     function toggleMinter(address newMinter, bool status) onlyOwner internal{
       validMinters[newMinter] = status;
     }
     
+    // Requires that bridge as a valid minter
     modifier onlyBridge {
-      require(msg.sender == bridge, "only bridge can execute this function");
+      require(validMinters[msg.sender] == true, "only bridge can execute this function");
       _;
     }
 	
