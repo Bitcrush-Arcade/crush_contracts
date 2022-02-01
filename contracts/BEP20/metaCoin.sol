@@ -6,20 +6,16 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 
-// This is just a simple example of a coin-like contract.
-// It is not standards compatible and cannot be expected to talk to other
-// coin/token contracts. If you want to create a standards-compliant
-// token, see: https://github.com/ConsenSys/Tokens. Cheers!
-
 contract MetaCoin is Ownable {
 	mapping (address => uint) balances;
 
-	//Pancake Swap vars
+	//Vars
   using SafeMath for uint256;
   using Address for address;
 
   mapping(address => uint256) private _balances;
   mapping(address => mapping(address => uint256)) private _allowances;
+  mapping(address => bool) private validMinters;
 
   uint256 private _totalSupply;
 
@@ -27,17 +23,19 @@ contract MetaCoin is Ownable {
   string private _symbol;
   uint8 private _decimals;
 
+  address public bridge;
+
 	event Approval(address indexed owner, address indexed spender, uint256 value);
   event Transfer(address indexed from, address indexed to, uint256 value);
   
-
-	//Modified for Pancake Swap BEP 20, added name and symbol and decimals to the constructor
-	constructor(string memory tokenName, string memory tokenSymbol) {
+	//Added name and symbol and decimals to the constructor
+	constructor(string memory tokenName, string memory tokenSymbol, address bridgeAddress) {
 		balances[tx.origin] = 10000;
-
 		_name = tokenName;
     _symbol = tokenSymbol;
     _decimals = 18;
+    bridge = bridgeAddress;
+
 	}
 
 	//BEP 20 Functions
@@ -314,6 +312,40 @@ contract MetaCoin is Ownable {
             _msgSender(),
             _allowances[account][_msgSender()].sub(amount, 'BEP20: burn amount exceeds allowance')
         );
+    }
+
+    /**
+     * @dev Bridge Functions
+		 */
+
+    function bridgeMint(address user, uint256 amount) onlyBridge external returns (bool){
+      _mint(user, amount);
+      return true;
+    }
+
+    function bridgeBurn(address user, uint256 amount) onlyBridge external returns (bool){
+      _burn(user, amount);
+      return true;
+    }
+
+    function bridgeBurnFrom(address account, uint256 amount) onlyBridge external returns (bool){
+      _burn(account, amount);
+      _approve(
+          account,
+          _msgSender(),
+          _allowances[account][_msgSender()].sub(amount, 'BEP20: burn amount exceeds allowance')
+      );
+      return true;
+    }
+
+    // Adds minter address to validMinters
+    function toggleMinter(address newMinter, bool status) onlyOwner internal{
+      validMinters[newMinter] = status;
+    }
+    
+    modifier onlyBridge {
+      require(msg.sender == bridge, "only bridge can execute this function");
+      _;
     }
 	
 }
