@@ -52,7 +52,6 @@ module.exports = {
       confirmations: 10,
       timeoutBlocks: 200,
       skipDryRun: true,
-      gas: 4600000,
       from: "0x7Ff20b4E1Ad27C5266a929FC87b00F5cCB456374" //BNB test net address
     }, */
     testnet: {
@@ -123,7 +122,7 @@ module.exports = {
       settings: {          // See the solidity docs for advice about optimization and evmVersion
        optimizer: {
          enabled: true,
-         runs: 200
+         runs: 400
        },
       //  evmVersion: "byzantium"
       }
