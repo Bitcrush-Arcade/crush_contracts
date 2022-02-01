@@ -197,7 +197,9 @@ contract('metaCoinTest', ([minter, user1, bridge]) => {
 
   });
 
-  //bridgeMint onlyBridge
+  // BRIDGE FUNCTIONS
+
+  // bridgeMint onlyBridge
   it('Should burn correctly.', async () => {
     
     //Testing if bridgeMint is onlyBridge
@@ -210,7 +212,7 @@ contract('metaCoinTest', ([minter, user1, bridge]) => {
 
   });
 
-  //bridgeBurn onlyBridge
+  // bridgeBurn onlyBridge
   it('Should burn correctly when called by bridge.', async () => {
     
     //Burning on empty account   
@@ -255,18 +257,18 @@ contract('metaCoinTest', ([minter, user1, bridge]) => {
     
   });
 
-  // toggleMinter(address newMinter) onlyOwner adds minter address to map
+  // toggleMinter(address newMinter, bool status) onlyOwner adds minter address to map
   it('Should add minter', async () => {
 
     // Checking if onlyOwner
-    await expectRevert(this.token1.toggleMinter(this.bridge.address, {from: user1}), 'onlyOwner');
+    await expectRevert(this.token1.toggleMinter(this.bridge.address, true, {from: user1}), 'onlyOwner');
         
     // Checking if token was already added
     const isValid = (await this.token1.validMinters(this.bridge.address));
     assert.ok(!isValid, 'Minter was already added');
 
     // Adding minter
-    await this.token1.toggleMinter(this.bridge.address, {from: minter});
+    await this.token1.toggleMinter(this.bridge.address, true, {from: minter});
     const addedMinter = (await this.token1.validMinters(this.bridge.address));
     assert.ok(addedToken, 'Minter was not added');
             
