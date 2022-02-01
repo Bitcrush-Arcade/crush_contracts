@@ -27,6 +27,12 @@ contract MetaCoin is Ownable {
 
 	event Approval(address indexed owner, address indexed spender, uint256 value);
   event Transfer(address indexed from, address indexed to, uint256 value);
+
+  // Requires that bridge as a valid minter
+  modifier onlyBridge {
+    require(validMinters[msg.sender] == true, "only bridge can execute this function");
+    _;
+  }
   
 	//Added name and symbol and decimals to the constructor
 	constructor(string memory tokenName, string memory tokenSymbol, address bridgeAddress) {
@@ -342,11 +348,5 @@ contract MetaCoin is Ownable {
     function toggleMinter(address newMinter, bool status) onlyOwner internal{
       validMinters[newMinter] = status;
     }
-    
-    // Requires that bridge as a valid minter
-    modifier onlyBridge {
-      require(validMinters[msg.sender] == true, "only bridge can execute this function");
-      _;
-    }
-	
+      	
 }
