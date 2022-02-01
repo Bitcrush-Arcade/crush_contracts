@@ -1,4 +1,3 @@
-// Communicates with a BEP20 MetaCoin
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
@@ -6,90 +5,94 @@ pragma solidity ^0.8.0;
 //import { IERC20 } from "@openzeppelin/contracts@4.0.0/token/ERC20/IERC20.sol";
 
 //Brownie style import
-import { IERC20 } from "OpenZeppelin/openzeppelin-contracts@4.0.0/contracts/token/ERC20/IERC20.sol";
+import './MetaCoin.sol';
+import '@openzeppelin/contracts/access/Ownable.sol';
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-contract MainBridge {
+/// @title MetaBridge
+/// @notice Communicates with a BEP20 CRUSH and NICE tokens, it either locks or burns tokens depending on type
+/// @dev $NICE will have a Burn From fn
+contract MetaBridge is Ownable {
 
-    IERC20 private mainToken;
+    using SafeERC20 for MetaCoin;
 
-    address gateway;
-
-    event TokensLocked(address indexed requester, bytes32 indexed mainDepositHash, uint amount, uint timestamp);
-    event TokensUnlocked(address indexed requester, bytes32 indexed sideDepositHash, uint amount, uint timestamp);
-
-    constructor (address _mainToken, address _gateway) {
-        mainToken = IERC20(_mainToken);
-        gateway = _gateway;
+    struct BridgeToken{
+        uint tokenFee;
+        bool bridgeType; // true => lock/unlock; false => mint/burn
+        bool status;
+        // bool hasBurnFrom;
+    }
+    struct BridgeTx{
+        uint amount;
+        address sender;
+        uint requestTime;
+        address tokenAddress;
+        uint otherChainId;
+        bytes32 _otherChainHash;
     }
 
-    function lockTokens (address _requester, uint _bridgedAmount, bytes32 _mainDepositHash) onlyGateway external {
-        emit TokensLocked(_requester, _mainDepositHash, _bridgedAmount, block.timestamp);
-    }
+    uint public lockDuration = 3600; // Minimum lock time before unlocking/failing 1 hour
 
-    function unlockTokens (address _requester, uint _bridgedAmount, bytes32 _sideDepositHash) onlyGateway external {
-        mainToken.transfer(_requester, _bridgedAmount);
-        emit TokensUnlocked(_requester, _sideDepositHash, _bridgedAmount, block.timestamp);
-    }
+    mapping( bytes32 => BridgeTx) public transactions;
+    mapping( uint => bool) public validChains; // key1 = otherChainId
+    mapping( uint => mapping( address => BridgeToken)) public validTokens; // Key1 = otherChainId, key2 = thisChainTokenAddress
 
+    MetaCoin private mainToken;
+
+    address public gateway;
+
+    event RequestBridge(address indexed requester, bytes32 bridgeHash);
+    event TokensLocked(address indexed requester, address indexed token, bytes32 indexed mainDepositHash);
+    event TokensUnlocked(address indexed requester, bytes32 indexed sideDepositHash);
+    /// Modifiers
     modifier onlyGateway {
-      require(msg.sender == gateway, "only gateway can execute this function");
-      _;
+        require(msg.sender == gateway, "Only gateway can execute this function");
+        _;
     }
-    
-}
-
-// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
-
-import { IERC20Child } from "./IERC20Child.sol";
-
-contract SideBridge {
-
-    event BridgeInitialized(uint indexed timestamp);
-    event TokensBridged(address indexed requester, bytes32 indexed mainDepositHash, uint amount, uint timestamp);
-    event TokensReturned(address indexed requester, bytes32 indexed sideDepositHash, uint amount, uint timestamp);
-    
-    IERC20Child private sideToken;
-    bool bridgeInitState;
-    address owner;
-    address gateway;
-
-
+    /// Constructor
     constructor (address _gateway) {
         gateway = _gateway;
-        owner = msg.sender;
     }
 
-    function initializeBridge (address _childTokenAddress) onlyOwner external {
-        sideToken = IERC20Child(_childTokenAddress);
-        bridgeInitState = true;
-    }
+    /// External Functions
+    function requestBridge(address _receiverAddress, uint _chainId, address _tokenAddress, uint _amount) external returns(bytes32 _bridgeHash){
+        require(validChains[_chainId], "Invalid Chain");
+        BridgeToken storage tokenInfo = validTokens[_chainId][_tokenAddress];
+        require(tokenInfo.status, "Invalid Token");
+        MetaCoin bridgedToken = MetaCoin(_tokenAddress);
+        bridgedToken.safeTransferFrom(msg.sender,address(this),_amount);
+        
+        _bridgeHash = keccak256(abi.encodePacked(_amount, msg.sender , block.timestamp, _tokenAddress, _chainId));
+        transactions[_bridgeHash] = BridgeTx(_amount, msg.sender, block.timestamp, _tokenAddress, _chainId, bytes32(0));
 
-    function bridgeTokens (address _requester, uint _bridgedAmount, bytes32 _mainDepositHash) verifyInitialization onlyGateway  external {
-        sideToken.mint(_requester,_bridgedAmount);
-        emit TokensBridged(_requester, _mainDepositHash, _bridgedAmount, block.timestamp);
+        if(tokenInfo.bridgeType)
+            emit TokensLocked( msg.sender, _bridgeHash);
+        else
+            bridgedToken.burn(address(this), _amount);
+        emit RequestBridge(msg.sender, _bridgeHash);
     }
+    /// EMERGENCY FN
+    /// @notice this function will check if lock duration has passed and then it retrieves the funds;
+    function emergencyCancelBridge()external{
+        // check lock duration
+        // && check if processed
+        // if both true, refund/unlock the tokens/// PENDING
+    }
+    /// onlyGateway
+    function sendTransactionSuccess(bytes32 _thisChainHash, bytes32 _otherChainHash,) external onlyGateway{
+    }
+    function sendTransactionFailure(uint _nonce) external onlyGateway{
+    }
+    function receiveTransaction(uint _nonce) external onlyGateway{
+    }
+    // Owner functions
+    function toggleChain(uint _newChainId) external onlyOwner{
+    }
+    function addToken(address _thisChainTokenAddress, uint tokenFee, bool bridgeType, bool status, uint _otherChainId) external onlyOwner{
+    }
+    /// Public Functions
 
-    function returnTokens (address _requester, uint _bridgedAmount, bytes32 _sideDepositHash) verifyInitialization onlyGateway external {
-        sideToken.burn(_bridgedAmount);
-        emit TokensReturned(_requester, _sideDepositHash, _bridgedAmount, block.timestamp);
-    }
-
-    modifier verifyInitialization {
-      require(bridgeInitState, "Bridge has not been initialized");
-      _;
-    }
+    /// Internal Functions
     
-    modifier onlyGateway {
-      require(msg.sender == gateway, "Only gateway can execute this function");
-      _;
-    }
-
-    modifier onlyOwner {
-      require(msg.sender == owner, "Only owner can execute this function");
-      _;
-    }
-    
-
+    /// Pure Functions
 }
-
