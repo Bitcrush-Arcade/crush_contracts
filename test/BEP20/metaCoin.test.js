@@ -8,12 +8,12 @@ const MetaCoin = artifacts.require("MetaCoin");
   // accounts[0] minter
   // accounts[1] user1 
   // accounts[2] user2
-  // accounts[3] bridge
   
-contract('metaCoinTest', ([minter, user1, bridge]) => {
+contract('metaCoinTest', ([minter, user1, gateway]) => {
   beforeEach( async() => {
   
     this.token1 = await MetaCoin.new('Nice token1','NICE',{from: minter});
+    this.bridge1 = await MetaBridge.new({from: gateway});
     
     });
 
@@ -201,12 +201,15 @@ contract('metaCoinTest', ([minter, user1, bridge]) => {
 
   // bridgeMint onlyBridge
   it('Should burn correctly.', async () => {
+
+    // Adding bridge as a valid minter
+    await this.token1.toggleMinter(this.bridge1.address, true, {from: minter});
     
     //Testing if bridgeMint is onlyBridge
     await expectRevert(this.token1.bridgeMint(user2, 5, {from: minter}), "Only bridge should be able to mint");
     
     //Testing bridgeMint
-    await this.token1.bridgeMint(user1, 10, {from: bridge});
+    await this.token1.bridgeMint(user1, 10, {from: this.bridge1.address});
     const startingBalance_one = new BN(await this.token1.balanceOf(user1)).toString();
     assert.equal(startingBalance_one, '10', 'Incorrect mint amount.');
 
@@ -214,15 +217,18 @@ contract('metaCoinTest', ([minter, user1, bridge]) => {
 
   // bridgeBurn onlyBridge
   it('Should burn correctly when called by bridge.', async () => {
+
+    // Adding bridge as a valid minter
+    await this.token1.toggleMinter(this.bridge1.address, true, {from: minter});
     
     //Burning on empty account   
-    await expectRevert(this.token1.bridgeBurn(user2, 5, {from: bridge}), "Can't burn from empty account");
+    await expectRevert(this.token1.bridgeBurn(user2, 5, {from: this.bridge1.address}), "Can't burn from empty account");
         
     //onlyBridge
-    await this.token1.bridgeMint(user2, 10, {from: bridge});
-    await expectRevert(this.token1.bridgeBurn(user2, 5, {from: minter}), "Only bridge should be able to burn");
+    await this.token1.bridgeMint(user2, 10, {from: this.bridge1.address});
+    await expectRevert(this.token1.bridgeBurn(user2, 5, {from: minter}), "onlyBridge");
     
-    await this.token1.bridgeBurn(user2, 3, {from: bridge});
+    await this.token1.bridgeBurn(user2, 3, {from: this.bridge1.address});
     const finalBalance_one = new BN(await this.token1.balanceOf(user2)).toString();
     const totalBurned = new BN(await this.token1.totalBurned).toString();
 
@@ -235,16 +241,19 @@ contract('metaCoinTest', ([minter, user1, bridge]) => {
   it('Should burn from user account successfuly.', async () => {
     
     await this.token1.mint(user1, 10, { from: minter});
-    await this.token1.approve(bridge, 5, {from: user1});
+    await this.token1.approve(this.bridge1.address, 5, {from: user1});
+
+    // Adding bridge as a valid minter
+    await this.token1.toggleMinter(this.this.bridge1.address.address, true, {from: minter});
    
     //Testing if burnFromBridge exceeds allowance
-    await expectRevert(this.token1.bridgeBurnFrom(user1, 6, {from: bridge}), 'Burn should not exceed allowance');
+    await expectRevert(this.token1.bridgeBurnFrom(user1, 6, {from: this.bridge1.address}), 'Burn should not exceed allowance');
 
     //Testing if onlyBridge
     await expectRevert(this.token1.bridgeBurnFrom(user1, 5, {from: user1}), 'onlyBridge')
 
     //Burning allowance amount
-    await this.token1.bridgeBurnFrom(user1, 5, {from: bridge});
+    await this.token1.bridgeBurnFrom(user1, 5, {from: this.bridge1.address});
     
     //Checking balances
     const finalBalance_one = new BN(await this.token1.balanceOf(user1)).toString();
@@ -257,19 +266,19 @@ contract('metaCoinTest', ([minter, user1, bridge]) => {
     
   });
 
-  // toggleMinter(address newMinter, bool status) onlyOwner adds minter address to map
+  // toggleMinter(address newMinter, bool status) onlyOwner adds minter address to validMinters map
   it('Should add minter', async () => {
 
     // Checking if onlyOwner
-    await expectRevert(this.token1.toggleMinter(this.bridge.address, true, {from: user1}), 'onlyOwner');
+    await expectRevert(this.token1.toggleMinter(this.bridge1.address, true, {from: user1}), 'onlyOwner');
         
     // Checking if token was already added
-    const isValid = (await this.token1.validMinters(this.bridge.address));
+    const isValid = (await this.token1.validMinters(this.bridge1.address));
     assert.ok(!isValid, 'Minter was already added');
 
-    // Adding minter
-    await this.token1.toggleMinter(this.bridge.address, true, {from: minter});
-    const addedMinter = (await this.token1.validMinters(this.bridge.address));
+    // Adding bridge as a valid minter
+    await this.token1.toggleMinter(this.bridge1.address, true, {from: minter});
+    const addedMinter = (await this.token1.validMinters(this.bridge1.address));
     assert.ok(addedToken, 'Minter was not added');
             
   });
