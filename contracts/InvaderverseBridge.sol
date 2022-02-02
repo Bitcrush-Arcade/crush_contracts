@@ -5,17 +5,18 @@ pragma solidity ^0.8.0;
 //import { IERC20 } from "@openzeppelin/contracts@4.0.0/token/ERC20/IERC20.sol";
 
 //Brownie style import
-import './NICETokenErc20.sol';
+import './NiceTokenErc20.sol';
 import '@openzeppelin/contracts/access/Ownable.sol';
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 /// @title MetaBridge
 /// @notice Communicates with a BEP20 CRUSH and NICE tokens, it either locks or burns tokens depending on type
 /// @dev $NICE will have a Burn From fn
-contract InvaderverseBridge is Ownable {
+contract InvaderverseBridge is Ownable, ReentrancyGuard {
 
-    using SafeERC20 for NICEToken;
+    using SafeERC20 for NiceToken;
     using SafeMath for uint;
     uint constant DIVISOR = 100000;
     address public devAddress;
@@ -54,19 +55,25 @@ contract InvaderverseBridge is Ownable {
     event BridgeFailed(address indexed requester, bytes32 bridgeHash);
     event FulfillBridgeRequest(uint _otherChainId, bytes32 _otherChainHash);
     event ModifiedBridgeToken(uint indexed _chain, address indexed _token, bool _type, bool _status);
+    event SetGateway(address gatewayAddress);
     /// Modifiers
     modifier onlyGateway {
         require(msg.sender == gateway, "Only gateway can execute this function");
         _;
     }
     /// Constructor
-    constructor (address _gateway, address _dev) {
-        gateway = _gateway;
-        devAddress = _dev;
+    constructor () {
+        gateway = msg.sender;
+        devAddress = msg.sender;
     }
 
     /// External Functions
-    function requestBridge(address _receiverAddress, uint _chainId, address _tokenAddress, uint _amount) external returns(bytes32 _bridgeHash){
+    function requestBridge(
+        address _receiverAddress,
+        uint _chainId,
+        address _tokenAddress,
+        uint _amount
+    ) external nonReentrant returns(bytes32 _bridgeHash){
         require(validChains[_chainId], "Invalid Chain");
         BridgeToken storage tokenInfo = validTokens[_chainId][_tokenAddress];
         
@@ -77,16 +84,19 @@ contract InvaderverseBridge is Ownable {
         uint fee = _amount.mul(tokenInfo.tokenFee).div(DIVISOR);
         
         // Transferring funds to bridge wallet and fee to dev
-        bridgedToken.safeTransferFrom(msg.sender, address(this), _amount);
-        bridgedToken.safeTransferFrom(msg.sender, devAddress, fee);
+        if(fee > 0)
+            bridgedToken.safeTransferFrom(msg.sender, devAddress, fee);
+
+        if(tokenInfo.bridgeType){
+            bridgedToken.safeTransferFrom(msg.sender, address(this), _amount);
+            emit TokensLocked( msg.sender, _tokenAddress, _bridgeHash);
+        }
+        else
+            bridgedToken.bridgeBurnFrom(msg.sender, _amount);
         
         _bridgeHash = keccak256(abi.encode(_amount, msg.sender, _receiverAddress, block.timestamp, _tokenAddress, _chainId));
         transactions[_bridgeHash] = BridgeTx(_amount, msg.sender, _receiverAddress, block.timestamp, _tokenAddress, _chainId, bytes32(0));
 
-        if(tokenInfo.bridgeType)
-            emit TokensLocked( msg.sender, _bridgeHash);
-        else
-            bridgedToken.burn(address(this), _amount);
         emit RequestBridge(msg.sender, _bridgeHash);
     }
     /// EMERGENCY FN
@@ -100,7 +110,7 @@ contract InvaderverseBridge is Ownable {
     /// @notice Notify blockchain that bridging was successful.
     /// @param _thisChainHash the hash that is successful.
     /// @param _otherChainHash the other chain hash to pair it with, we'll try to make this the txhash.
-    function sendTransactionSuccess(bytes32 _thisChainHash, bytes32 _otherChainHash) external onlyGateway{
+    function sendTransactionSuccess(bytes32 _thisChainHash, bytes32 _otherChainHash) external onlyGateway nonReentrant{
         BridgeTx storage transaction = transactions[_thisChainHash];
         require(transaction.amount > 0, "Invalid Hash");
         require(transaction.otherChainHash == bytes32(0), "Hash already claimed");
@@ -109,14 +119,14 @@ contract InvaderverseBridge is Ownable {
     }
     /// @notice When transaction fails, we proceed to emit an event and refund the tokens
     /// @param _thisChainHash tx hash to update mapping of.
-    function sendTransactionFailure(uint _thisChainHash) external onlyGateway{
+    function sendTransactionFailure(bytes32 _thisChainHash) external onlyGateway nonReentrant{
         BridgeTx storage transaction = transactions[_thisChainHash];
         require(transaction.amount > 0, "Invalid Hash");
         require(transaction.otherChainHash == bytes32(0), "Hash already claimed");
         BridgeToken storage tokenInfo = validTokens[transaction.otherChainId][transaction.tokenAddress];
         require(transaction.tokenAddress != address(0), "InvalidToken");
 
-        transaction.otherChainHash = bytes32(1);
+        transaction.otherChainHash = bytes32("1");
         if(tokenInfo.bridgeType){
             NiceToken(transaction.tokenAddress).safeTransfer(transaction.sender,transaction.amount);
             emit TokensUnlocked(transaction.sender, _thisChainHash);
@@ -132,7 +142,7 @@ contract InvaderverseBridge is Ownable {
     /// @param _tokenAddress token that is being bridged
     /// @param _otherChainId Chain ID the request comes from
     /// @param _otherChainHash Hash Pairing on otherChain
-    function fulfillBridge(address _receiver, uint _amount, address _tokenAddress, uint _otherChainId, bytes32 _otherChainHash) external onlyGateway{
+    function fulfillBridge(address _receiver, uint _amount, address _tokenAddress, uint _otherChainId, bytes32 _otherChainHash) external onlyGateway nonReentrant{
 
         BridgeToken storage tokenInfo = validTokens[_otherChainId][_tokenAddress];
         require(tokenInfo.status, "Invalid Token");
@@ -154,6 +164,12 @@ contract InvaderverseBridge is Ownable {
     function addToken(address _thisChainTokenAddress, uint tokenFee, bool bridgeType, bool status, uint _otherChainId) external onlyOwner{
         validTokens[_otherChainId][_thisChainTokenAddress] = BridgeToken(tokenFee, bridgeType, status);
         emit ModifiedBridgeToken(_otherChainId, _thisChainTokenAddress, bridgeType, status);
+    }
+    /// @notice Set the Gateway user Address
+    /// @param _gateway the address to set
+    function setGateway(address _gateway) external onlyOwner{
+        gateway = _gateway;
+        emit SetGateway(_gateway);
     }
     /// Public Functions
 

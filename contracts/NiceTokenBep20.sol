@@ -23,35 +23,34 @@ contract NICEToken is Ownable {
   string private _symbol;
   uint8 private _decimals;
 
-  address public validBridge;
+  address public bridge;
   bool private bridgeStatus;
 
   event Approval(address indexed owner, address indexed spender, uint256 value);
   event Transfer(address indexed from, address indexed to, uint256 value);
 
   event MintersEdit(address minterAddress, bool status);
-  event BridgeIsSet(address bridgeAddress, bool status);
+  event SetBridge(address bridgeAddress);
 
 
    // validMinters
    modifier onlyMinter {
-        require(validMinters[msg.sender], "only minters can execute this function");
+        require(validMinters[msg.sender], "onlyMinters");
         _;
     }
 
     modifier onlyBridge {
-        require(msg.sender == validBridge, "only bridge can execute this function");
+        require(msg.sender == bridge, "onlyBridge");
         _;
     }
   
 	//Added name and symbol and decimals to the constructor
-	constructor(string memory tokenName, string memory tokenSymbol, address bridgeAddress) {
-	balances[tx.origin] = 10000;
-	_name = tokenName;
-    _symbol = tokenSymbol;
-    _decimals = 18;
-    validBridge = bridgeAddress;
-
+	constructor(string memory tokenName, string memory tokenSymbol) {
+        _name = tokenName;
+        _symbol = tokenSymbol;
+        _decimals = 18;
+        bridge = msg.sender;
+        validMinters[msg.sender] = true; // owner can mint
 	}
 
 	//BEP 20 Functions
@@ -196,20 +195,6 @@ contract NICEToken is Ownable {
         return true;
     }
 
-    /**
-     * @dev Creates `amount` tokens and assigns them to `msg.sender`, increasing
-     * the total supply.
-     *
-     * Requirements
-     *
-     * - `msg.sender` must be the token owner
-     * mint can transfer to any address
-		 */
-		 
-    function mint(address user, uint256 amount) public onlyOwner returns (bool) {
-        _mint(user, amount);
-        return true;
-    }
 
 		/**
      * @dev burns the token indicated token amount. 
@@ -336,12 +321,11 @@ contract NICEToken is Ownable {
 
     // Sets Bridge when it's ready
     function setBridge (address bridgeAddress) onlyOwner public {
-        validBridge = bridgeAddress;
-        bridgeStatus = !bridgeStatus;
-        emit BridgeIsSet(validBridge, bridgeStatus);
+        bridge = bridgeAddress;
+        emit SetBridge(bridge);
     }
 
-    function validMint(address user, uint256 amount) onlyMinter external returns (bool){
+    function mint(address user, uint256 amount) onlyMinter external returns (bool){
       _mint(user, amount);
       return true;
     }

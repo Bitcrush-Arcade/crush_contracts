@@ -12,7 +12,7 @@ import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 /**
  * This token is based on the standard ERC20 contract
  */
-contract ERC20 is Context, IERC20, IERC20Metadata, Ownable {
+contract CrushErc20 is Context, IERC20, IERC20Metadata, Ownable {
 
     using SafeMath for uint;
 
@@ -26,18 +26,18 @@ contract ERC20 is Context, IERC20, IERC20Metadata, Ownable {
     string private _name;
     string private _symbol;
 
-    address private validBridge;
-    bool private bridgeStatus;
+    address public bridge;
 
     uint public totalBurned;
 
     event MintersEdit(address minterAddress, bool status);
-    event BridgeIsSet(address bridgeAddress, bool status);
+    event BridgeIsSet(address bridgeAddress);
     event TotalBurn(uint amount);
+
     // Requires that bridge as a valid minter
    
     modifier onlyBridge {
-        require(msg.sender == validBridge, "only bridge can execute this function");
+        require(msg.sender == bridge, "only bridge can execute this function");
         _;
     }
 
@@ -323,9 +323,8 @@ contract ERC20 is Context, IERC20, IERC20Metadata, Ownable {
 
     // Sets Bridge when it's ready
     function setBridge(address bridgeAddress) external onlyOwner {
-        validBridge = bridgeAddress;
-        bridgeStatus = !bridgeStatus;
-        emit BridgeIsSet(validBridge, bridgeStatus);
+        bridge = bridgeAddress;
+        emit BridgeIsSet(bridge);
     }
 
     // Allows valid minters 
