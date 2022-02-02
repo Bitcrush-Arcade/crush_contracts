@@ -1,39 +1,48 @@
 // Communicates with a BEP20 MetaCoin
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.11;
+pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 
-contract NiceToken is Ownable {
+contract NICEToken is Ownable {
 	mapping (address => uint) balances;
 
-	//Vars
+    //Vars
   using SafeMath for uint256;
   using Address for address;
 
   mapping(address => uint256) private _balances;
   mapping(address => mapping(address => uint256)) private _allowances;
   mapping(address => bool) private validMinters;
-  
+    
   uint256 private _totalSupply;
 
   string private _name;
   string private _symbol;
   uint8 private _decimals;
 
-  address public bridge;
+  address public validBridge;
+  bool private bridgeStatus;
 
   event Approval(address indexed owner, address indexed spender, uint256 value);
   event Transfer(address indexed from, address indexed to, uint256 value);
-  event MintersEdit(address minterAddress, bool status);
 
-  // Requires that bridge as a valid minter
-  modifier onlyBridge {
-    require(validMinters[msg.sender] == true, "only bridge can execute this function");
-    _;
-  }
+  event MintersEdit(address minterAddress, bool status);
+  event BridgeIsSet(address bridgeAddress, bool status);
+
+
+   // validMinters
+   modifier onlyMinter {
+        require(validMinters[msg.sender], "only minters can execute this function");
+        _;
+    }
+
+    modifier onlyBridge {
+        require(msg.sender == validBridge, "only bridge can execute this function");
+        _;
+    }
   
 	//Added name and symbol and decimals to the constructor
 	constructor(string memory tokenName, string memory tokenSymbol, address bridgeAddress) {
@@ -41,7 +50,7 @@ contract NiceToken is Ownable {
 	_name = tokenName;
     _symbol = tokenSymbol;
     _decimals = 18;
-    bridge = bridgeAddress;
+    validBridge = bridgeAddress;
 
 	}
 
@@ -323,9 +332,16 @@ contract NiceToken is Ownable {
 
     /**
      * @dev Bridge Functions
-		 */
+    */
 
-    function bridgeMint(address user, uint256 amount) onlyBridge external returns (bool){
+    // Sets Bridge when it's ready
+    function setBridge (address bridgeAddress) onlyOwner public {
+        validBridge = bridgeAddress;
+        bridgeStatus = !bridgeStatus;
+        emit BridgeIsSet(validBridge, bridgeStatus);
+    }
+
+    function validMint(address user, uint256 amount) onlyMinter external returns (bool){
       _mint(user, amount);
       return true;
     }

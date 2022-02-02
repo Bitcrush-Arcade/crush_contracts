@@ -1,8 +1,8 @@
 const { expectRevert } = require('@openzeppelin/test-helpers');
 const { BN, web3 } = require('@openzeppelin/test-helpers/src/setup');
 
-const MetaCoin = artifacts.require("NiceToken");
-const MetaBridge = artifacts.require("MainBridge");
+const MetaCoin = artifacts.require("NICEToken");
+const MetaBridge = artifacts.require("InvaderverseBridge");
 
 // These tests are for our main bridge contract that connects tokens in EVM chains. This bridge contract can work both as a main chain bridge (lock/unlock) 
 // and as a side bridge (mint/burn), depending on the token that's being bridged or recieved.  

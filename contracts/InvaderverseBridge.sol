@@ -5,7 +5,7 @@ pragma solidity ^0.8.0;
 //import { IERC20 } from "@openzeppelin/contracts@4.0.0/token/ERC20/IERC20.sol";
 
 //Brownie style import
-import './NiceToken.sol';
+import './NICETokenErc20.sol';
 import '@openzeppelin/contracts/access/Ownable.sol';
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
@@ -13,9 +13,9 @@ import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 /// @title MetaBridge
 /// @notice Communicates with a BEP20 CRUSH and NICE tokens, it either locks or burns tokens depending on type
 /// @dev $NICE will have a Burn From fn
-contract MetaBridge is Ownable {
+contract InvaderverseBridge is Ownable {
 
-    using SafeERC20 for NiceToken;
+    using SafeERC20 for NICEToken;
     using SafeMath for uint;
     uint constant DIVISOR = 100000;
     address public devAddress;

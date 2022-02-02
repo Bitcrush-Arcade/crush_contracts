@@ -3,15 +3,19 @@
 
 pragma solidity ^0.8.0;
 
-//import "./IERC20.sol";
-//import "./extensions/IERC20Metadata.sol";
-import "../../utils/Context.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import "@openzeppelin/contracts/utils/Context.sol";
+import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
 /**
- *
  * This token is based on the standard ERC20 contract
  */
-contract ERC20 is Context, IERC20, IERC20Metadata {
+contract ERC20 is Context, IERC20, IERC20Metadata, Ownable {
+
+    using SafeMath for uint;
+
     mapping(address => uint256) private _balances;
     mapping(address => mapping(address => uint256)) private _allowances;
     mapping(address => bool) private validMinters;
@@ -25,15 +29,13 @@ contract ERC20 is Context, IERC20, IERC20Metadata {
     address private validBridge;
     bool private bridgeStatus;
 
+    uint public totalBurned;
+
     event MintersEdit(address minterAddress, bool status);
     event BridgeIsSet(address bridgeAddress, bool status);
-
+    event TotalBurn(uint amount);
     // Requires that bridge as a valid minter
-    modifier onlyMinter {
-        require(validMinters[msg.sender] == true, "only minters can execute this function");
-        _;
-    }
-
+   
     modifier onlyBridge {
         require(msg.sender == validBridge, "only bridge can execute this function");
         _;
@@ -51,7 +53,6 @@ contract ERC20 is Context, IERC20, IERC20Metadata {
     constructor(string memory name_, string memory symbol_) {
         _name = name_;
         _symbol = symbol_;
-        
     }
 
     /**
@@ -232,8 +233,6 @@ contract ERC20 is Context, IERC20, IERC20Metadata {
         require(sender != address(0), "ERC20: transfer from the zero address");
         require(recipient != address(0), "ERC20: transfer to the zero address");
 
-        _beforeTokenTransfer(sender, recipient, amount);
-
         uint256 senderBalance = _balances[sender];
         require(senderBalance >= amount, "ERC20: transfer amount exceeds balance");
         unchecked {
@@ -243,7 +242,6 @@ contract ERC20 is Context, IERC20, IERC20Metadata {
 
         emit Transfer(sender, recipient, amount);
 
-        _afterTokenTransfer(sender, recipient, amount);
     }
 
     /** @dev Creates `amount` tokens and assigns them to `account`, increasing
@@ -258,13 +256,11 @@ contract ERC20 is Context, IERC20, IERC20Metadata {
     function _mint(address account, uint256 amount) internal virtual {
         require(account != address(0), "ERC20: mint to the zero address");
 
-        _beforeTokenTransfer(address(0), account, amount);
 
         _totalSupply += amount;
         _balances[account] += amount;
         emit Transfer(address(0), account, amount);
 
-        _afterTokenTransfer(address(0), account, amount);
     }
 
     /**
@@ -278,10 +274,8 @@ contract ERC20 is Context, IERC20, IERC20Metadata {
      * - `account` cannot be the zero address.
      * - `account` must have at least `amount` tokens.
      */
-    function _burn(address account, uint256 amount) public {
+    function _burn(address account, uint256 amount) internal virtual {
         require(account != address(0), "ERC20: burn from the zero address");
-
-        _beforeTokenTransfer(account, address(0), amount);
 
         uint256 accountBalance = _balances[account];
         require(accountBalance >= amount, "ERC20: burn amount exceeds balance");
@@ -291,9 +285,12 @@ contract ERC20 is Context, IERC20, IERC20Metadata {
         _totalSupply -= amount;
 
         emit Transfer(account, address(0), amount);
+    }
 
-        _afterTokenTransfer(account, address(0), amount);
-                
+    function burn(uint256 amount) external {
+        _burn(msg.sender, amount);
+        totalBurned = totalBurned.add(amount);
+        emit TotalBurn(amount);
     }
 
     /**
@@ -320,87 +317,25 @@ contract ERC20 is Context, IERC20, IERC20Metadata {
         _allowances[owner][spender] = amount;
         emit Approval(owner, spender, amount);
     }
-
-    /**
-     * @dev Hook that is called before any transfer of tokens. This includes
-     * minting and burning.
-     *
-     * Calling conditions:
-     *
-     * - when `from` and `to` are both non-zero, `amount` of ``from``'s tokens
-     * will be transferred to `to`.
-     * - when `from` is zero, `amount` tokens will be minted for `to`.
-     * - when `to` is zero, `amount` of ``from``'s tokens will be burned.
-     * - `from` and `to` are never both zero.
-     *
-     * To learn more about hooks, head to xref:ROOT:extending-contracts.adoc#using-hooks[Using Hooks].
-     */
-    function _beforeTokenTransfer(
-        address from,
-        address to,
-        uint256 amount
-    ) internal virtual {}
-
-    /**
-     * @dev Hook that is called after any transfer of tokens. This includes
-     * minting and burning.
-     *
-     * Calling conditions:
-     *
-     * - when `from` and `to` are both non-zero, `amount` of ``from``'s tokens
-     * has been transferred to `to`.
-     * - when `from` is zero, `amount` tokens have been minted for `to`.
-     * - when `to` is zero, `amount` of ``from``'s tokens have been burned.
-     * - `from` and `to` are never both zero.
-     *
-     * To learn more about hooks, head to xref:ROOT:extending-contracts.adoc#using-hooks[Using Hooks].
-     */
-    function _afterTokenTransfer(
-        address from,
-        address to,
-        uint256 amount
-    ) internal virtual {}
-
     /**
      * @dev Bridge and minter Functions
 		 */
 
     // Sets Bridge when it's ready
-    function setBridge(address bridgeAddress){
+    function setBridge(address bridgeAddress) external onlyOwner {
         validBridge = bridgeAddress;
         bridgeStatus = !bridgeStatus;
         emit BridgeIsSet(validBridge, bridgeStatus);
     }
 
     // Allows valid minters 
-    function validMint(address account, uint256 amount) onlyMinter external {
-      require(account != address(0), "ERC20: mint to the zero address");
-
-        _beforeTokenTransfer(address(0), account, amount);
-
-        _totalSupply += amount;
-        _balances[account] += amount;
-        emit Transfer(address(0), account, amount);
-
-        _afterTokenTransfer(address(0), account, amount);
+    function mint(address account, uint256 amount) onlyBridge external {
+        _mint(account,amount);
     }
 
     // Allows bridge to burn tokens
-    function bridgeBurn(address account, uint256 amount) onlyBridge external {
-        require(account != address(0), "ERC20: burn from the zero address");
-
-        _beforeTokenTransfer(account, address(0), amount);
-
-        uint256 accountBalance = _balances[account];
-        require(accountBalance >= amount, "ERC20: burn amount exceeds balance");
-        unchecked {
-            _balances[account] = accountBalance - amount;
-        }
-        _totalSupply -= amount;
-
-        emit Transfer(account, address(0), amount);
-
-        _afterTokenTransfer(account, address(0), amount);
+    function bridgeBurn(uint256 amount) onlyBridge external {
+        _burn(msg.sender,amount);
     }
 
     // Allows bridge to burn from other accounts if allowed
@@ -411,12 +346,6 @@ contract ERC20 is Context, IERC20, IERC20Metadata {
             _approve(account, _msgSender(), currentAllowance - amount);
         }
         _burn(account, amount);
-    }
-
-    // Toggles minters
-    function toggleMinter(address newMinter) onlyOwner internal{
-      validMinters[newMinter] = !validMinters[newMinter];
-      emit MintersEdit(newMinter, validMinters[newMinter]);
     }
 
 }
