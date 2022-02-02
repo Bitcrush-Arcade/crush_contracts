@@ -177,11 +177,11 @@ _
     
   });
 
-  // fulfillBridge(address userAddress, uint256 amount, uint256 fromChainID) onlyGateway
+  // fulfillBridge(address _userAddress, uint256 _amount, address, _tokenAddress, uint256 _otherChainID, uint256 _otherChainHash) onlyGateway
   it('Should recieve transaction success', async() => {
 
     // Checking valid chainId
-    await expectRevert(this.bridge1.fulfillBridge(receiver1, 3, 1234, {from: gateway}), 'Invalid chainId' );
+    await expectRevert(this.bridge1.fulfillBridge(receiver1, 3, this.token1.address, 1234, 'TEST_STRING', {from: gateway}), 'Invalid chainId' );
 
     // Adding valid chain
      await this.bridge1.toggleChain(2222, {from: gateway});
@@ -191,7 +191,7 @@ _
     await this.bridge1.addToken(this.token2.address, 1, true, true, 8888, {from: gateway});
 
     // Checking if onlyGateway
-    await expectRevert(this.bridge1.fulfillBridge(user1, 3, 2222, {from: user1}), 'onlyGateway');
+    await expectRevert(this.bridge1.fulfillBridge(user1, 3, 7777, 2222, {from: user1}), 'onlyGateway');
 
     // Recieving from valid chain, bridgeType == false (mint/burn), should mint to user1
     await this.bridge1.fulfillBridge(user1, 3, 2222, {from: gateway});

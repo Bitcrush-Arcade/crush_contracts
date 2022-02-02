@@ -16,7 +16,7 @@ contract MetaCoin is Ownable {
   mapping(address => uint256) private _balances;
   mapping(address => mapping(address => uint256)) private _allowances;
   mapping(address => bool) private validMinters;
-
+  
   uint256 private _totalSupply;
 
   string private _name;
@@ -25,8 +25,9 @@ contract MetaCoin is Ownable {
 
   address public bridge;
 
-	event Approval(address indexed owner, address indexed spender, uint256 value);
+  event Approval(address indexed owner, address indexed spender, uint256 value);
   event Transfer(address indexed from, address indexed to, uint256 value);
+  event MintersEdit(address minterAddress, bool status);
 
   // Requires that bridge as a valid minter
   modifier onlyBridge {
@@ -36,8 +37,8 @@ contract MetaCoin is Ownable {
   
 	//Added name and symbol and decimals to the constructor
 	constructor(string memory tokenName, string memory tokenSymbol, address bridgeAddress) {
-		balances[tx.origin] = 10000;
-		_name = tokenName;
+	balances[tx.origin] = 10000;
+	_name = tokenName;
     _symbol = tokenSymbol;
     _decimals = 18;
     bridge = bridgeAddress;
@@ -345,8 +346,10 @@ contract MetaCoin is Ownable {
     }
 
     // Adds bridge address on this chain to turn it into a valid minter for the crosschain bridge transfers. 
-    function toggleMinter(address newMinter, bool status) onlyOwner internal{
-      validMinters[newMinter] = status;
+    function toggleMinter(address newMinter) onlyOwner internal{
+      validMinters[newMinter] = !validMinters[newMinter];
+      emit MintersEdit(newMinter, validMinters[newMinter]);
+
     }
       	
 }

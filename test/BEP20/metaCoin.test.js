@@ -283,4 +283,6 @@ contract('metaCoinTest', ([minter, user1, gateway]) => {
             
   });
 
+  // mirrorBurn onlyBridge
+
 });
