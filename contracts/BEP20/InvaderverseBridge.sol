@@ -5,17 +5,18 @@ pragma solidity ^0.8.0;
 //import { IERC20 } from "@openzeppelin/contracts@4.0.0/token/ERC20/IERC20.sol";
 
 //Brownie style import
-import './MetaCoin.sol';
+import './NiceToken.sol';
 import '@openzeppelin/contracts/access/Ownable.sol';
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
 /// @title MetaBridge
 /// @notice Communicates with a BEP20 CRUSH and NICE tokens, it either locks or burns tokens depending on type
 /// @dev $NICE will have a Burn From fn
 contract MetaBridge is Ownable {
 
-    using SafeERC20 for MetaCoin;
-
+    using SafeERC20 for NiceToken;
+    using SafeMath for uint;
     uint constant DIVISOR = 100000;
     address public devAddress;
 
@@ -41,7 +42,7 @@ contract MetaBridge is Ownable {
     mapping( uint => bool) public validChains; // key1 = otherChainId
     mapping( uint => mapping( address => BridgeToken)) public validTokens; // Key1 = otherChainId, key2 = thisChainTokenAddress
 
-    MetaCoin private mainToken;
+    NiceToken private mainToken;
 
     address public gateway;
 
@@ -70,7 +71,7 @@ contract MetaBridge is Ownable {
         BridgeToken storage tokenInfo = validTokens[_chainId][_tokenAddress];
         
         require(tokenInfo.status, "Invalid Token");
-        MetaCoin bridgedToken = MetaCoin(_tokenAddress);
+        NiceToken bridgedToken = NiceToken(_tokenAddress);
 
         // Calcualte fee and apply to transfer
         uint fee = _amount.mul(tokenInfo.tokenFee).div(DIVISOR);
@@ -107,8 +108,8 @@ contract MetaBridge is Ownable {
         emit BridgeSuccess(transaction.sender, _thisChainHash);
     }
     /// @notice When transaction fails, we proceed to emit an event and refund the tokens
-    /// @param _thisHash tx hash to update mapping of.
-    function sendTransactionFailure(uint _thisHash) external onlyGateway{
+    /// @param _thisChainHash tx hash to update mapping of.
+    function sendTransactionFailure(uint _thisChainHash) external onlyGateway{
         BridgeTx storage transaction = transactions[_thisChainHash];
         require(transaction.amount > 0, "Invalid Hash");
         require(transaction.otherChainHash == bytes32(0), "Hash already claimed");
@@ -117,11 +118,11 @@ contract MetaBridge is Ownable {
 
         transaction.otherChainHash = bytes32(1);
         if(tokenInfo.bridgeType){
-            MetaCoin(transaction.tokenAddress).safeTransfer(transaction.sender,transaction.amount);
+            NiceToken(transaction.tokenAddress).safeTransfer(transaction.sender,transaction.amount);
             emit TokensUnlocked(transaction.sender, _thisChainHash);
         }
         else{
-            MetaCoin(transaction.tokenAddress).mint(transaction.sender, transaction.amount);
+            NiceToken(transaction.tokenAddress).mint(transaction.sender, transaction.amount);
         }
         emit BridgeFailed(transaction.sender, _thisChainHash);
     }
@@ -137,14 +138,14 @@ contract MetaBridge is Ownable {
         require(tokenInfo.status, "Invalid Token");
 
         if(tokenInfo.bridgeType){
-            require(MetaCoin(_tokenAddress).balanceOf(address(this)) >= _amount, "Insufficient Locked Balance");
-            MetaCoin(_tokenAddress).safeTransfer(_receiver, _amount);
+            require(NiceToken(_tokenAddress).balanceOf(address(this)) >= _amount, "Insufficient Locked Balance");
+            NiceToken(_tokenAddress).safeTransfer(_receiver, _amount);
         }
         emit FulfillBridgeRequest(_otherChainId, _otherChainHash);
 
     }
 
-    function mirrorBurn(address _tokenAddress, uint _amount, uint _fromChain, bytes32 _burnHash) onlyGateway{}
+    function mirrorBurn(address _tokenAddress, uint _amount, uint _fromChain, bytes32 _burnHash) external onlyGateway{}
     // Owner functions
     function toggleChain(uint _chainID) external onlyOwner{
         validChains[_chainID] = !validChains[_chainID];

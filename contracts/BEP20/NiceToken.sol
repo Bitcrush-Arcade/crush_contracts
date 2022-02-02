@@ -6,7 +6,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 
-contract MetaCoin is Ownable {
+contract NiceToken is Ownable {
 	mapping (address => uint) balances;
 
 	//Vars

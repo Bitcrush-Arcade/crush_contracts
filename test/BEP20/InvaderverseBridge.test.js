@@ -1,7 +1,7 @@
 const { expectRevert } = require('@openzeppelin/test-helpers');
 const { BN, web3 } = require('@openzeppelin/test-helpers/src/setup');
 
-const MetaCoin = artifacts.require("NiceToken");
+const MetaCoin = artifacts.require("MetaCoin");
 const MetaBridge = artifacts.require("MainBridge");
 
 // These tests are for our main bridge contract that connects tokens in EVM chains. This bridge contract can work both as a main chain bridge (lock/unlock) 
@@ -32,7 +32,7 @@ contract('metaBridgeTest', ([minter, user1, user2, gateway, receiver1, dev, rece
   it('Should allow owner only to add valid chainId', async() => {
   
     // Checking if onlyOwner
-    await expectRevert(this.bridge1.toggleChain(2222, {from: user1}), 'Ownable: caller is not the owner');
+    await expectRevert(this.bridge1.toggleChain(2222, {from: user1}), 'onlyOwner');
         
     // Checking if chain was already valid
     const isValid = await this.bridge1.validChains('2222');
@@ -52,7 +52,7 @@ _
   it('Should allow owner only to add valid token', async() => {
 
     // Checking if onlyOwner
-    await expectRevert(this.bridge1.addToken(this.token1.address, 1, false, true, 8888, {from: user1}), 'Ownable: caller is not the owner');
+    await expectRevert(this.bridge1.addToken(this.token1.address, 1, false, true, 8888, {from: user1}), 'onlyOwner');
         
     // Checking if token was already added
     const isValid = (await this.bridge1.tokenMap(this.token1.address)).status;
