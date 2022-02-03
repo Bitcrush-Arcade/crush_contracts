@@ -318,7 +318,7 @@ _
 
     // mirror burning
     await this.bridge1.mirrorBurn(this.token1.address, 5, 1111, 'TEST_HASH', {from: gateway});   
-    const finalBridgeBalance = this.token1.balanceOf();
+    //const finalBridgeBalance = this.token1.balanceOf();
     
   });
   
