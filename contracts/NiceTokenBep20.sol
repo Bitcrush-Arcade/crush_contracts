@@ -41,8 +41,7 @@ contract NICEToken is Ownable {
         require(msg.sender == bridge, "onlyBridge");
         _;
     }
-  
-	//Added name and symbol and decimals to the constructor
+
 	constructor(string memory tokenName, string memory tokenSymbol) {
         _name = tokenName;
         _symbol = tokenSymbol;
@@ -299,22 +298,31 @@ contract NICEToken is Ownable {
      * @dev Bridge and minter Functions
     */
 
-    // Sets Bridge when it's ready
+    /// @notice Sets Bridge when it's ready. This is the bridge that will be able to use onlyBridge functions.
+    /// @param bridgeAddress is the address of the bridge on this chain
     function setBridge (address bridgeAddress) onlyOwner public {
         bridge = bridgeAddress;
         emit SetBridge(bridge);
     }
 
+    /// @notice Sets Bridge when it's ready. This is the bridge that will be able to use onlyBridge functions.
+    /// @param bridgeAddress is the address of the bridge on this chain
     function mint(address user, uint256 amount) onlyMinter external returns (bool){
       _mint(user, amount);
       return true;
     }
 
+    /// @notice Allows bridge to burn from its own wallet. User must be msg.sender. 
+    /// @param address is the address of the bridge on this chain
+    /// @param amount is the amount to burn from sender wallet
     function bridgeBurn(address user, uint256 amount) onlyBridge external returns (bool){
       _burn(user, amount);
       return true;
     }
 
+    /// @notice Allows bridge to burn from a user's wallet with previous approval
+    /// @param address is the address of the user that wants to transfer tokens
+    /// @param amount is the amount to burn from the user wallet. Must be <= than the amount approved by user.
     function bridgeBurnFrom(address account, uint256 amount) onlyBridge external returns (bool){
       _burn(account, amount);
       _approve(
@@ -325,7 +333,8 @@ contract NICEToken is Ownable {
       return true;
     }
 
-    // Adds bridge address on this chain to turn it into a valid minter for the crosschain bridge transfers. 
+    /// @notice Allows owner to assign minter privileges to other addresses
+    /// @param address is the address of desired minter
     function toggleMinter(address newMinter) onlyOwner external{
       validMinters[newMinter] = !validMinters[newMinter];
       emit MintersEdit(newMinter, validMinters[newMinter]);
