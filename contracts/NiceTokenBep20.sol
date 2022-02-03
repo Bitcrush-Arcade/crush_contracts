@@ -305,19 +305,19 @@ contract NICEToken is Ownable {
         emit SetBridge(bridge);
     }
 
-    /// @notice Mint
+    /// @notice mint function
     /// @param account is the target address 
     /// @param amount is the amount to mint
-    function mint(address user, uint256 amount) onlyMinter external returns (bool){
-      _mint(user, amount);
+    function mint(address account, uint256 amount) onlyMinter external returns (bool){
+      _mint(account, amount);
       return true;
     }
 
     /// @notice Allows bridge to burn from its own wallet. User must be msg.sender. 
     /// @param account is the address of the bridge on this chain
     /// @param amount is the amount to burn from sender wallet
-    function bridgeBurn(address user, uint256 amount) onlyBridge external returns (bool){
-      _burn(user, amount);
+    function bridgeBurn(address account, uint256 amount) onlyBridge external returns (bool){
+      _burn(account, amount);
       return true;
     }
 
