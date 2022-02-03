@@ -1,24 +1,25 @@
 const { expectRevert } = require('@openzeppelin/test-helpers');
 const { BN, web3 } = require('@openzeppelin/test-helpers/src/setup');
 
-const NiceBEP = artifacts.require("NICEToken");  
+const NiceBEP = artifacts.require("NICEToken"); 
+const InvaderverseBridge = artifacts.require("InvaderverseBridge"); 
 
   // Tests for the main chain token1. 
 
   // accounts[0] minter
   // accounts[1] user1 
-  // accounts[2] user2
+  // accounts[2] gateway
   
 contract('NICETokenTest', ([minter, user1, gateway]) => {
   beforeEach( async() => {
   
-    this.token1 = await NiceBEP.new('Nice Token','NICE',{from: minter});
-    this.bridge1 = await MetaBridge.new({from: gateway});
+    this.token1 = await NiceBEP.new("Nice Invaders Crush Everything", "NICE", {from: minter});
+    this.bridge1 = await InvaderverseBridge.new({from: gateway});
     
     });
 
   // getOwner
-  it('Should return owner adress.', async () => {
+  it('Should return owner address.', async () => {
 
     const ownerAddress = await this.token1.getOwner();
     assert.equal(ownerAddress, minter, 'Owner address is not returned correctly');
