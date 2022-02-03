@@ -9,7 +9,6 @@ import "@openzeppelin/contracts/utils/Address.sol";
 contract NICEToken is Ownable {
 	mapping (address => uint) balances;
 
-    //Vars
   using SafeMath for uint256;
   using Address for address;
 
@@ -24,14 +23,14 @@ contract NICEToken is Ownable {
   uint8 private _decimals;
 
   address public bridge;
-  bool private bridgeStatus;
+  uint public totalBurned;
 
   event Approval(address indexed owner, address indexed spender, uint256 value);
   event Transfer(address indexed from, address indexed to, uint256 value);
 
   event MintersEdit(address minterAddress, bool status);
   event SetBridge(address bridgeAddress);
-
+  event TotalBurn(uint amount);
 
    // validMinters
    modifier onlyMinter {
@@ -195,22 +194,12 @@ contract NICEToken is Ownable {
         return true;
     }
 
-
-		/**
-     * @dev burns the token indicated token amount. 
-     *
-     * Requirements
-     *
-     * - `msg.sender` must be the token owner
-     * 
-		 */
-		 
-    function burn(address user, uint256 amount) public returns (bool) {
-        _burn(user, amount);
-        return true;
+    /// @notice Burn that adds to the totalBurned
+    function burn(uint256 amount) external {
+        _burn(msg.sender, amount);
+        totalBurned = totalBurned.add(amount);
+        emit TotalBurn(amount);
     }
-
-
 
     /**
      * @dev Moves tokens `amount` from `sender` to `recipient`.
@@ -316,7 +305,7 @@ contract NICEToken is Ownable {
     }
 
     /**
-     * @dev Bridge Functions
+     * @dev Bridge and minter Functions
     */
 
     // Sets Bridge when it's ready
