@@ -16,7 +16,7 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 /// @dev $NICE will have a Burn From fn
 contract InvaderverseBridge is Ownable, ReentrancyGuard {
 
-    using SafeERC20 for NiceToken;
+    using SafeERC20 for NiceTokenFtm;
     using SafeMath for uint;
     uint constant DIVISOR = 100000;
     address public devAddress;
@@ -78,7 +78,7 @@ contract InvaderverseBridge is Ownable, ReentrancyGuard {
         BridgeToken storage tokenInfo = validTokens[_chainId][_tokenAddress];
         
         require(tokenInfo.status, "Invalid Token");
-        NiceToken bridgedToken = NiceToken(_tokenAddress);
+        NiceTokenFtm bridgedToken = NiceTokenFtm(_tokenAddress);
 
         // Calcualte fee and apply to transfer
         
@@ -128,11 +128,11 @@ contract InvaderverseBridge is Ownable, ReentrancyGuard {
 
         transaction.otherChainHash = bytes32("1");
         if(tokenInfo.bridgeType){
-            NiceToken(transaction.tokenAddress).safeTransfer(transaction.sender,transaction.amount);
+            NiceTokenFtm(transaction.tokenAddress).safeTransfer(transaction.sender,transaction.amount);
             emit TokensUnlocked(transaction.sender, _thisChainHash);
         }
         else{
-            NiceToken(transaction.tokenAddress).mint(transaction.sender, transaction.amount);
+            NiceTokenFtm(transaction.tokenAddress).mint(transaction.sender, transaction.amount);
         }
         emit BridgeFailed(transaction.sender, _thisChainHash);
     }
@@ -148,15 +148,15 @@ contract InvaderverseBridge is Ownable, ReentrancyGuard {
         require(tokenInfo.status, "Invalid Token");
 
         if(tokenInfo.bridgeType){
-            require(NiceToken(_tokenAddress).balanceOf(address(this)) >= _amount, "Insufficient Locked Balance");
-            NiceToken(_tokenAddress).safeTransfer(_receiver, _amount);
+            require(NiceTokenFtm(_tokenAddress).balanceOf(address(this)) >= _amount, "Insufficient Locked Balance");
+            NiceTokenFtm(_tokenAddress).safeTransfer(_receiver, _amount);
         }
         emit FulfillBridgeRequest(_otherChainId, _otherChainHash);
 
     }
 
     function mirrorBurn(address _tokenAddress, uint _amount, uint _fromChain, bytes32 _burnHash) external onlyGateway{
-        NiceToken(_tokenAddress).burn(_amount);
+        NiceTokenFtm(_tokenAddress).burn(_amount);
         emit MirrorBurned(_tokenAddress, _fromChain, _amount, _burnHash );
     }
     // Owner functions
