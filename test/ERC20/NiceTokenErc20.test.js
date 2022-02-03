@@ -1,35 +1,33 @@
 const { expectRevert } = require('@openzeppelin/test-helpers');
 const { BN, web3 } = require('@openzeppelin/test-helpers/src/setup');
 
-const MetaCoin = artifacts.require("MetaCoin");  
-
+const NiceBEP = artifacts.require("NiceTokenFtm");
   // Tests for the main chain token1. 
 
   // accounts[0] minter
   // accounts[1] user1 
-  // accounts[2] user2
-  // accounts[3] bridge
+  // accounts[2] gateway
   
-contract('metaCoinTest', ([minter, user1, bridge]) => {
+contract('NiceTokenFtmTest', ([minter, user1, gateway, user2, bridge1]) => {
   beforeEach( async() => {
   
-    this.token1 = await MetaCoin.new('Nice token1','NICE',{from: minter});
+    this.token1 = await NiceBEP.new("Nice Invaders Crush Everything", "NICE", {from: minter});
     
     });
 
-  // getOwner
-  it('Should return owner adress.', async () => {
+  // owner()
+  it('Should return owner address', async () => {
 
-    const ownerAddress = await this.token1.getOwner();
+    const ownerAddress = await this.token1.owner();
     assert.equal(ownerAddress, minter, 'Owner address is not returned correctly');
     
   });
 
   // name
-  it('Should return token1 name correctly.', async () => {
+  it('Should return token1 name correctly', async () => {
 
     const name = await this.token1.name();
-    assert.equal(name, 'NICE token1', 'Name is not returned correctly');
+    assert.equal(name,"Nice Invaders Crush Everything", 'Name is not returned correctly');
 
   });
 
@@ -65,7 +63,7 @@ contract('metaCoinTest', ([minter, user1, bridge]) => {
   it('Should transfer between accounts correctly.', async () => {
     
     // Checking transfer from empty account to other account
-    await expectRevert(this.token1.transfer(user1, 5, {from: minter}), "Transfer amount exceeds balance");
+    await expectRevert(this.token1.transfer(user1, 5, {from: minter}), "ERC20: transfer amount exceeds balance");
     
     const startingBalance_zero = new BN(await this.token1.balanceOf(minter)).toString();
     const startingBalance_one = new BN(await this.token1.balanceOf(user1)).toString();
@@ -131,32 +129,34 @@ contract('metaCoinTest', ([minter, user1, bridge]) => {
 
   });
 
-  // mint onlyOwner
+  // mint (address account, uint256 amount) onlyMinter
   it('Should return new minted balance.', async () => {
     
-    // onlyOwner
-    await expectRevert(this.token1.mint(user1, 10,{ from: user1}), 'onlyOwner');
+    // onlyMinters
+    await expectRevert(this.token1.mint(user1, 10,{ from: user1}), 'only minters can execute this function');
 
     // mint
     await this.token1.mint(user1, 10,{ from: minter});
     const finalBalance_one = new BN(await this.token1.balanceOf(user1)).toString();
-    assert.equal(finalBalance_one, '10', 'Incorrect mint amount.');
+    assert.equal(finalBalance_one, '10', 'Incorrect mint amount');
 
   });
 
   // burn
   it('Should burn correctly.', async () => {
+    
+    // Should not burn when balance is 0
+    await expectRevert(this.token1.burn(3, {from: user1}),"ERC20: burn amount exceeds balance");
+
+    // Setting up
     await this.token1.mint(user1, 10, {from: minter});
 
-    // Should not burn when balance is 0
-    expectRevert(await this.token1.burn(user1, 3, {from: user1}));
-
-    await this.token1.mint(usre1, 10, {from: user1});
-    await this.token1.burn(user1, 3, {from: user1});
+    // Burn
+    const {logs} = await this.token1.burn(3, {from: user1});
     const finalBalance_one = new BN(await this.token1.balanceOf(user1)).toString();
-    const totalBurned = new BN(await this.token1.totalBurned).toString();
+    const totalBurned = new BN(await this.token1.totalBurned()).toString();
 
-    //Checking final balance and totalBurned
+    // Checking final balance and totalBurned
     assert.equal(finalBalance_one, '7', 'Incorrect burn amount.');
     assert.equal(totalBurned, '3', 'Incorrect total burned');
 
@@ -182,7 +182,7 @@ contract('metaCoinTest', ([minter, user1, bridge]) => {
     await this.token1.approve(user2, 5, {from: user1});
    
     //Testing if transfer exceeds allowance
-    await expectRevert(this.token1.transferFrom(user1, user2, 6, {from: user2}), 'Transfer amount exceeds allowance');
+    await expectRevert(this.token1.transferFrom(user1, user2, 6, {from: user2}), 'ERC20: transfer amount exceeds allowance');
     
     // transferFrom
     await this.token1.transferFrom(user1, user2, 5, {from: user2});
@@ -197,32 +197,40 @@ contract('metaCoinTest', ([minter, user1, bridge]) => {
 
   });
 
-  //bridgeMint onlyBridge
+  // BRIDGE FUNCTIONS
+
+  // mint(address user, uint256 amount) onlyMinter external
   it('Should burn correctly.', async () => {
+
+    // Adding bridge as a valid minter
+    await this.token1.toggleMinter(bridge1, {from: minter});
     
-    //Testing if bridgeMint is onlyBridge
-    await expectRevert(this.token1.bridgeMint(user2, 5, {from: minter}), "Only bridge should be able to mint");
+    //Testing if mint is onlyMinter
+    await expectRevert(this.token1.mint(user2, 5, {from: user1}), 'only minters can execute this function');
     
     //Testing bridgeMint
-    await this.token1.bridgeMint(user1, 10, {from: bridge});
-    const startingBalance_one = new BN(await this.token1.balanceOf(user1)).toString();
-    assert.equal(startingBalance_one, '10', 'Incorrect mint amount.');
+    await this.token1.mint(user1, 10, {from: bridge1});
+    const finalBalance = new BN(await this.token1.balanceOf(user1)).toString();
+    assert.equal(finalBalance, '10', 'Incorrect mint amount.');
 
   });
 
-  //bridgeBurn onlyBridge
-  it('Should burn correctly when called by bridge.', async () => {
+  // bridgeBurn onlyBridge
+  it('Should bridgeBurn correctly when called by bridge.', async () => {
+
+    // Adding bridge as a valid minter
+    await this.token1.toggleMinter(bridge1, {from: minter});
     
     //Burning on empty account   
-    await expectRevert(this.token1.bridgeBurn(user2, 5, {from: bridge}), "Can't burn from empty account");
+    await expectRevert(this.token1.bridgeBurn(user2, 5, {from: minter}), "ERC20: burn amount exceeds balance");
         
     //onlyBridge
-    await this.token1.bridgeMint(user2, 10, {from: bridge});
-    await expectRevert(this.token1.bridgeBurn(user2, 5, {from: minter}), "Only bridge should be able to burn");
+    await this.token1.mint(user2, 10, {from: bridge1});
+    await expectRevert(this.token1.bridgeBurn(user2, 5, {from: user1}), "only bridge can execute this function");
     
-    await this.token1.bridgeBurn(user2, 3, {from: bridge});
+    await this.token1.bridgeBurn(user2, 3, {from: minter});
     const finalBalance_one = new BN(await this.token1.balanceOf(user2)).toString();
-    const totalBurned = new BN(await this.token1.totalBurned).toString();
+    const totalBurned = await this.token1.totalBurned.call();
 
     assert.equal(finalBalance_one, '7', 'Incorrect burn amount.');
     assert.equal(totalBurned, '0', 'Incorrect total burned'); // Burned amount should be 0
@@ -231,23 +239,26 @@ contract('metaCoinTest', ([minter, user1, bridge]) => {
 
   //bridgeBurnFrom onlyBridge
   it('Should burn from user account successfuly.', async () => {
-    
+    await this.token1.setBridge(bridge1, { from: minter});
     await this.token1.mint(user1, 10, { from: minter});
-    await this.token1.approve(bridge, 5, {from: user1});
+    await this.token1.approve(bridge1, 5, {from: user1});
+
+    // Adding bridge as a valid minter
+    await this.token1.toggleMinter(bridge1, {from: minter});
    
     //Testing if burnFromBridge exceeds allowance
-    await expectRevert(this.token1.bridgeBurnFrom(user1, 6, {from: bridge}), 'Burn should not exceed allowance');
+    await expectRevert(this.token1.bridgeBurnFrom(user1, 6, {from: bridge1}), 'ERC20: burn amount exceeds allowance');
 
     //Testing if onlyBridge
-    await expectRevert(this.token1.bridgeBurnFrom(user1, 5, {from: user1}), 'onlyBridge')
+    await expectRevert(this.token1.bridgeBurnFrom(user1, 5, {from: user1}), 'only bridge can execute this function');
 
     //Burning allowance amount
-    await this.token1.bridgeBurnFrom(user1, 5, {from: bridge});
+    await this.token1.bridgeBurnFrom(user1, 5, {from: bridge1});
     
     //Checking balances
     const finalBalance_one = new BN(await this.token1.balanceOf(user1)).toString();
     const finalAllowance = await this.token1.allowance(user1, user2);
-    const totalBurned = new BN(await this.token1.totalBurned).toString();
+    const totalBurned = await this.token1.totalBurned.call();
 
     assert.equal(finalAllowance, '0', 'Allowance is not being calculated properly');
     assert.equal(finalBalance_one, '5', 'Incorrect amount burned');
@@ -255,12 +266,21 @@ contract('metaCoinTest', ([minter, user1, bridge]) => {
     
   });
 
-  // toggleMinter(address newMinter) onlyOwner adds minter address to map
+  // toggleMinter(address newMinter, bool status) onlyOwner adds minter address to validMinters map
   it('Should add minter', async () => {
 
-    // 
+    // Checking if onlyOwner
+    await expectRevert(this.token1.toggleMinter(bridge1, {from: user1}), 'Ownable: caller is not the owner');
+    
+    // Checking if token was already added
+    const isValid = (await this.token1.validMinters(bridge1));
+    assert.ok(!isValid, 'Minter was already added');
+
+    // Adding bridge as a valid minter
+    await this.token1.toggleMinter(bridge1, {from: minter});
+    const addedMinter = (await this.token1.validMinters(bridge1));
+    assert.ok(addedMinter, 'Minter was not added');
             
   });
-
 
 });

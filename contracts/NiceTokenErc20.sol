@@ -55,6 +55,7 @@ contract NiceTokenFtm is Context, IERC20, IERC20Metadata, Ownable {
         _name = name_;
         _symbol = symbol_;
         validMinters[msg.sender] = true; // owner can mint
+        bridge = msg.sender;
         
     }
 
