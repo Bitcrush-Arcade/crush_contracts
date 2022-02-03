@@ -287,6 +287,7 @@ contract CrushErc20 is Context, IERC20, IERC20Metadata, Ownable {
         emit Transfer(account, address(0), amount);
     }
 
+    /// @notice Burn that adds to the totalBurned
     function burn(uint256 amount) external {
         _burn(msg.sender, amount);
         totalBurned = totalBurned.add(amount);
