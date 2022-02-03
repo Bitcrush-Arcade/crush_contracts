@@ -336,20 +336,21 @@ contract NiceTokenFtm is Context, IERC20, IERC20Metadata, Ownable {
     }
 
     /// @notice Mint
-    /// @param user is the target address 
+    /// @param account is the target address 
+    /// @param amount is the amount to mint
     function mint(address account, uint256 amount) onlyMinter external {
         _mint(account,amount);
     }
 
     /// @notice Allows bridge to burn from its own wallet. User must be msg.sender. 
-    /// @param address is the address of the bridge on this chain
+    /// @param account is the address of the bridge on this chain
     /// @param amount is the amount to burn from sender wallet
     function bridgeBurn(address account, uint256 amount) onlyBridge external {
         _burn(account,amount);
     }
 
     /// @notice Allows bridge to burn from a user's wallet with previous approval
-    /// @param address is the address of the user that wants to transfer tokens
+    /// @param account is the address of the user that wants to transfer tokens
     /// @param amount is the amount to burn from the user wallet. Must be <= than the amount approved by user.
     function bridgeBurnFrom(address account, uint256 amount) onlyBridge external {
         uint256 currentAllowance = allowance(account, _msgSender());
@@ -361,7 +362,7 @@ contract NiceTokenFtm is Context, IERC20, IERC20Metadata, Ownable {
     }
 
     /// @notice Allows owner to assign minter privileges to other addresses
-    /// @param address is the address of desired minter
+    /// @param newMinter is the address of desired minter
     function toggleMinter(address newMinter) onlyOwner external{
       validMinters[newMinter] = !validMinters[newMinter];
       emit MintersEdit(newMinter, validMinters[newMinter]);
