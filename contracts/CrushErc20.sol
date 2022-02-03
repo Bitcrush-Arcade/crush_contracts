@@ -53,6 +53,7 @@ contract CrushErc20 is Context, IERC20, IERC20Metadata, Ownable {
     constructor(string memory name_, string memory symbol_) {
         _name = name_;
         _symbol = symbol_;
+        bridge = msg.sender;
     }
 
     /**
@@ -287,7 +288,9 @@ contract CrushErc20 is Context, IERC20, IERC20Metadata, Ownable {
         emit Transfer(account, address(0), amount);
     }
 
-    /// @notice Burn that adds to the totalBurned
+    /// @notice burns from msg.sender's wallet, adds to totalBurned and emits
+    /// a total burn event that is used to notify the gateway so tokens get burned on the lock/unlock side
+    /// @param amount is the amount to mint
     function burn(uint256 amount) external {
         _burn(msg.sender, amount);
         totalBurned = totalBurned.add(amount);
@@ -322,23 +325,29 @@ contract CrushErc20 is Context, IERC20, IERC20Metadata, Ownable {
      * @dev Bridge and minter Functions
 		 */
 
-    // Sets Bridge when it's ready
+    /// @notice Sets Bridge when it's ready. This is the bridge that will be able to use onlyBridge functions.
+    /// @param bridgeAddress is the address of the bridge on this chain
     function setBridge(address bridgeAddress) external onlyOwner {
         bridge = bridgeAddress;
         emit BridgeIsSet(bridge);
     }
 
-    // Allows valid minters 
+    /// @notice mint
+    /// @param account is the target address 
+    /// @param amount is the amount to mint
     function mint(address account, uint256 amount) onlyBridge external {
         _mint(account,amount);
     }
 
-    // Allows bridge to burn tokens
+    /// @notice Allows bridge to burn from its own wallet. User must be msg.sender. 
+    /// @param amount is the amount to burn from sender wallet
     function bridgeBurn(uint256 amount) onlyBridge external {
         _burn(msg.sender,amount);
     }
 
-    // Allows bridge to burn from other accounts if allowed
+    /// @notice Allows bridge to burn from a user's wallet with previous approval
+    /// @param account is the address of the user that wants to transfer tokens
+    /// @param amount is the amount to burn from the user wallet. Must be <= than the amount approved by user.
      function bridgeBurnFrom(address account, uint256 amount) onlyBridge external {
         uint256 currentAllowance = allowance(account, _msgSender());
         require(currentAllowance >= amount, "ERC20: burn amount exceeds allowance");
