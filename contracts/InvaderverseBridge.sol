@@ -4,8 +4,8 @@ pragma solidity ^0.8.0;
 //Remix style import
 //import { IERC20 } from "@openzeppelin/contracts@4.0.0/token/ERC20/IERC20.sol";
 
-//Brownie style import
-import './NiceTokenErc20.sol';
+// Imports
+import './NiceTokenErc20.sol'; //Depends on chain, BEP for BSC, ERC for FTM
 import '@openzeppelin/contracts/access/Ownable.sol';
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
