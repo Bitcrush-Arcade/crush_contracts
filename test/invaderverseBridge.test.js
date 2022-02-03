@@ -308,21 +308,36 @@ _
 
 
   // mirrorBurn(address _tokenAddress, uint256 _amount, uint256 _fromChain, bytes32 _burnHash) external onlyGateway
+  // emits event MirrorBurned(address tokenAddress, uint256 otherChain, uint256 amount, bytes32 otherChainHash);
   it('Should mirror burn when it happens in other chain', async() => {
 
-    // setting up
+    // Setting up
     await this.token1.mint(this.bridge1.address, 10, {from: minter});
 
-    // onlyGateway
-    await expectRevert(this.bridge1.mirrorBurn(this.token1.address, 5, 1111, 'TEST_HASH', {from: user1}), 'onlyGateway');
+    // Checking if validChain
+    await expectRevert(this.bridge1.mirrorBurn(this.token1.address, 4, 3333, 'TEST_HASH', {from: gateway}), 'validChain');
 
-    // mirror burning
-    await this.bridge1.mirrorBurn(this.token1.address, 5, 1111, 'TEST_HASH', {from: gateway});   
-    //const finalBridgeBalance = this.token1.balanceOf();
-    
+    // onlyGateway
+    await expectRevert(this.bridge1.mirrorBurn(this.token1.address, 4, 2222, 'TEST_HASH', {from: user1}), 'onlyGateway');
+
+    // Mirror burning
+    const {logs} = await this.bridge1.mirrorBurn(this.token1.address, 4, 2222, 'TEST_HASH', {from: gateway});   
+    const finalBridgeBalance = this.token1.balanceOf(this.bridge1.address);
+    assert.equal(finalBridgeBalance, '6', 'Amount is not being burned');
+
+    // Checking event
+    assert.ok(Array.isArray(logs));
+    assert.equal(logs.length, 1, "Only one event should've been emitted");
+
+    const log = logs[0];
+    assert.equal(log.event, 'MirrorBurned', "Wrong event emitted");
+    assert.equal(log.args.tokenAddress, this.token1.address, "Wrong token address");
+    assert.equal(log.args.otherChain, 1111, "Wrong otherChainId");
+    assert.equal(log.args.amount, 4, "Wrong amount mirror burned");
+    assert.equal(log.args.otherChainHash, 'TEST_HASH' , "Hashes do not match");
+
   });
   
-    
 });
 
 
