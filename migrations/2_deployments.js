@@ -1,5 +1,5 @@
 const NiceBEP20 = artifacts.require('NICEToken');
-const NiceERC20 = artifacts.require('NiceToken');
+const NiceERC20 = artifacts.require('NiceTokenFtm');
 const WrappedCrush = artifacts.require('CrushErc20');
 const InvaderverseBridge = artifacts.require('InvaderverseBridge');
 
