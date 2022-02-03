@@ -19,7 +19,7 @@ contract('NICETokenTest', ([minter, user1, gateway]) => {
     });
 
   // getOwner
-  it('Should return owner address.', async () => {
+  it('Should return owner address', async () => {
 
     const ownerAddress = await this.token1.getOwner();
     assert.equal(ownerAddress, minter, 'Owner address is not returned correctly');
@@ -27,7 +27,7 @@ contract('NICETokenTest', ([minter, user1, gateway]) => {
   });
 
   // name
-  it('Should return token1 name correctly.', async () => {
+  it('Should return token1 name correctly', async () => {
 
     const name = await this.token1.name();
     assert.equal(name, 'NICE token1', 'Name is not returned correctly');
