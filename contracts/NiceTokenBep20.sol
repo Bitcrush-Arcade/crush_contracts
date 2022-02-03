@@ -185,7 +185,8 @@ contract NICEToken is Ownable {
         return true;
     }
 
-    /// @notice Burn that adds to the totalBurned
+    /// @notice burns from msg.sender's wallet, adds to totalBurned
+    /// @param amount is the amount to mint
     function burn(uint256 amount) external {
         _burn(msg.sender, amount);
         totalBurned = totalBurned.add(amount);
