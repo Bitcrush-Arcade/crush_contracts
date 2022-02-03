@@ -328,24 +328,30 @@ contract NiceTokenFtm is Context, IERC20, IERC20Metadata, Ownable {
      * @dev Bridge and minter Functions
 		 */
 
-    // Sets Bridge when it's ready
+    /// @notice Sets Bridge when it's ready. This is the bridge that will be able to use onlyBridge functions.
+    /// @param bridgeAddress is the address of the bridge on this chain
     function setBridge(address bridgeAddress) external onlyOwner{
         bridge = bridgeAddress;
         emit SetBridge(bridgeAddress);
     }
 
-    // Allows valid minters 
+    /// @notice Sets Bridge when it's ready. This is the bridge that will be able to use onlyBridge functions.
+    /// @param bridgeAddress is the address of the bridge on this chain
     function mint(address account, uint256 amount) onlyMinter external {
         _mint(account,amount);
     }
 
-    // Allows bridge to burn tokens
+    /// @notice Allows bridge to burn from its own wallet. User must be msg.sender. 
+    /// @param address is the address of the bridge on this chain
+    /// @param amount is the amount to burn from sender wallet
     function bridgeBurn(address account, uint256 amount) onlyBridge external {
         _burn(account,amount);
     }
 
-    // Allows bridge to burn from other accounts if allowed
-     function bridgeBurnFrom(address account, uint256 amount) onlyBridge external {
+    /// @notice Allows bridge to burn from a user's wallet with previous approval
+    /// @param address is the address of the user that wants to transfer tokens
+    /// @param amount is the amount to burn from the user wallet. Must be <= than the amount approved by user.
+    function bridgeBurnFrom(address account, uint256 amount) onlyBridge external {
         uint256 currentAllowance = allowance(account, _msgSender());
         require(currentAllowance >= amount, "ERC20: burn amount exceeds allowance");
         unchecked {
@@ -354,7 +360,8 @@ contract NiceTokenFtm is Context, IERC20, IERC20Metadata, Ownable {
         _burn(account, amount);
     }
 
-    // Toggles minters
+    /// @notice Allows owner to assign minter privileges to other addresses
+    /// @param address is the address of desired minter
     function toggleMinter(address newMinter) onlyOwner external{
       validMinters[newMinter] = !validMinters[newMinter];
       emit MintersEdit(newMinter, validMinters[newMinter]);
