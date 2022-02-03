@@ -14,7 +14,7 @@ contract NICEToken is Ownable {
 
   mapping(address => uint256) private _balances;
   mapping(address => mapping(address => uint256)) private _allowances;
-  mapping(address => bool) private validMinters;
+  mapping(address => bool) public validMinters;
     
   uint256 private _totalSupply;
 
@@ -30,7 +30,6 @@ contract NICEToken is Ownable {
 
   event MintersEdit(address minterAddress, bool status);
   event SetBridge(address bridgeAddress);
-  event TotalBurn(uint amount);
 
    // validMinters
    modifier onlyMinter {
@@ -53,13 +52,6 @@ contract NICEToken is Ownable {
 	}
 
 	//BEP 20 Functions
-
-  /**
-     * @dev Returns the bep token owner.
-     */
-    function getOwner() external view returns (address) {
-        return owner();
-    }
 
     /**
      * @dev Returns the token name.
@@ -198,7 +190,6 @@ contract NICEToken is Ownable {
     function burn(uint256 amount) external {
         _burn(msg.sender, amount);
         totalBurned = totalBurned.add(amount);
-        emit TotalBurn(amount);
     }
 
     /**
