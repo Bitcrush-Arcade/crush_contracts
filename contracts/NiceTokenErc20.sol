@@ -335,8 +335,8 @@ contract NiceTokenFtm is Context, IERC20, IERC20Metadata, Ownable {
         emit SetBridge(bridgeAddress);
     }
 
-    /// @notice Sets Bridge when it's ready. This is the bridge that will be able to use onlyBridge functions.
-    /// @param bridgeAddress is the address of the bridge on this chain
+    /// @notice Mint
+    /// @param user is the target address 
     function mint(address account, uint256 amount) onlyMinter external {
         _mint(account,amount);
     }

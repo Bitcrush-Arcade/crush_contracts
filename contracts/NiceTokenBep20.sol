@@ -305,8 +305,8 @@ contract NICEToken is Ownable {
         emit SetBridge(bridge);
     }
 
-    /// @notice Sets Bridge when it's ready. This is the bridge that will be able to use onlyBridge functions.
-    /// @param bridgeAddress is the address of the bridge on this chain
+    /// @notice Mint
+    /// @param user is the target address 
     function mint(address user, uint256 amount) onlyMinter external returns (bool){
       _mint(user, amount);
       return true;
