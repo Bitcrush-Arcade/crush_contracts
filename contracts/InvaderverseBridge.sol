@@ -43,8 +43,6 @@ contract InvaderverseBridge is Ownable, ReentrancyGuard {
     mapping( uint => bool) public validChains; // key1 = otherChainId
     mapping( uint => mapping( address => BridgeToken)) public validTokens; // Key1 = otherChainId, key2 = thisChainTokenAddress
 
-    NiceToken private mainToken;
-
     address public gateway;
 
     event ChainEdit(uint _chainId, bool _active);
@@ -55,10 +53,12 @@ contract InvaderverseBridge is Ownable, ReentrancyGuard {
     event BridgeFailed(address indexed requester, bytes32 bridgeHash);
     event FulfillBridgeRequest(uint _otherChainId, bytes32 _otherChainHash);
     event ModifiedBridgeToken(uint indexed _chain, address indexed _token, bool _type, bool _status);
+    event MirrorBurned(address tokenAddress, uint256 otherChain, uint256 amount, bytes32 otherChainHash);
     event SetGateway(address gatewayAddress);
+    event SetDev(address dev);
     /// Modifiers
     modifier onlyGateway {
-        require(msg.sender == gateway, "Only gateway can execute this function");
+        require(msg.sender == gateway, "onlyGateway");
         _;
     }
     /// Constructor
@@ -81,12 +81,13 @@ contract InvaderverseBridge is Ownable, ReentrancyGuard {
         NiceToken bridgedToken = NiceToken(_tokenAddress);
 
         // Calcualte fee and apply to transfer
-        uint fee = _amount.mul(tokenInfo.tokenFee).div(DIVISOR);
         
         // Transferring funds to bridge wallet and fee to dev
-        if(fee > 0)
-            bridgedToken.safeTransferFrom(msg.sender, devAddress, fee);
-
+        if(tokenInfo.tokenFee > 0){
+            bridgedToken.safeTransferFrom(msg.sender, devAddress, _amount.mul(tokenInfo.tokenFee).div(DIVISOR));
+        }
+        _bridgeHash = keccak256(abi.encode(_amount, msg.sender, _receiverAddress, block.timestamp, _tokenAddress, _chainId));
+        
         if(tokenInfo.bridgeType){
             bridgedToken.safeTransferFrom(msg.sender, address(this), _amount);
             emit TokensLocked( msg.sender, _tokenAddress, _bridgeHash);
@@ -94,7 +95,6 @@ contract InvaderverseBridge is Ownable, ReentrancyGuard {
         else
             bridgedToken.bridgeBurnFrom(msg.sender, _amount);
         
-        _bridgeHash = keccak256(abi.encode(_amount, msg.sender, _receiverAddress, block.timestamp, _tokenAddress, _chainId));
         transactions[_bridgeHash] = BridgeTx(_amount, msg.sender, _receiverAddress, block.timestamp, _tokenAddress, _chainId, bytes32(0));
 
         emit RequestBridge(msg.sender, _bridgeHash);
@@ -155,12 +155,22 @@ contract InvaderverseBridge is Ownable, ReentrancyGuard {
 
     }
 
-    function mirrorBurn(address _tokenAddress, uint _amount, uint _fromChain, bytes32 _burnHash) external onlyGateway{}
+    function mirrorBurn(address _tokenAddress, uint _amount, uint _fromChain, bytes32 _burnHash) external onlyGateway{
+        NiceToken(_tokenAddress).burn(_amount);
+        emit MirrorBurned(_tokenAddress, _fromChain, _amount, _burnHash );
+    }
     // Owner functions
     function toggleChain(uint _chainID) external onlyOwner{
         validChains[_chainID] = !validChains[_chainID];
         emit ChainEdit(_chainID, validChains[_chainID]);
     }
+    /// @notice Add token to map. This map holds the properties of each token/bridge implementation. These properties are used in
+    /// most of this bridge's functions.
+    /// @param _thisChainTokenAddress the token's address on this chain
+    /// @param tokenFee fee that will be charged for the bridge transaction. Fee is always charged on the sender chain.
+    /// @param bridgeType type of bridge implemented on this chain, false => mint/burn, true => lock/unlock
+    /// @param status true for on, false for off
+    /// @param _otherChainId the other chain ID, where we have the receiver
     function addToken(address _thisChainTokenAddress, uint tokenFee, bool bridgeType, bool status, uint _otherChainId) external onlyOwner{
         validTokens[_otherChainId][_thisChainTokenAddress] = BridgeToken(tokenFee, bridgeType, status);
         emit ModifiedBridgeToken(_otherChainId, _thisChainTokenAddress, bridgeType, status);
@@ -171,9 +181,10 @@ contract InvaderverseBridge is Ownable, ReentrancyGuard {
         gateway = _gateway;
         emit SetGateway(_gateway);
     }
-    /// Public Functions
-
-    /// Internal Functions
-    
-    /// Pure Functions
+    /// @notice Set the Dev Address
+    /// @param _devAddress the address to set
+    function setDev(address _devAddress) external onlyOwner{
+        devAddress = _devAddress;
+        emit SetDev(_devAddress);
+    }
 }

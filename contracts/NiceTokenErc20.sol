@@ -354,7 +354,7 @@ contract NiceToken is Context, IERC20, IERC20Metadata, Ownable {
     }
 
     // Toggles minters
-    function toggleMinter(address newMinter) onlyOwner internal{
+    function toggleMinter(address newMinter) onlyOwner external{
       validMinters[newMinter] = !validMinters[newMinter];
       emit MintersEdit(newMinter, validMinters[newMinter]);
     }

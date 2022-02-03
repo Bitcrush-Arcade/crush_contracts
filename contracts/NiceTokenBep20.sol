@@ -346,10 +346,8 @@ contract NICEToken is Ownable {
     }
 
     // Adds bridge address on this chain to turn it into a valid minter for the crosschain bridge transfers. 
-    function toggleMinter(address newMinter) onlyOwner internal{
+    function toggleMinter(address newMinter) onlyOwner external{
       validMinters[newMinter] = !validMinters[newMinter];
       emit MintersEdit(newMinter, validMinters[newMinter]);
-
     }
-      	
 }
