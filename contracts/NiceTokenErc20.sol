@@ -292,10 +292,11 @@ contract NiceTokenFtm is Context, IERC20, IERC20Metadata, Ownable {
         emit Transfer(account, address(0), amount);
     }
 
+    /// @notice burns from msg.sender's wallet, adds to totalBurned
+    /// @param amount is the amount to mint
     function burn(uint256 amount) external {
         _burn(msg.sender, amount);
         totalBurned = totalBurned.add(amount);
-        emit TotalBurn(amount);
     }
 
 
@@ -335,7 +336,7 @@ contract NiceTokenFtm is Context, IERC20, IERC20Metadata, Ownable {
         emit SetBridge(bridgeAddress);
     }
 
-    /// @notice Mint
+    /// @notice mint
     /// @param account is the target address 
     /// @param amount is the amount to mint
     function mint(address account, uint256 amount) onlyMinter external {
