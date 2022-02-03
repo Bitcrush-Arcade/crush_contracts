@@ -1,7 +1,7 @@
 const { expectRevert } = require('@openzeppelin/test-helpers');
 const { BN, web3 } = require('@openzeppelin/test-helpers/src/setup');
 
-const MetaCoin = artifacts.require("MetaCoin");  
+const NiceBEP = artifacts.require("NICEToken");  
 
   // Tests for the main chain token1. 
 
@@ -9,10 +9,10 @@ const MetaCoin = artifacts.require("MetaCoin");
   // accounts[1] user1 
   // accounts[2] user2
   
-contract('metaCoinTest', ([minter, user1, gateway]) => {
+contract('NICETokenTest', ([minter, user1, gateway]) => {
   beforeEach( async() => {
   
-    this.token1 = await MetaCoin.new('Nice token1','NICE',{from: minter});
+    this.token1 = await NiceBEP.new('Nice Token','NICE',{from: minter});
     this.bridge1 = await MetaBridge.new({from: gateway});
     
     });
@@ -131,7 +131,7 @@ contract('metaCoinTest', ([minter, user1, gateway]) => {
 
   });
 
-  // mint onlyOwner
+  // mint (address account, uint256 amount) onlyMinter
   it('Should return new minted balance.', async () => {
     
     // onlyOwner
@@ -146,19 +146,29 @@ contract('metaCoinTest', ([minter, user1, gateway]) => {
 
   // burn
   it('Should burn correctly.', async () => {
+    
+    // Should not burn when balance is 0
+    expectRevert(await this.token1.burn(3, {from: user1}));
+
+    // Setting up
     await this.token1.mint(user1, 10, {from: minter});
 
-    // Should not burn when balance is 0
-    expectRevert(await this.token1.burn(user1, 3, {from: user1}));
-
-    await this.token1.mint(usre1, 10, {from: user1});
-    await this.token1.burn(user1, 3, {from: user1});
+    // Burn
+    const {logs} = await this.token1.burn(3, {from: user1});
     const finalBalance_one = new BN(await this.token1.balanceOf(user1)).toString();
     const totalBurned = new BN(await this.token1.totalBurned).toString();
 
-    //Checking final balance and totalBurned
+    // Checking final balance and totalBurned
     assert.equal(finalBalance_one, '7', 'Incorrect burn amount.');
     assert.equal(totalBurned, '3', 'Incorrect total burned');
+
+    // Checking TotalBurn event
+    assert.ok(Array.isArray(logs));
+    assert.equal(logs.length, 1, "Only one event should've been emitted");
+
+    const log = logs[0];
+    assert.equal(log.event, 'TotalBurn', "Wrong event emitted");
+    assert.equal(log.args.amount, 3, "Wrong amount burned");
 
   });
 
@@ -199,19 +209,19 @@ contract('metaCoinTest', ([minter, user1, gateway]) => {
 
   // BRIDGE FUNCTIONS
 
-  // bridgeMint onlyBridge
+  // mint(address user, uint256 amount) onlyMinter external
   it('Should burn correctly.', async () => {
 
     // Adding bridge as a valid minter
     await this.token1.toggleMinter(this.bridge1.address, true, {from: minter});
     
-    //Testing if bridgeMint is onlyBridge
-    await expectRevert(this.token1.bridgeMint(user2, 5, {from: minter}), "Only bridge should be able to mint");
+    //Testing if mint is onlyMinter
+    await expectRevert(this.token1.bridgeMint(user2, 5, {from: user1}), 'onlyMinter');
     
     //Testing bridgeMint
-    await this.token1.bridgeMint(user1, 10, {from: this.bridge1.address});
-    const startingBalance_one = new BN(await this.token1.balanceOf(user1)).toString();
-    assert.equal(startingBalance_one, '10', 'Incorrect mint amount.');
+    await this.token1.mint(user1, 10, {from: this.bridge1.address});
+    const finalBalance = new BN(await this.token1.balanceOf(user1)).toString();
+    assert.equal(finalBalance, '10', 'Incorrect mint amount.');
 
   });
 
@@ -282,7 +292,5 @@ contract('metaCoinTest', ([minter, user1, gateway]) => {
     assert.ok(addedToken, 'Minter was not added');
             
   });
-
-  // mirrorBurn onlyBridge
 
 });
