@@ -32,7 +32,7 @@ contract('NICETokenTest', ([minter, user1, gateway, user2, bridge1]) => {
   });
 
   // decimals
-  it('Should return the right amount of decimals.', async () => {
+  it('Should return the right amount of decimals', async () => {
 
     const decimals = await this.token1.decimals();
     assert.equal(decimals, 18, 'Incorrect decimal size. Expected 18.');
@@ -40,7 +40,7 @@ contract('NICETokenTest', ([minter, user1, gateway, user2, bridge1]) => {
   });
   
   // symbol
-  it('Should return token1 symbol correctly.', async () => {
+  it('Should return token1 symbol correctly', async () => {
 
     const tokenSymbol = await this.token1.symbol();
     assert.equal(tokenSymbol, 'NICE', 'Incorrect token1 name. Expected NICE.');
@@ -48,7 +48,7 @@ contract('NICETokenTest', ([minter, user1, gateway, user2, bridge1]) => {
   });
 
   // balanceOf is the balance of any address
-  it('Should return account balance correctly.', async () => {
+  it('Should return account balance correctly', async () => {
 
     const startingBalance = new BN(await this.token1.balanceOf(user1)).toString();
     assert.equal(startingBalance, '0', 'Starting balance should be 0');
@@ -60,7 +60,7 @@ contract('NICETokenTest', ([minter, user1, gateway, user2, bridge1]) => {
   });
 
   // transfer 
-  it('Should transfer between accounts correctly.', async () => {
+  it('Should transfer between accounts correctly', async () => {
     
     // Checking transfer from empty account to other account
     await expectRevert(this.token1.transfer(user1, 5, {from: minter}), "BEP20: transfer amount exceeds balance");
@@ -86,7 +86,7 @@ contract('NICETokenTest', ([minter, user1, gateway, user2, bridge1]) => {
 
   // allowance, approve
   // Checking that allowance is 0 by default
-  it('Should approve and display allowance correctly.', async () => {
+  it('Should approve and display allowance correctly', async () => {
     
     // Default allowance should be 0
     const startingAllowance = await this.token1.allowance(user1, user2);
@@ -115,7 +115,7 @@ contract('NICETokenTest', ([minter, user1, gateway, user2, bridge1]) => {
   });
 
   // decreaseAllowance 
-  it('Should decrease total allowance.', async () => {
+  it('Should decrease total allowance', async () => {
 
     // Default allowance should be 0
     const startingAllowance = await this.token1.allowance(user1, user2);
@@ -130,10 +130,10 @@ contract('NICETokenTest', ([minter, user1, gateway, user2, bridge1]) => {
   });
 
   // mint (address account, uint256 amount) onlyMinter
-  it('Should return new minted balance.', async () => {
+  it('Should mint correctly', async () => {
     
-    // onlyOwner
-    await expectRevert(this.token1.mint(user1, 10,{ from: user1}), 'onlyMinters');
+    // onlyMinter
+    await expectRevert(this.token1.mint(user1, 10,{ from: user1}), 'onlyMinter');
 
     // mint
     await this.token1.mint(user1, 10,{ from: minter});
@@ -143,7 +143,7 @@ contract('NICETokenTest', ([minter, user1, gateway, user2, bridge1]) => {
   });
 
   // burn
-  it('Should burn correctly.', async () => {
+  it('Should burn correctly', async () => {
     
     // Should not burn when balance is 0
     await expectRevert(this.token1.burn(3, {from: user1}),"BEP20: burn amount exceeds balance");
@@ -176,7 +176,7 @@ contract('NICETokenTest', ([minter, user1, gateway, user2, bridge1]) => {
   });
 
   // transferFrom 
-  it('Should transfer from one account to another successfuly.', async () => {
+  it('Should transfer from one account to another successfuly', async () => {
     
     await this.token1.mint(user1, 10, { from: minter});
     await this.token1.approve(user2, 5, {from: user1});
@@ -199,36 +199,43 @@ contract('NICETokenTest', ([minter, user1, gateway, user2, bridge1]) => {
 
   // BRIDGE FUNCTIONS
 
-  // mint(address user, uint256 amount) onlyMinter external
-  it('Should burn correctly.', async () => {
+  // setBridge (address bridgeAddress) onlyOwner
+  it('Should set bridge', async () => {
 
-    // Adding bridge as a valid minter
-    await this.token1.toggleMinter(bridge1, {from: minter});
-    
-    //Testing if mint is onlyMinter
-    await expectRevert(this.token1.mint(user2, 5, {from: user1}), 'onlyMinter');
-    
-    //Testing bridgeMint
-    await this.token1.mint(user1, 10, {from: bridge1});
-    const finalBalance = new BN(await this.token1.balanceOf(user1)).toString();
-    assert.equal(finalBalance, '10', 'Incorrect mint amount.');
+    // onlyOwner
+    await expectRevert(this.token1.setBridge(bridge1, {from: user1}), 'Ownable: caller is not the owner');
+
+    // setBridge
+    const {logs} = await this.token1.setBridge(bridge1, {from: minter});
+
+    // Checking event
+    assert.ok(Array.isArray(logs));
+    assert.equal(logs.length, 1, "Only one event should've been emitted");
+
+    const log = logs[0];
+    assert.equal(log.event, 'SetBridge', "Wront event emitted");
+    assert.equal(log.args.bridgeAddress, bridge1, "Wrong bridge");
+
 
   });
 
   // bridgeBurn onlyBridge
   it('Should bridgeBurn correctly when called by bridge.', async () => {
 
+    // setBridge
+    await this.token1.setBridge(bridge1, {from: minter});
+    
     // Adding bridge as a valid minter
     await this.token1.toggleMinter(bridge1, {from: minter});
     
     //Burning on empty account   
-    await expectRevert(this.token1.bridgeBurn(user2, 5, {from: minter}), "BEP20: burn amount exceeds balance");
+    await expectRevert(this.token1.bridgeBurn(user2, 5, {from: bridge1}), "BEP20: burn amount exceeds balance");
         
     //onlyBridge
     await this.token1.mint(user2, 10, {from: bridge1});
-    await expectRevert(this.token1.bridgeBurn(user2, 5, {from: user1}), "onlyBridge");
+    await expectRevert(this.token1.bridgeBurn(user2, 5, {from: minter}), "onlyBridge");
     
-    await this.token1.bridgeBurn(user2, 3, {from: minter});
+    await this.token1.bridgeBurn(user2, 3, {from: bridge1});
     const finalBalance_one = new BN(await this.token1.balanceOf(user2)).toString();
     const totalBurned = await this.token1.totalBurned.call();
 
@@ -277,9 +284,17 @@ contract('NICETokenTest', ([minter, user1, gateway, user2, bridge1]) => {
     assert.ok(!isValid, 'Minter was already added');
 
     // Adding bridge as a valid minter
-    await this.token1.toggleMinter(bridge1, {from: minter});
+    const {logs} = await this.token1.toggleMinter(bridge1, {from: minter});
     const addedMinter = (await this.token1.validMinters(bridge1));
     assert.ok(addedMinter, 'Minter was not added');
+
+     // Checking event
+     assert.ok(Array.isArray(logs));
+     assert.equal(logs.length, 1, "Only one event should've been emitted");
+ 
+     const log = logs[0];
+     assert.equal(log.event, 'MintersEdit', "Wront event emitted");
+     assert.equal(log.args.minterAddress, bridge1, "Wrong minter");
             
   });
 

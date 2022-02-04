@@ -129,14 +129,16 @@ contract('CrushErc20Test', ([minter, user1, gateway, user2, bridge1]) => {
 
   });
 
-  // mint (address account, uint256 amount) onlyBridge
-  it('Should return new minted balance.', async () => {
+   // mint (address account, uint256 amount) onlyBridge
+   it('Should mint correctly.', async () => {
+    
+    await this.bridge1.setBridge(bridge1, {from: minter});
     
     // onlyBridge
-    await expectRevert(this.token1.mint(user1, 10,{ from: user1}), 'only bridge can execute this function');
+    await expectRevert(this.token1.mint(user1, 10,{ from: minter}), 'only bridge can execute this function');
 
     // mint
-    await this.token1.mint(user1, 10,{ from: minter});
+    await this.token1.mint(user1, 10,{ from: bridge1});
     const finalBalance_one = new BN(await this.token1.balanceOf(user1)).toString();
     assert.equal(finalBalance_one, '10', 'Incorrect mint amount');
 
@@ -207,18 +209,6 @@ contract('CrushErc20Test', ([minter, user1, gateway, user2, bridge1]) => {
 
   // BRIDGE FUNCTIONS
 
-  // mint(address user, uint256 amount) onlyMinter external
-  it('Should burn correctly.', async () => {
-    
-    //Testing if mint is onlyBridge
-    await expectRevert(this.token1.mint(user2, 5, {from: user1}), 'only bridge can execute this function');
-    
-    //Testing bridgeMint
-    await this.token1.mint(user1, 10, {from: minter});
-    const finalBalance = new BN(await this.token1.balanceOf(user1)).toString();
-    assert.equal(finalBalance, '10', 'Incorrect mint amount.');
-
-  });
 
   // bridgeBurn onlyBridge
   it('Should bridgeBurn correctly when called by bridge.', async () => {

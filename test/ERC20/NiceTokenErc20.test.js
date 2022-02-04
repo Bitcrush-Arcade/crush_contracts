@@ -129,16 +129,19 @@ contract('NiceTokenFtmTest', ([minter, user1, gateway, user2, bridge1]) => {
 
   });
 
-  // mint (address account, uint256 amount) onlyMinter
-  it('Should return new minted balance.', async () => {
-    
-    // onlyMinters
-    await expectRevert(this.token1.mint(user1, 10,{ from: user1}), 'only minters can execute this function');
+  // mint(address user, uint256 amount) onlyMinter external
+  it('Should burn correctly.', async () => {
 
-    // mint
-    await this.token1.mint(user1, 10,{ from: minter});
-    const finalBalance_one = new BN(await this.token1.balanceOf(user1)).toString();
-    assert.equal(finalBalance_one, '10', 'Incorrect mint amount');
+    // Adding bridge as a valid minter
+    await this.token1.toggleMinter(bridge1, {from: minter});
+    
+    //Testing if mint is onlyMinter
+    await expectRevert(this.token1.mint(user2, 5, {from: user1}), 'only minters can execute this function');
+    
+    //Testing bridgeMint
+    await this.token1.mint(user1, 10, {from: bridge1});
+    const finalBalance = new BN(await this.token1.balanceOf(user1)).toString();
+    assert.equal(finalBalance, '10', 'Incorrect mint amount.');
 
   });
 
@@ -198,22 +201,6 @@ contract('NiceTokenFtmTest', ([minter, user1, gateway, user2, bridge1]) => {
   });
 
   // BRIDGE FUNCTIONS
-
-  // mint(address user, uint256 amount) onlyMinter external
-  it('Should burn correctly.', async () => {
-
-    // Adding bridge as a valid minter
-    await this.token1.toggleMinter(bridge1, {from: minter});
-    
-    //Testing if mint is onlyMinter
-    await expectRevert(this.token1.mint(user2, 5, {from: user1}), 'only minters can execute this function');
-    
-    //Testing bridgeMint
-    await this.token1.mint(user1, 10, {from: bridge1});
-    const finalBalance = new BN(await this.token1.balanceOf(user1)).toString();
-    assert.equal(finalBalance, '10', 'Incorrect mint amount.');
-
-  });
 
   // bridgeBurn onlyBridge
   it('Should bridgeBurn correctly when called by bridge.', async () => {
