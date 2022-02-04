@@ -436,7 +436,7 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
         for( uint i = 0; i < _rounds.length; i ++){
             require(_rounds[i].roundId < currentRound, "Can't claim current round tickets");
             require(_rounds[i].nonWinners.add(_rounds[i].winners) == userRoundTickets[msg.sender][_rounds[i].roundId].totalTickets, "Missing Tickets, all rounds claimed equally");
-            require(_rounds[i].winners == _ticketIds.length, "round must have all tickets");
+            require(_rounds[i].winners <= _ticketIds.length, "round must have all tickets");
             uint roundId = _rounds[i].roundId;
             uint winners = _rounds[i].winners;
             uint nonWinners = _rounds[i].nonWinners;
@@ -587,13 +587,13 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
     /// @dev epoch is UTC so make sure to check when this is called it might roll over for more than 24 hours
     function calcNextHour() internal {
         uint256 tempEnd = roundEnd;
-        uint8 newIndex = endHourIndex;
-        bool nextDay = true;
+        uint8 newIndex = endHourIndex + 1;
+        if(newIndex >= endHours.length)
+            newIndex = 0;
+        (uint year, uint month, uint day) = timestampToDateTime(block.timestamp);
+        tempEnd = timestampFromDateTime(year, month,day, endHours[newIndex],0,0);
         while(tempEnd <= block.timestamp){
-            newIndex = newIndex + 1 >= endHours.length ? 0 : newIndex + 1;
-            tempEnd = setNextRoundEndTime(block.timestamp, endHours[newIndex], newIndex != 0 && nextDay);
-            if(newIndex == endHours.length)
-                nextDay = false;
+            tempEnd = tempEnd.add(SECONDS_PER_DAY);
         }
         roundEnd = tempEnd;
         endHourIndex = newIndex;
@@ -844,17 +844,6 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
     function standardTicketNumber( uint32 _ticketNumber, uint32 _base) internal pure returns( uint32 ){
         uint32 ticketNumber = _ticketNumber%_base +_base ;
         return ticketNumber;
-    }
-
-    /// @notice calculate the next round end time
-    /// @param _currentTimestamp current block's timestamp
-    /// @param _hour the next hour to set
-    /// @param _sameDay should the time set be in the next day
-    /// @return _endTimestamp the next end hour
-    function setNextRoundEndTime(uint256 _currentTimestamp, uint256 _hour, bool _sameDay) internal pure returns (uint256 _endTimestamp ) {
-        uint nextDay = _sameDay ? _currentTimestamp : SECONDS_PER_DAY.add(_currentTimestamp);
-        (uint year, uint month, uint day) = timestampToDateTime(nextDay);
-        _endTimestamp = timestampFromDateTime(year, month, day, _hour, 0, 0);
     }
 
     // -------------------------------------------------------------------`
