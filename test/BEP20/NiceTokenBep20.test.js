@@ -229,14 +229,14 @@ contract('NICETokenTest', ([minter, user1, gateway, user2, bridge1]) => {
     await this.token1.toggleMinter(bridge1, {from: minter});
     
     //Burning on empty account   
-    await expectRevert(this.token1.bridgeBurn(user2, 5, {from: bridge1}), "BEP20: burn amount exceeds balance");
+    await expectRevert(this.token1.bridgeBurn(5, {from: bridge1}), "BEP20: burn amount exceeds balance");
         
     //onlyBridge
-    await this.token1.mint(user2, 10, {from: bridge1});
-    await expectRevert(this.token1.bridgeBurn(user2, 5, {from: minter}), "onlyBridge");
+    await this.token1.mint(bridge1, 10, {from: bridge1});
+    await expectRevert(this.token1.bridgeBurn(5, {from: minter}), "onlyBridge");
     
-    await this.token1.bridgeBurn(user2, 3, {from: bridge1});
-    const finalBalance_one = new BN(await this.token1.balanceOf(user2)).toString();
+    await this.token1.bridgeBurn(3, {from: bridge1});
+    const finalBalance_one = new BN(await this.token1.balanceOf(bridge1)).toString();
     const totalBurned = await this.token1.totalBurned.call();
 
     assert.equal(finalBalance_one, '7', 'Incorrect burn amount.');

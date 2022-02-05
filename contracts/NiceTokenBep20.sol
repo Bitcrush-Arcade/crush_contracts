@@ -314,10 +314,9 @@ contract NICEToken is Ownable {
     }
 
     /// @notice Allows bridge to burn from its own wallet. User must be msg.sender. 
-    /// @param account is the address of the bridge on this chain
     /// @param amount is the amount to burn from sender wallet
-    function bridgeBurn(address account, uint256 amount) onlyBridge external returns (bool){
-      _burn(account, amount);
+    function bridgeBurn(uint256 amount) onlyBridge external returns (bool){
+      _burn(msg.sender, amount);
       return true;
     }
 

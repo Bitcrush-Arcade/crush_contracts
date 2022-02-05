@@ -2,16 +2,16 @@ const { expectRevert } = require('@openzeppelin/test-helpers');
 const { BN, web3 } = require('@openzeppelin/test-helpers/src/setup');
 
 const NiceBEP = artifacts.require("CrushErc20");
-  // Tests for the main chain token1. 
+  // Tests for the main chain token1. Owner is not minter by default. Mint can only be performed by bridge after it has been set.
 
-  // accounts[0] minter
+  // accounts[0] owner
   // accounts[1] user1 
   // accounts[2] gateway
   
-contract('CrushErc20Test', ([minter, user1, gateway, user2, bridge1]) => {
+contract('CrushErc20Test', ([owner, user1, user2, bridge1]) => {
   beforeEach( async() => {
   
-    this.token1 = await NiceBEP.new("Crush Coin", "CRUSH", {from: minter});
+    this.token1 = await NiceBEP.new("Crush Coin", "CRUSH", {from: owner});
     
     });
 
@@ -19,7 +19,7 @@ contract('CrushErc20Test', ([minter, user1, gateway, user2, bridge1]) => {
   it('Should return owner address', async () => {
 
     const ownerAddress = await this.token1.owner();
-    assert.equal(ownerAddress, minter, 'Owner address is not returned correctly');
+    assert.equal(ownerAddress, owner, 'Owner address is not returned correctly');
     
   });
 
@@ -50,10 +50,15 @@ contract('CrushErc20Test', ([minter, user1, gateway, user2, bridge1]) => {
   // balanceOf is the balance of any address
   it('Should return account balance correctly.', async () => {
 
+    // Setting bridge
+    await this.token1.setBridge(bridge1, {from: owner});
+
+    // Checking starting balance
     const startingBalance = new BN(await this.token1.balanceOf(user1)).toString();
     assert.equal(startingBalance, '0', 'Starting balance should be 0');
    
-    await this.token1.mint(user1, 10, {from: minter});
+    // Checking balance after minting
+    await this.token1.mint(user1, 10, {from: bridge1});
     const finalBalance = new BN(await this.token1.balanceOf(user1)).toString();
     assert.equal(finalBalance, '10', 'Incorrect balance');
 
@@ -62,20 +67,23 @@ contract('CrushErc20Test', ([minter, user1, gateway, user2, bridge1]) => {
   // transfer 
   it('Should transfer between accounts correctly.', async () => {
     
+    // Setting bridge
+    await this.token1.setBridge(bridge1, {from: owner});
+
     // Checking transfer from empty account to other account
-    await expectRevert(this.token1.transfer(user1, 5, {from: minter}), "ERC20: transfer amount exceeds balance");
+    await expectRevert(this.token1.transfer(user1, 5, {from: owner}), "ERC20: transfer amount exceeds balance");
     
-    const startingBalance_zero = new BN(await this.token1.balanceOf(minter)).toString();
+    const startingBalance_zero = new BN(await this.token1.balanceOf(owner)).toString();
     const startingBalance_one = new BN(await this.token1.balanceOf(user1)).toString();
     
     assert.equal(startingBalance_zero, '0', 'Balance should not change when transferring from account with balance 0');
     assert.equal(startingBalance_one, '0', 'Account balance should be 0');
     
     // Checking regular account transfer 
-    await this.token1.mint(minter, 10,{ from: minter});
-    isTransferredBack = await this.token1.transfer(user1, 1, {from: minter});
+    await this.token1.mint(owner, 10,{ from: bridge1});
+    isTransferredBack = await this.token1.transfer(user1, 1, {from: owner});
     
-    const finalBalance_zero = new BN(await this.token1.balanceOf(minter)).toString();
+    const finalBalance_zero = new BN(await this.token1.balanceOf(owner)).toString();
     const finalBalance_one = new BN(await this.token1.balanceOf(user1)).toString(); 
     
     assert.ok(isTransferredBack, 'Transfer operation not was not executed');
@@ -132,10 +140,10 @@ contract('CrushErc20Test', ([minter, user1, gateway, user2, bridge1]) => {
    // mint (address account, uint256 amount) onlyBridge
    it('Should mint correctly.', async () => {
     
-    await this.bridge1.setBridge(bridge1, {from: minter});
+    await this.token1.setBridge(bridge1, {from: owner});
     
     // onlyBridge
-    await expectRevert(this.token1.mint(user1, 10,{ from: minter}), 'only bridge can execute this function');
+    await expectRevert(this.token1.mint(user1, 10,{ from: owner}), 'only bridge can execute this function');
 
     // mint
     await this.token1.mint(user1, 10,{ from: bridge1});
@@ -151,7 +159,8 @@ contract('CrushErc20Test', ([minter, user1, gateway, user2, bridge1]) => {
     await expectRevert(this.token1.burn(3, {from: user1}),"ERC20: burn amount exceeds balance");
 
     // Setting up
-    await this.token1.mint(user1, 10, {from: minter});
+    await this.token1.setBridge(bridge1, {from: owner});
+    await this.token1.mint(user1, 10, {from: bridge1});
 
     // Burn
     const {logs} = await this.token1.burn(3, {from: user1});
@@ -175,9 +184,12 @@ contract('CrushErc20Test', ([minter, user1, gateway, user2, bridge1]) => {
   // totalSupply
   it('Should return total token1 supply correctly', async () => {
 
-    await this.token1.mint(minter, 10, {from: minter});
-    await this.token1.mint(user1, 5, {from: minter});
-    await this.token1.mint(user2, 3, {from: minter});
+    // Setting bridge
+    await this.token1.setBridge(bridge1, {from: owner});
+
+    await this.token1.mint(owner, 10, {from: bridge1});
+    await this.token1.mint(user1, 5, {from: bridge1});
+    await this.token1.mint(user2, 3, {from: bridge1});
 
     // totalSupply
     const totalSupply = new BN(await this.token1.totalSupply()).toString();
@@ -188,7 +200,10 @@ contract('CrushErc20Test', ([minter, user1, gateway, user2, bridge1]) => {
   // transferFrom 
   it('Should transfer from one account to another successfuly.', async () => {
     
-    await this.token1.mint(user1, 10, { from: minter});
+    // Setting bridge
+    await this.token1.setBridge(bridge1, {from: owner});
+
+    await this.token1.mint(user1, 10, { from: bridge1});
     await this.token1.approve(user2, 5, {from: user1});
    
     //Testing if transfer exceeds allowance
@@ -209,20 +224,43 @@ contract('CrushErc20Test', ([minter, user1, gateway, user2, bridge1]) => {
 
   // BRIDGE FUNCTIONS
 
+   // setBridge (address bridgeAddress) onlyOwner
+   it('Should set bridge', async () => {
+
+    // onlyOwner
+    await expectRevert(this.token1.setBridge(bridge1, {from: user1}), 'Ownable: caller is not the owner');
+
+    // setBridge
+    const {logs} = await this.token1.setBridge(bridge1, {from: owner});
+
+    // Checking event
+    assert.ok(Array.isArray(logs));
+    assert.equal(logs.length, 1, "Only one event should've been emitted");
+
+    const log = logs[0];
+    assert.equal(log.event, 'SetBridge', "Wront event emitted");
+    assert.equal(log.args.bridgeAddress, bridge1, "Wrong bridge");
+
+
+  });
 
   // bridgeBurn onlyBridge
   it('Should bridgeBurn correctly when called by bridge.', async () => {
 
-    //Burning on empty account   
-    await expectRevert(this.token1.bridgeBurn(5, {from: minter}), "ERC20: burn amount exceeds balance");
-        
-    //onlyBridge
-    await this.token1.mint(user1, 10, {from: minter});
-    await expectRevert(this.token1.bridgeBurn(5, {from: user1}), "only bridge can execute this function");
+    //Setting bridge
+    await this.token1.setBridge(bridge1, {from: owner});
 
-    await this.token1.mint(minter, 10, {from: minter});
-    await this.token1.bridgeBurn(3, {from: minter});
-    const finalBalance_one = new BN(await this.token1.balanceOf(minter)).toString();
+    //Burning on empty account   
+    await expectRevert(this.token1.bridgeBurn(5, {from: bridge1}), "ERC20: burn amount exceeds balance");
+    
+    //Setting up
+    await this.token1.mint(bridge1, 10, {from: bridge1});
+
+    //onlyBridge
+    await expectRevert(this.token1.bridgeBurn(5, {from: owner}), "only bridge can execute this function");
+
+    await this.token1.bridgeBurn(3, {from: bridge1});
+    const finalBalance_one = new BN(await this.token1.balanceOf(bridge1)).toString();
     const totalBurned = await this.token1.totalBurned.call();
 
     assert.equal(finalBalance_one, '7', 'Incorrect burn amount.');
@@ -232,7 +270,7 @@ contract('CrushErc20Test', ([minter, user1, gateway, user2, bridge1]) => {
 
   //bridgeBurnFrom onlyBridge
   it('Should burn from user account successfuly.', async () => {
-    await this.token1.setBridge(bridge1, { from: minter});
+    await this.token1.setBridge(bridge1, { from: owner});
     await this.token1.mint(user1, 10, { from: bridge1});
     await this.token1.approve(bridge1, 5, {from: user1});
    

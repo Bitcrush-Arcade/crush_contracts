@@ -10,7 +10,8 @@ import "@openzeppelin/contracts/utils/Context.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
 /**
- * This token is based on the standard ERC20 contract
+ * This token is based on the standard ERC20 contract. Owner is not minter by default. 
+ * Only bridge can mint it has been set.
  */
 contract CrushErc20 is Context, IERC20, IERC20Metadata, Ownable {
 
@@ -30,8 +31,7 @@ contract CrushErc20 is Context, IERC20, IERC20Metadata, Ownable {
 
     uint public totalBurned;
 
-    event MintersEdit(address minterAddress, bool status);
-    event BridgeIsSet(address bridgeAddress);
+    event SetBridge(address bridgeAddress);
     event TotalBurn(uint amount);
 
     // Requires that bridge as a valid minter
@@ -53,7 +53,7 @@ contract CrushErc20 is Context, IERC20, IERC20Metadata, Ownable {
     constructor(string memory name_, string memory symbol_) {
         _name = name_;
         _symbol = symbol_;
-        //bridge = msg.sender;
+
     }
 
     /**
@@ -329,7 +329,7 @@ contract CrushErc20 is Context, IERC20, IERC20Metadata, Ownable {
     /// @param bridgeAddress is the address of the bridge on this chain
     function setBridge(address bridgeAddress) external onlyOwner {
         bridge = bridgeAddress;
-        emit BridgeIsSet(bridge);
+        emit SetBridge(bridge);
     }
 
     /// @notice mint

@@ -342,11 +342,10 @@ contract NiceTokenFtm is Context, IERC20, IERC20Metadata, Ownable {
         _mint(account,amount);
     }
 
-    /// @notice Allows bridge to burn from its own wallet. User must be msg.sender. 
-    /// @param account is the address of the bridge on this chain
+    /// @notice Allows bridge to burn from its own wallet. 
     /// @param amount is the amount to burn from sender wallet
-    function bridgeBurn(address account, uint256 amount) onlyBridge external {
-        _burn(account,amount);
+    function bridgeBurn(uint256 amount) onlyBridge external {
+        _burn(msg.sender,amount);
     }
 
     /// @notice Allows bridge to burn from a user's wallet with previous approval
