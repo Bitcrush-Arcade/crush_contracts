@@ -130,7 +130,7 @@ contract('NiceTokenFtmTest', ([minter, user1, gateway, user2, bridge1]) => {
   });
 
   // mint(address user, uint256 amount) onlyMinter external
-  it('Should burn correctly.', async () => {
+  it('Should mint correctly.', async () => {
 
     // Adding bridge as a valid minter
     await this.token1.toggleMinter(bridge1, {from: minter});
@@ -202,20 +202,43 @@ contract('NiceTokenFtmTest', ([minter, user1, gateway, user2, bridge1]) => {
 
   // BRIDGE FUNCTIONS
 
+  // setBridge (address bridgeAddress) onlyOwner
+  it('Should set bridge', async () => {
+
+    // onlyOwner
+    await expectRevert(this.token1.setBridge(bridge1, {from: user1}), 'Ownable: caller is not the owner');
+
+    // setBridge
+    const {logs} = await this.token1.setBridge(bridge1, {from: minter});
+
+    // Checking event
+    assert.ok(Array.isArray(logs));
+    assert.equal(logs.length, 1, "Only one event should've been emitted");
+
+    const log = logs[0];
+    assert.equal(log.event, 'SetBridge', "Wront event emitted");
+    assert.equal(log.args.bridgeAddress, bridge1, "Wrong bridge");
+
+
+  });
+
   // bridgeBurn onlyBridge
   it('Should bridgeBurn correctly when called by bridge.', async () => {
+
+    // Setting bridge
+    await this.token1.setBridge(bridge1);
 
     // Adding bridge as a valid minter
     await this.token1.toggleMinter(bridge1, {from: minter});
     
     //Burning on empty account   
-    await expectRevert(this.token1.bridgeBurn(user2, 5, {from: minter}), "ERC20: burn amount exceeds balance");
+    await expectRevert(this.token1.bridgeBurn(user2, 5, {from: bridge1}), "ERC20: burn amount exceeds balance");
         
     //onlyBridge
     await this.token1.mint(user2, 10, {from: bridge1});
     await expectRevert(this.token1.bridgeBurn(user2, 5, {from: user1}), "only bridge can execute this function");
     
-    await this.token1.bridgeBurn(user2, 3, {from: minter});
+    await this.token1.bridgeBurn(user2, 3, {from: bridge1});
     const finalBalance_one = new BN(await this.token1.balanceOf(user2)).toString();
     const totalBurned = await this.token1.totalBurned.call();
 
@@ -264,9 +287,17 @@ contract('NiceTokenFtmTest', ([minter, user1, gateway, user2, bridge1]) => {
     assert.ok(!isValid, 'Minter was already added');
 
     // Adding bridge as a valid minter
-    await this.token1.toggleMinter(bridge1, {from: minter});
+    const {logs} = await this.token1.toggleMinter(bridge1, {from: minter});
     const addedMinter = (await this.token1.validMinters(bridge1));
     assert.ok(addedMinter, 'Minter was not added');
+
+    // Checking event
+    assert.ok(Array.isArray(logs));
+    assert.equal(logs.length, 1, "Only one event should've been emitted");
+
+    const log = logs[0];
+    assert.equal(log.event, 'MintersEdit', "Wront event emitted");
+    assert.equal(log.args.minterAddress, bridge1, "Wrong minter");
             
   });
 

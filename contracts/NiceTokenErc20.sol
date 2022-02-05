@@ -30,7 +30,7 @@ contract NiceTokenFtm is Context, IERC20, IERC20Metadata, Ownable {
 
     event MintersEdit(address minterAddress, bool status);
     event SetBridge(address bridgeAddress);
-    event TotalBurn(uint amount);
+   
     // Requires that bridge as a valid minter
     modifier onlyMinter {
         require(validMinters[msg.sender], "only minters can execute this function");
@@ -55,7 +55,6 @@ contract NiceTokenFtm is Context, IERC20, IERC20Metadata, Ownable {
         _name = name_;
         _symbol = symbol_;
         validMinters[msg.sender] = true; // owner can mint
-        bridge = msg.sender;
         
     }
 
