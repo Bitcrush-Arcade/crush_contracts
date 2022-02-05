@@ -288,13 +288,13 @@ contract('NICETokenTest', ([minter, user1, gateway, user2, bridge1]) => {
     const addedMinter = (await this.token1.validMinters(bridge1));
     assert.ok(addedMinter, 'Minter was not added');
 
-     // Checking event
-     assert.ok(Array.isArray(logs));
-     assert.equal(logs.length, 1, "Only one event should've been emitted");
- 
-     const log = logs[0];
-     assert.equal(log.event, 'MintersEdit', "Wront event emitted");
-     assert.equal(log.args.minterAddress, bridge1, "Wrong minter");
+    // Checking event
+    assert.ok(Array.isArray(logs));
+    assert.equal(logs.length, 1, "Only one event should've been emitted");
+
+    const log = logs[0];
+    assert.equal(log.event, 'MintersEdit', "Wront event emitted");
+    assert.equal(log.args.minterAddress, bridge1, "Wrong minter");
             
   });
 
