@@ -11,7 +11,7 @@ import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
 /**
  * This token is based on the standard ERC20 contract. Owner is not minter by default. 
- * Only bridge can mint it has been set.
+ * Only bridge can mint after it has been set.
  */
 contract CrushErc20 is Context, IERC20, IERC20Metadata, Ownable {
 
