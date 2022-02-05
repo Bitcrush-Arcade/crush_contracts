@@ -18,7 +18,11 @@
  *
  */
 
-const HDWalletProvider = require('@truffle/hdwallet-provider');
+ const HDWalletProvider = require('@truffle/hdwallet-provider');
+ const fs = require('fs');
+ const mnemonic = fs.readFileSync(".secret").toString().trim();
+ const secret = require('./secret.json');
+
 // const infuraKey = "fj4jll3k.....";
 //
 //const fs = require('fs');
@@ -59,9 +63,24 @@ module.exports = {
     testnet: {
       host: "https://data-seed-prebsc-1-s1.binance.org/",     // Localhost (default: none)
       port: 8545,            // Standard Ethereum port (default: none)
-      network_id: "*",       // Any network (default: none)
+      network_id: "97",       // Any network (default: none)
       provider : function(){
-        return new HDWalletProvider('', "https://data-seed-prebsc-1-s1.binance.org:8545/");
+        return new HDWalletProvider({
+          mnemonic: mnemonic,
+          providerOrUrl: "https://data-seed-prebsc-1-s1.binance.org:8545/",
+          addressIndex: 0
+        });
+       }
+     },
+     fantomTest: {
+      host: "https://rpc.testnet.fantom.network/",     // Localhost (default: none)
+      network_id: "4002",       // Any network (default: none)
+      provider : function(){
+        return new HDWalletProvider({
+          mnemonic: mnemonic,
+          providerOrUrl: "https://rpc.testnet.fantom.network/",
+          addressIndex: 0
+        });
        }
      },
      mainnet : {
@@ -127,8 +146,12 @@ module.exports = {
   // Note: if you migrated your contracts prior to enabling this field in your Truffle project and want
   // those previously migrated contracts available in the .db directory, you will need to run the following:
   // $ truffle migrate --reset --compile-all
-
-  db: {
-    enabled: false
+  // db: {
+  //   enabled: false
+  // },
+  plugins: ['truffle-plugin-verify'],
+  api_keys: {
+    bscscan: secret.APIKey,
+    ftmscan: secret.FantomAPIKey
   }
 };
