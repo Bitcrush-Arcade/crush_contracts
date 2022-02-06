@@ -21,7 +21,7 @@
  const HDWalletProvider = require('@truffle/hdwallet-provider');
  const fs = require('fs');
  const mnemonic = fs.readFileSync(".secret").toString().trim();
- const secret = require('./secret.json');
+ const secret = require('./env.json');
 
 // const infuraKey = "fj4jll3k.....";
 //
@@ -66,34 +66,35 @@ module.exports = {
       network_id: "97",       // Any network (default: none)
       provider : function(){
         return new HDWalletProvider({
-          mnemonic: mnemonic,
+          mnemonic: secret.mnemonic,
           providerOrUrl: "https://data-seed-prebsc-1-s1.binance.org:8545/",
-          addressIndex: 0
+          addressIndex: 1
         });
        }
      },
      fantomTest: {
       host: "https://rpc.testnet.fantom.network/",     // Localhost (default: none)
       network_id: "4002",       // Any network (default: none)
+      gasPrice: 200000000000,  // 200 gwei (in wei) (default: 100 gwei)
       provider : function(){
         return new HDWalletProvider({
-          mnemonic: mnemonic,
+          mnemonic: secret.mnemonic,
           providerOrUrl: "https://rpc.testnet.fantom.network/",
-          addressIndex: 0
+          addressIndex: 1
         });
        }
      },
-     mainnet : {
-      host: "https://bsc-dataseed1.binance.org",     // Localhost (default: none)
-      port: 8545,            // Standard Ethereum port (default: none)
-      network_id: 56,        // Any network (default: none)
-      confirmations: 10,
-      timeoutBlocks: 200,
-      skipDryRun: true,       
-      provider : function(){
-        return new HDWalletProvider('', "https://bsc-dataseed1.binance.org");
-       }
-     }
+    //  mainnet : {
+    //   host: "https://bsc-dataseed1.binance.org",     // Localhost (default: none)
+    //   port: 8545,            // Standard Ethereum port (default: none)
+    //   network_id: 56,        // Any network (default: none)
+    //   confirmations: 10,
+    //   timeoutBlocks: 200,
+    //   skipDryRun: true,       
+    //   provider : function(){
+    //     return new HDWalletProvider('', "https://bsc-dataseed1.binance.org");
+    //    }
+    //  }
     // Another network with more advanced options...
     // advanced: {
     // port: 8777,             // Custom port
@@ -151,7 +152,7 @@ module.exports = {
   // },
   plugins: ['truffle-plugin-verify'],
   api_keys: {
-    bscscan: secret.APIKey,
-    ftmscan: secret.FantomAPIKey
+    bscscan: secret.BSC_KEY,
+    ftmscan: secret.FTM_KEY
   }
 };
