@@ -6,10 +6,10 @@ pragma solidity ^0.8.0;
 
 // Imports
 import './NiceTokenErc20.sol'; //Depends on chain, BEP for BSC, ERC for FTM
-import '@openzeppelin/contracts/access/Ownable.sol';
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "@openzeppelin/contracts/utils/math/SafeMath.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import './Ownable.sol';
+import "./SafeERC20.sol";
+import "./SafeMath.sol";
+import "./ReentrancyGuard.sol";
 
 /// @title MetaBridge
 /// @notice Communicates with a BEP20 CRUSH and NICE tokens, it either locks or burns tokens depending on type
