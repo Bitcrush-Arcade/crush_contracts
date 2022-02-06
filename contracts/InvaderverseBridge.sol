@@ -37,11 +37,13 @@ contract InvaderverseBridge is Ownable, ReentrancyGuard {
         bytes32 otherChainHash;
     }
 
-    uint public lockDuration = 3600; // Minimum lock time before unlocking/failing 1 hour
+    uint public lockDuration = 172800; // Minimum lock time before unlocking/failing 1 hour
 
+    uint public nonce = 1; // makes sure that all hashes created are different
     mapping( bytes32 => BridgeTx) public transactions;
     mapping( uint => bool) public validChains; // key1 = otherChainId
     mapping( uint => mapping( address => BridgeToken)) public validTokens; // Key1 = otherChainId, key2 = thisChainTokenAddress
+    mapping( uint => mapping( bytes32 => bool)) public hashFulfillment;
 
     address public gateway;
 
@@ -79,14 +81,13 @@ contract InvaderverseBridge is Ownable, ReentrancyGuard {
         
         require(tokenInfo.status, "Invalid Token");
         NiceTokenFtm bridgedToken = NiceTokenFtm(_tokenAddress);
-
+        nonce = nonce.add(1);
         // Calcualte fee and apply to transfer
-        
         // Transferring funds to bridge wallet and fee to dev
         if(tokenInfo.tokenFee > 0){
             bridgedToken.safeTransferFrom(msg.sender, devAddress, _amount.mul(tokenInfo.tokenFee).div(DIVISOR));
         }
-        _bridgeHash = keccak256(abi.encode(_amount, msg.sender, _receiverAddress, block.timestamp, _tokenAddress, _chainId));
+        _bridgeHash = keccak256(abi.encode(_amount, msg.sender, _receiverAddress, nonce, block.number, _tokenAddress, _chainId));
         
         if(tokenInfo.bridgeType){
             bridgedToken.safeTransferFrom(msg.sender, address(this), _amount);
@@ -101,11 +102,27 @@ contract InvaderverseBridge is Ownable, ReentrancyGuard {
     }
     /// EMERGENCY FN
     /// @notice this function will check if lock duration has passed and then it retrieves the funds;
-    // function emergencyCancelBridge()external{
-    //     // check lock duration
-    //     // && check if processed
-    //     // if both true, refund/unlock the tokens/// PENDING
-    // }
+    /// @param cancelHash the hash to cancel the bridge attempt
+    function emergencyCancelBridge(bytes32 cancelHash) external nonReentrant {
+        BridgeTx storage cancelTx = transactions[cancelHash];
+        require( msg.sender == cancelTx.sender, "only sender");
+        require(cancelTx.otherChainHash == 0, "Hash has already been processed");
+        require(cancelTx.requestTime.add(lockDuration) < block.timestamp, "Lock still valid");
+
+        BridgeToken storage tokenInfo = validTokens[cancelTx.otherChainId][cancelTx.tokenAddress];
+        // lock/unlock
+        NiceTokenFtm useToken = NiceTokenFtm(cancelTx.tokenAddress);
+        if(tokenInfo.bridgeType){
+            useToken.safeTransfer(cancelTx.sender, cancelTx.amount);
+            emit TokensUnlocked(cancelTx.sender, cancelHash);
+        }
+        // mint/burn
+        else{
+            useToken.mint(cancelTx.sender, cancelTx.amount);
+        }
+        cancelTx.otherChainHash = bytes32("1");
+        emit BridgeFailed(cancelTx.sender, cancelHash);
+    }
     /// onlyGateway
     /// @notice Notify blockchain that bridging was successful.
     /// @param _thisChainHash the hash that is successful.
@@ -146,16 +163,27 @@ contract InvaderverseBridge is Ownable, ReentrancyGuard {
 
         BridgeToken storage tokenInfo = validTokens[_otherChainId][_tokenAddress];
         require(tokenInfo.status, "Invalid Token");
+        require(!hashFulfillment[_otherChainId][_otherChainHash], "Hash already fulfilled");
 
         if(tokenInfo.bridgeType){
             require(NiceTokenFtm(_tokenAddress).balanceOf(address(this)) >= _amount, "Insufficient Locked Balance");
             NiceTokenFtm(_tokenAddress).safeTransfer(_receiver, _amount);
         }
+        else{
+            NiceTokenFtm(_tokenAddress).mint(_receiver,_amount);
+        }
+        hashFulfillment[_otherChainId][_otherChainHash] = true;
         emit FulfillBridgeRequest(_otherChainId, _otherChainHash);
 
     }
-
-    function mirrorBurn(address _tokenAddress, uint _amount, uint _fromChain, bytes32 _burnHash) external onlyGateway{
+    /// @notice this is used for lock token burn mirroring, meaning if we burn on another chain, it'll be reflected on the main chain by burning locked tokens.
+    /// @param _tokenAddress this chain's token address
+    /// @param _amount the amount to burn
+    /// @param _fromChain the chain the command comes from
+    /// @param _burnHash other chain's tx hash
+    function mirrorBurn(address _tokenAddress, uint _amount, uint _fromChain, bytes32 _burnHash) external onlyGateway nonReentrant{
+        BridgeToken storage tokenInfo = validTokens[_fromChain][_tokenAddress];
+        require(tokenInfo.status, "Invalid Token");
         NiceTokenFtm(_tokenAddress).burn(_amount);
         emit MirrorBurned(_tokenAddress, _fromChain, _amount, _burnHash );
     }
