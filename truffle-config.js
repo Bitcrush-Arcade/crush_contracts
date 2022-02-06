@@ -21,7 +21,7 @@
  const HDWalletProvider = require('@truffle/hdwallet-provider');
  const fs = require('fs');
  const mnemonic = fs.readFileSync(".secret").toString().trim();
- const secret = require('./env.json');
+ const secret = require('./secret.json');
 
 // const infuraKey = "fj4jll3k.....";
 //
@@ -66,7 +66,7 @@ module.exports = {
       network_id: "97",       // Any network (default: none)
       provider : function(){
         return new HDWalletProvider({
-          mnemonic: secret.mnemonic,
+          mnemonic: mnemonic,
           providerOrUrl: "https://data-seed-prebsc-1-s1.binance.org:8545/",
           addressIndex: 1
         });
@@ -78,9 +78,9 @@ module.exports = {
       gasPrice: 200000000000,  // 200 gwei (in wei) (default: 100 gwei)
       provider : function(){
         return new HDWalletProvider({
-          mnemonic: secret.mnemonic,
+          mnemonic: mnemonic,
           providerOrUrl: "https://rpc.testnet.fantom.network/",
-          addressIndex: 1
+          addressIndex: 0
         });
        }
      },
@@ -137,7 +137,7 @@ module.exports = {
          enabled: false,
          runs: 200
        },
-      //  evmVersion: "byzantium"
+        //evmVersion: "byzantium"
       }
     }
   },

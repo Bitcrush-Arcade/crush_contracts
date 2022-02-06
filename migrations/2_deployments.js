@@ -5,7 +5,7 @@ const WrappedCrush = artifacts.require('CrushErc20');
 
 module.exports = async function ( deployer ) {
   //await deployer.deploy(InvaderverseBridge);
-  // await deployer.deploy(NiceBEP20,"Nice Invaders Crush Everything", "NICE");
-  await deployer.deploy(NiceERC20,"Nice Invaders Crush Everything", "NICE");
-  // await deployer.deploy(WrappedCrush, "Crush", "CRUSH");
+  //await deployer.deploy(NiceBEP20,"Nice Invaders Crush Everything", "NICE");
+  //await deployer.deploy(NiceERC20,"Nice Invaders Crush Everything", "NICE");
+  await deployer.deploy(WrappedCrush, "Crush", "CRUSH");
 }
