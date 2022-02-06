@@ -3,11 +3,11 @@
 
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-import "@openzeppelin/contracts/utils/Context.sol";
-import "@openzeppelin/contracts/utils/math/SafeMath.sol";
+import "./Ownable.sol";
+import "./IERC20.sol";
+import "./IERC20Metadata.sol";
+import "./Context.sol";
+import "./SafeMath.sol";
 
 /**
  * This token is based on the standard ERC20 contract. Owner is not minter by default. 
