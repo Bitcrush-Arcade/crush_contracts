@@ -246,18 +246,15 @@ _
     // user1 approving bridge1 100 wei 
     await this.token1.approve(this.bridge1.address, web3.utils.toWei("100"), {from: user1});
 
-    // Minting 1 Wei to user1
-    await this.token1.mint(user1, token1MintedWei, {from: minter});
-
     // Checking if onlyGateway. We use 1234 as a txnHash
-    await expectRevert(this.bridge1.sendTransactionFailure(1234,{from: user1}), 'onlyGateway');
+    await expectRevert(this.bridge1.sendTransactionFailure(1234, {from: user1}), 'onlyGateway');
 
     // SCENARIO1: Bridge on this chain is a MINT/BURN 
     // Testing transaction failed in the other chain, gateway uses sendTransactionFailure(thisChainTxnHash) 
 
       // Requesting bridge for 4 wei. We assume it fails on the other side and gateway handles the exception.
       // 4 wei are burned from user1's wallet by bridge and we check the txnHash
-      const thisChainTxnHash1 = await this.bridge1.requestBridge(receiver1, 2222, this.token1.address, token2TransferedWei, {from: user1}).call();
+      const thisChainTxnHash1 = await this.bridge1.requestBridge(receiver1, 2222, this.token1.address, token1TransferedWei, {from: user1});
 
       // Gateway uses sendTransactionFailure. 
       const {logs1} = await this.bridge1.sendTransactionFailure(thisChainTxnHash1, {from: gateway});
@@ -275,7 +272,8 @@ _
       const mintedBalance = web3.utils.fromWei(await this.token1.balanceOf(user1));
       assert.equal(mintedBalance, "" + (token1Minted-(token1Transfered*(token1Fee/tokenFeeDivisor))), 'Amount is not minted back');
 
-      // SCENARIO2: Bridge on this chain is LOCK/UNLOCK 
+    // SCENARIO2: Bridge on this chain is LOCK/UNLOCK 
+    // Testing transaction failed in the other chain, gateway uses sendTransactionFailure(thisChainTxnHash) 
 
       // Setting up bridge1 to transfer user2's tokens
       await this.token2.mint(user2, web3.utils.toWei(token2MintedWei),{ from: minter});
@@ -283,7 +281,7 @@ _
 
       // Requesting bridge for 4 wei. We assume it fails on the other side and gateway handles the exception.
       // 4 wei are transferred from user1's wallet and we check the txnHash
-      const thisChainTxnHash2 = await this.bridge1.requestBridge(receiver2, 2222, this.token2.address, token2TransferedWei, {from: user2}).call();
+      const thisChainTxnHash2 = await this.bridge1.requestBridge(receiver2, 2222, this.token2.address, token2TransferedWei, {from: user2});
 
       // Gateway uses sendTransactionFailure. 
       const {logs2} = await this.bridge1.sendTransactionFailure(thisChainTxnHash2, {from: gateway});
