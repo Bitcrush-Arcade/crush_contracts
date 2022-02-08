@@ -23,6 +23,8 @@ contract( "PresaleTest", ([minter, buyer1, buyer2, buyer3, buyer4, dev])=>{
     await this.token.approve(this.staking.address, web3.utils.toWei("100000"),{from: buyer2})
     await this.token.approve(this.staking.address, web3.utils.toWei("100000"),{from: buyer3})
     await this.token.approve(this.staking.address, web3.utils.toWei("100000"),{from: buyer4})
+
+    await this.presale.setNiceToken( this.token.address, {from: minter})
   })
 
   it("Should update the start sale for X amount", async ()=>{
@@ -67,15 +69,17 @@ contract( "PresaleTest", ([minter, buyer1, buyer2, buyer3, buyer4, dev])=>{
     // unqualified 
     const buyer2Qualified = await this.presale.qualify(2, {from: buyer2});
     const buyer3Qualified = await this.presale.qualify(2, {from: buyer3});
-    await expectRevert(  this.presale.qualify(3, {from: buyer4}), "ERC721: owner query for nonexistent token");
-    assert.ok( buyer1Qualified, "Not reading NFT correctly")
+    const buyer4Qualified = await this.presale.qualify(3, {from: buyer4});
+    assert.ok( buyer1Qualified, "Not reading NFT or crush amount correctly")
     assert.ok(!buyer2Qualified, "Check for owner failed")
     assert.ok(!buyer3Qualified, "ok NFT, not ok StakeAmount")
+    assert.ok(!buyer4Qualified, "no NFT, not ok StakeAmount")
     
   })
   it("Should only allow to buy if whitelisted and presale has started", async ()=>{})
+  it("Should only allow to buy with whitelisted tokens", async ()=>{})
   it("Should not allow to buy more after sale ends", async ()=>{})
-  it("Should lock bought funds", async ()=>{})
+  it("Should show bought funds amount", async ()=>{})
   it("Should allow to claim after sale ends", async ()=>{})
   it("Should allow to withdraw more after X amount of time", async ()=>{})
 })
