@@ -2,7 +2,7 @@ const { expectRevert,expectEvent } = require('@openzeppelin/test-helpers');
 const { web3 } = require('@openzeppelin/test-helpers/src/setup');
 
 const NiceBEP = artifacts.require("NICEToken");
-const NiceERC = artifacts.require("NiceToken");
+const NiceERC = artifacts.require("NiceTokenFtm");
 const CrushERC = artifacts.require("CrushErc20");
 const MetaBridge = artifacts.require("InvaderverseBridge");
 
@@ -21,7 +21,7 @@ const MetaBridge = artifacts.require("InvaderverseBridge");
 // Chain Id 1 = 1111
 // Chain Id 2 = 2222
 
-contract('metaBridgeTest', ([minter, user1, user2, gateway, receiver1, dev, receiver2]) => {
+contract('InvaderverseBridgeTest', ([minter, user1, user2, gateway, receiver1, dev, receiver2]) => {
   beforeEach( async() => {
 
     this.token1 = await NiceBEP.new('Nice Token','NICE',{from: minter});
@@ -188,7 +188,7 @@ _
     assert.equal(bridgeBalance, '4', 'Tokens are not being locked properly');
   });
 
-  // sendTransactionSuccess(uint256 nonce) onlyGateway
+  // sendTransactionSuccess(bytes32 thisChainTxnHash) onlyGateway
   it('Should emit bridge success', async() => {
 
     // Setting up
@@ -222,56 +222,79 @@ _
   // sendTransactionFailure(bytes32 thisChainHash) onlyGateway
   it('Should emit bridge failure and refund', async() => {
 
+    // Request bridge fees fro the tokens
     const token1Fee = 100
     const token2Fee = 100
     const tokenFeeDivisor = 100000
 
-    const token1Minted = 1
+    // Token 1 amounts
+    const token1Minted = 6
     const token1Transfered = 4
     const token1MintedWei = web3.utils.toWei(""+token1Minted)
     const token1TransferedWei = web3.utils.toWei(""+token1Transfered)
 
-    const token2Minted = 11
-    const token2Transfered = 5
+    // Token 2 amounts
+    const token2Minted = 6
+    const token2Transfered = 4
     const token2MintedWei = web3.utils.toWei(""+token2Minted)
     const token2TransferedWei = web3.utils.toWei(""+token2Transfered)
 
-    await this.token1.mint(user1, token1MintedWei, {from: minter});
-    await this.token1.approve(this.bridge1.address, web3.utils.toWei("100"), {from: user1});
+    // Adding tokens to the token map so they're valid tokens
     await this.bridge1.addToken(this.token1.address, token1Fee, false, true, 2222, {from: gateway}); //Token that needs mint/burn on this blockchain
     await this.bridge1.addToken(this.token2.address, token2Fee, true, true, 2222, {from: gateway}); //Token that needs lock/unlock on this blockchain
 
-    const receipt = await this.bridge1.requestBridge(receiver1, 2222, this.token1.address, token1TransferedWei, {from: user1});
-    const bridgeRequestHash = await this.bridge1.requestBridge.call(receiver1, 2222, this.token1.address, token1TransferedWei, {from: user1});
-    // Checking if onlyGateway
-    await expectRevert(this.bridge1.sendTransactionFailure( bridgeRequestHash,{from: user1}), 'onlyGateway');
+    // user1 approving bridge1 100 wei 
+    await this.token1.approve(this.bridge1.address, web3.utils.toWei("100"), {from: user1});
 
-    // Checking transaction failiure, mint refund
-    const failReceipt = await this.bridge1.sendTransactionFailure(bridgeRequestHash, {from: gateway});
+    // Minting 1 Wei to user1
+    await this.token1.mint(user1, token1MintedWei, {from: minter});
 
-    expectEvent( failReceipt, 'BridgeFailed',{
-      requester: user1,
-      bridgeHash: bridgeRequestHash,
-    })
-    const mintedBalance = web3.utils.fromWei(await this.token1.balanceOf(user1));
-    assert.equal(mintedBalance, "" + (token1Minted-(token1Transfered*(token1Fee/tokenFeeDivisor))), 'Amount is not minted back');
+    // Checking if onlyGateway. We use 1234 as a txnHash
+    await expectRevert(this.bridge1.sendTransactionFailure(1234,{from: user1}), 'onlyGateway');
 
-    // Checking transaction failiure, unlock refund 
-    await this.token2.mint(user2, web3.utils.toWei(token2MintedWei),{ from: minter});
-    await this.token2.approve(this.bridge1.address, web3.utils.toWei("100"), {from: user2});
-    
-    const failReceipt2 = await this.bridge1.requestBridge(receiver1, 2222, this.token2.address, token2TransferedWei, {from: user2})
-    const bridgeRequest2 = await this.bridge1.requestBridge.call(receiver1, 2222, this.token2.address, token2TransferedWei, {from: user2});
-    
-    await this.bridge1.sendTransactionFailure(bridgeRequest2, {from: gateway});
+    // SCENARIO1: Bridge on this chain is a MINT/BURN 
+    // Testing transaction failed in the other chain, gateway uses sendTransactionFailure(thisChainTxnHash) 
 
-    const transferedUserBalance = web3.utils.fromWei(await this.token2.balanceOf(user2));
-    const transferedBridgeBalance = web3.utils.fromWei(await this.token2.balanceOf(this.bridge1.address));
+      // Requesting bridge for 4 wei. We assume it fails on the other side and gateway handles the exception.
+      // 4 wei are burned from user1's wallet by bridge and we check the txnHash
+      const thisChainTxnHash1 = await this.bridge1.requestBridge(receiver1, 2222, this.token1.address, token2TransferedWei, {from: user1}).call();
 
-    assert.equal(transferedUserBalance, "" + (token2Minted-(token2Transfered*(token2Fee/tokenFeeDivisor) )), 'Amount is not transfered back');
-    assert.equal(transferedBridgeBalance, '0', 'Amount is not transfered from bridge');
-    
-  });
+      // Gateway uses sendTransactionFailure. 
+      const {logs} = await this.bridge1.sendTransactionFailure(thisChainTxnHash1, {from: gateway});
+
+      // Checking if event is correctly emitted
+      assert.ok(Array.isArray(logs));
+      assert.equal(logs.length, 1, "Only one event should've been emitted");
+
+      const log = logs[0];
+      assert.equal(log.event, 'BridgeFailed', "Wront event emitted");
+      assert.equal(log.args.requester, user1, "Wrong requester");
+      assert.equal(log.args.bridgeHash, thisChainTxnHash1, "Wrong txn hash");
+
+      //Checking if balance was minted back when refunding. Fee is taken into account.
+      const mintedBalance = web3.utils.fromWei(await this.token1.balanceOf(user1));
+      assert.equal(mintedBalance, "" + (token1Minted-(token1Transfered*(token1Fee/tokenFeeDivisor))), 'Amount is not minted back');
+
+      // SCENARIO2: Bridge on this chain is LOCK/UNLOCK 
+
+      // Setting up bridge1 to transfer user2's tokens
+      await this.token2.mint(user2, web3.utils.toWei(token2MintedWei),{ from: minter});
+      await this.token2.approve(this.bridge1.address, web3.utils.toWei("100"), {from: user2});
+
+      // Requesting bridge for 4 wei. We assume it fails on the other side and gateway handles the exception.
+      // 4 wei are transferred from user1's wallet and we check the txnHash
+      const thisChainTxnHash2 = await this.bridge1.requestBridge(receiver2, 2222, this.token2.address, token2TransferedWei, {from: user2}).call();
+
+      // Gateway uses sendTransactionFailure. 
+      const {logs} = await this.bridge1.sendTransactionFailure(thisChainTxnHash2, {from: gateway});
+
+      const transferedUserBalance = web3.utils.fromWei(await this.token2.balanceOf(user2));
+      const transferedBridgeBalance = web3.utils.fromWei(await this.token2.balanceOf(this.bridge1.address));
+
+      assert.equal(transferedUserBalance, "" + (token2Minted-(token2Transfered*(token2Fee/tokenFeeDivisor) )), 'Amount is not transfered back');
+      assert.equal(transferedBridgeBalance, '0', 'Amount is not transfered from bridge');
+      
+    });
 
   // fulfillBridge(address _userAddress, uint256 _amount, address, _tokenAddress, uint256 _otherChainID, uint256 _otherChainHash) onlyGateway
   it('Should receive transaction success', async() => {
