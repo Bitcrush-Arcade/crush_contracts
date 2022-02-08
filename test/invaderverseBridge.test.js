@@ -1,4 +1,4 @@
-const { expectRevert,expectEvent } = require('@openzeppelin/test-helpers');
+const { BN, expectRevert,expectEvent } = require('@openzeppelin/test-helpers');
 const { web3 } = require('@openzeppelin/test-helpers/src/setup');
 
 const NiceBEP = artifacts.require("NICEToken");
@@ -38,6 +38,7 @@ contract('InvaderverseBridgeTest', ([minter, user1, user2, gateway, receiver1, d
     await this.bridge2.toggleChain(1111, {from: gateway});
     
     await this.token1.toggleMinter(this.bridge1.address, {from: minter})
+    await this.token2.toggleMinter(this.bridge1.address, {from: minter})
   });
 
   // toggleChain(uint256 chainId, bool status) onlyOwner
@@ -161,11 +162,9 @@ _
     const testFee = 0.1/100;
     // This gets the txevent only
     const receipt = await this.bridge1.requestBridge(receiver1, 2222, this.token1.address, sendAmount, {from: user1});
-    const returnHash = await this.bridge1.requestBridge.call(receiver1, 2222, this.token1.address, sendAmount, {from: user1});
     // console.log('return', returnHash, receipt.logs[0].args) // Manual check that return hash is the same
     expectEvent(receipt, 'RequestBridge',{
       requester: user1,
-      bridgeHash: returnHash,
     })
     const feeRequired = web3.utils.toBN(sendAmount).mul( web3.utils.toBN(1)).div( web3.utils.toBN(1000))
     .toString();
@@ -197,10 +196,8 @@ _
     await this.bridge1.addToken(this.token1.address, 1, false, true, 2222, {from: gateway}); //Token that needs mint/burn on this blockchain
 
     const receipt = await this.bridge1.requestBridge(receiver1, 2222, this.token1.address, 4, {from: user1});
-    const bridgeHash = await this.bridge1.requestBridge.call(receiver1, 2222, this.token1.address, 4, {from: user1})
-
+    const bridgeHash = receipt.logs[0].args.bridgeHash
     let successHash = web3.utils.asciiToHex("SUCCESS_HASH")
-    if(successHash)
     // Checking if onlyGateway
     await expectRevert(this.bridge1.sendTransactionSuccess(bridgeHash, successHash, {from: user1}), 'onlyGateway');
 
@@ -239,6 +236,8 @@ _
     const token2MintedWei = web3.utils.toWei(""+token2Minted)
     const token2TransferedWei = web3.utils.toWei(""+token2Transfered)
 
+    await this.token1.mint(user1, token1MintedWei, {from: minter});
+
     // Adding tokens to the token map so they're valid tokens
     await this.bridge1.addToken(this.token1.address, token1Fee, false, true, 2222, {from: gateway}); //Token that needs mint/burn on this blockchain
     await this.bridge1.addToken(this.token2.address, token2Fee, true, true, 2222, {from: gateway}); //Token that needs lock/unlock on this blockchain
@@ -246,27 +245,27 @@ _
     // user1 approving bridge1 100 wei 
     await this.token1.approve(this.bridge1.address, web3.utils.toWei("100"), {from: user1});
 
-    // Checking if onlyGateway. We use 1234 as a txnHash
-    await expectRevert(this.bridge1.sendTransactionFailure(1234, {from: user1}), 'onlyGateway');
-
-    // SCENARIO1: Bridge on this chain is a MINT/BURN 
+    // SCENARIO1: Bridge on this chain is a MINT/BURN
     // Testing transaction failed in the other chain, gateway uses sendTransactionFailure(thisChainTxnHash) 
 
       // Requesting bridge for 4 wei. We assume it fails on the other side and gateway handles the exception.
       // 4 wei are burned from user1's wallet by bridge and we check the txnHash
-      const thisChainTxnHash1 = await this.bridge1.requestBridge(receiver1, 2222, this.token1.address, token1TransferedWei, {from: user1});
+      const receipt = await this.bridge1.requestBridge(receiver1, 2222, this.token1.address, token1TransferedWei, {from: user1});
+      const requestHash = receipt.logs[0].args.bridgeHash
+      // Checking if onlyGateway. We use 1234 as a txnHash
+      await expectRevert(this.bridge1.sendTransactionFailure(requestHash, {from: user1}), 'onlyGateway');
 
       // Gateway uses sendTransactionFailure. 
-      const {logs1} = await this.bridge1.sendTransactionFailure(thisChainTxnHash1, {from: gateway});
-
+      const failedRc1 = await this.bridge1.sendTransactionFailure(requestHash, {from: gateway});
+      const logs1 = failedRc1.logs
       // Checking if event is correctly emitted
-      assert.ok(Array.isArray(logs1));
+      assert.ok(Array.isArray(logs1), "logs1 is not an array");
       assert.equal(logs1.length, 1, "Only one event should've been emitted");
 
       const log1 = logs1[0];
       assert.equal(log1.event, 'BridgeFailed', "Wront event emitted");
       assert.equal(log1.args.requester, user1, "Wrong requester");
-      assert.equal(log1.args.bridgeHash, thisChainTxnHash1, "Wrong txn hash");
+      assert.equal(log1.args.bridgeHash, requestHash, "Wrong txn hash");
 
       //Checking if balance was minted back when refunding. Fee is taken into account.
       const mintedBalance = web3.utils.fromWei(await this.token1.balanceOf(user1));
@@ -276,24 +275,25 @@ _
     // Testing transaction failed in the other chain, gateway uses sendTransactionFailure(thisChainTxnHash) 
 
       // Setting up bridge1 to transfer user2's tokens
-      await this.token2.mint(user2, web3.utils.toWei(token2MintedWei),{ from: minter});
+      await this.token2.mint(user2, token2MintedWei,{ from: minter});
       await this.token2.approve(this.bridge1.address, web3.utils.toWei("100"), {from: user2});
 
       // Requesting bridge for 4 wei. We assume it fails on the other side and gateway handles the exception.
       // 4 wei are transferred from user1's wallet and we check the txnHash
-      const thisChainTxnHash2 = await this.bridge1.requestBridge(receiver2, 2222, this.token2.address, token2TransferedWei, {from: user2});
+      const receipt2 = await this.bridge1.requestBridge(receiver2, 2222, this.token2.address, token2TransferedWei, {from: user2});
+      const requestHash2 = receipt2.logs[1].args.bridgeHash
 
       // Gateway uses sendTransactionFailure. 
-      const {logs2} = await this.bridge1.sendTransactionFailure(thisChainTxnHash2, {from: gateway});
-
+      const failRc2 = await this.bridge1.sendTransactionFailure(requestHash2, {from: gateway});
+      const logs2 = failRc2.logs
       // Checking if event is correctly emitted
       assert.ok(Array.isArray(logs2));
-      assert.equal(logs2.length, 1, "Only one event should've been emitted");
+      assert.equal(logs2.length, 2, "Only one event should've been emitted");
 
-      const log2 = logs2[0];
+      const log2 = logs2[1];
       assert.equal(log2.event, 'BridgeFailed', "Wront event emitted");
       assert.equal(log2.args.requester, user2, "Wrong requester");
-      assert.equal(log2.args.bridgeHash, thisChainTxnHash2, "Wrong txn hash");
+      assert.equal(log2.args.bridgeHash, requestHash2, "Wrong txn hash");
 
       // Checking if tokens are refunded by being transferred back
       const transferedUserBalance = web3.utils.fromWei(await this.token2.balanceOf(user2));
@@ -306,34 +306,38 @@ _
 
   // fulfillBridge(address _userAddress, uint256 _amount, address, _tokenAddress, uint256 _otherChainID, uint256 _otherChainHash) onlyGateway
   it('Should receive transaction success', async() => {
-
+    const testHash = web3.utils.asciiToHex("TEST_HASH");
     // Checking valid chainId
-    await expectRevert(this.bridge1.fulfillBridge(receiver1, 3, this.token1.address, 1234, 'TEST_STRING', {from: gateway}), 'Invalid Chain' );
+    await expectRevert(this.bridge1.fulfillBridge(receiver1, 3, this.token1.address, 1234, testHash, {from: gateway}), 'Invalid Token' );
 
     // Adding valid chain
      await this.bridge1.toggleChain(2222, {from: gateway});
 
     // Adding token
-    await this.bridge1.addToken(this.token1.address, 1, false, true, 8888, {from: gateway});
-    await this.bridge1.addToken(this.token2.address, 1, true, true, 8888, {from: gateway});
+    await this.bridge1.addToken(this.token1.address, 1, false, true, 2222, {from: gateway});
+    await this.bridge1.addToken(this.token2.address, 1, true, true, 2222, {from: gateway});
 
     // Checking if onlyGateway
-    await expectRevert(this.bridge1.fulfillBridge(user1, 3, 7777, 2222, {from: user1}), 'onlyGateway');
+    await expectRevert(this.bridge1.fulfillBridge(user1, 3, this.token1.address, 2222, testHash, {from: user1}), 'onlyGateway');
 
     // Recieving from valid chain, bridgeType == false (mint/burn), should mint to user1
-    await this.bridge1.fulfillBridge(user1, 3, 2222, {from: gateway});
+    await this.bridge1.fulfillBridge(user1, 3, this.token1.address, 2222, testHash, {from: gateway});
     const userFinalBalance = new BN(await this.token1.balanceOf(user1)).toString();
     assert.equal(userFinalBalance, '3', 'Amount is not being minted');
 
     // Recieving from valid chain, bridgeType == true (lock/unlock), should transfer to user1
-    await this.token2.mint(this.bridge1.address, 5,{ from: user1});
-    await this.bridge1.fulfillBridge(user1, 5, 2222, {from: gateway});
+    const testHash2 = web3.utils.asciiToHex("TEST_HASH2");
+
+    await this.token2.mint(this.bridge1.address, 5,{ from: minter});
+    await this.bridge1.fulfillBridge(user1, 5, this.token2.address, 2222, testHash2,{from: gateway});
     
     const transferUserBalance = new BN(await this.token2.balanceOf(user1)).toString();
     const transferBridgeBalance = new BN(await this.token2.balanceOf(this.bridge1.address)).toString();
     
     assert.equal(transferUserBalance, '5', 'Amount is not transfered');
     assert.equal(transferBridgeBalance, '0', 'Amount is not transfered from bridge');
+    
+    // CHECKING EVENT FROM FULFILL BRIDGE
 
   });
 
@@ -341,19 +345,20 @@ _
   // mirrorBurn(address _tokenAddress, uint256 _amount, uint256 _fromChain, bytes32 _burnHash) external onlyGateway
   // emits event MirrorBurned(address tokenAddress, uint256 otherChain, uint256 amount, bytes32 otherChainHash);
   it('Should mirror burn when it happens in other chain', async() => {
-
+    const testHash = web3.utils.asciiToHex("TEST_HASH");
     // Setting up
+    await this.bridge1.addToken(this.token1.address, 1, true, true, 2222, {from: gateway});
     await this.token1.mint(this.bridge1.address, 10, {from: minter});
 
     // Checking if validChain
-    await expectRevert(this.bridge1.mirrorBurn(this.token1.address, 4, 3333, 'TEST_HASH', {from: gateway}), 'validChain');
+    await expectRevert(this.bridge1.mirrorBurn(this.token1.address, 4, 3333, testHash, {from: gateway}), 'Invalid Token');
 
     // onlyGateway
-    await expectRevert(this.bridge1.mirrorBurn(this.token1.address, 4, 2222, 'TEST_HASH', {from: user1}), 'onlyGateway');
+    await expectRevert(this.bridge1.mirrorBurn(this.token1.address, 4, 2222, testHash, {from: user1}), 'onlyGateway');
 
     // Mirror burning
-    const {logs} = await this.bridge1.mirrorBurn(this.token1.address, 4, 2222, 'TEST_HASH', {from: gateway});   
-    const finalBridgeBalance = this.token1.balanceOf(this.bridge1.address);
+    const {logs} = await this.bridge1.mirrorBurn(this.token1.address, 4, 2222, testHash, {from: gateway});   
+    const finalBridgeBalance = await this.token1.balanceOf(this.bridge1.address);
     assert.equal(finalBridgeBalance, '6', 'Amount is not being burned');
 
     // Checking event
@@ -363,10 +368,24 @@ _
     const log = logs[0];
     assert.equal(log.event, 'MirrorBurned', "Wrong event emitted");
     assert.equal(log.args.tokenAddress, this.token1.address, "Wrong token address");
-    assert.equal(log.args.otherChain, 1111, "Wrong otherChainId");
+    assert.equal(log.args.otherChain, 2222, "Wrong otherChainId");
     assert.equal(log.args.amount, 4, "Wrong amount mirror burned");
-    assert.equal(log.args.otherChainHash, 'TEST_HASH' , "Hashes do not match");
+    assert.equal(web3.utils.hexToAscii(log.args.otherChainHash.replace(/[0]{2}/g,"")), web3.utils.hexToAscii(testHash), "Hashes do not match");
 
+  });
+
+  it("Must act accordingly with other bridge", async()=>{
+    //ASSUMING
+    // BRIDGE 1 LIVES IN CHAIN 1
+    // BRIDGE 2 LIVES IN CHAIN 2
+    // TOKEN 1  ==  TOKEN 2 JUST ON DIFFERENT CHAINS
+
+
+    // REQUEST BRIDGE OF TOKEN1 TO CHAIN 2
+
+    // RECEIVE BRIDGE HASH
+
+    // FULFILLBRIDGE ON CHAIN 2 
   });
   
 });
