@@ -15,60 +15,67 @@ contract Presale is Ownable {
   using SafeMath for uint;
   using SafeERC20 for ERC20;
 
-  bool public saleStart;
+  uint public constant DIVISOR = 10000;
+
+  struct Buy { 
+    uint amountBought;
+    uint amountClaimed;
+    uint amountOwed;
+  }
+
+  uint public saleStart;
+  uint public whitelistStart;
   uint public saleEnd;
   StakingTest public staking;
   ERC721 public immutable crushGod;
   ERC20 public niceToken;
-  ERC20 public usdt;
   ERC20 public busd;
-  uint public constant saleDuration = 100;//129600; // Duration in Blocks ( 3 blocks per second ) 12 hours
+  uint public constant saleDuration = 100;//12 hours; // Duration in Blocks ( 3 blocks per second ) 12 hours
   uint public totalSale = 26595745 ether;
-  uint public available = 25;
+  uint public available = 2500;
   uint public pricePerToken = 4700000 gwei;
+  uint public totalRaise =  125000 ether;
 
-  mapping(address => bool) public whitelist;
-
+  mapping(address => uint) public whitelist;
+  mapping(uint => address) public usedTokens;
+  mapping(address => Buy) public userBought;
 
   // EVENTS
-  event UpdateSaleStatus(bool status);
+  event WhitelistStarted(bool status);
+  event SaleStarts(uint startBlock);
+  event LogEvent(uint data1, string data2);
 
-  constructor( address crushGodNft, address stakingV2, address _usdt, address _busd ){
+  constructor( address crushGodNft, address stakingV2, address _busd ){
     crushGod = ERC721(crushGodNft);
     staking = StakingTest(stakingV2);
-    usdt = ERC20(_usdt);
     busd = ERC20(_busd);
   }
-
-  function toggleSaleStart() external onlyOwner {
-    if(!saleStart && saleEnd == 0){
-      saleEnd = block.number.add(saleDuration);
-    }
-    else{
-      require(saleStart, "No restart");
-      require(saleEnd <= block.number, "Sale running");
-    }
-    saleStart = !saleStart;
-    emit UpdateSaleStatus(saleStart);
+  /// @notice start the sale 
+  function startSale() external onlyOwner {
+    require(saleStart == 0 && saleEnd == 0 && whitelistStart == 0, "Round already started");
+    whitelistStart = block.timestamp;
+    saleStart = block.timestamp.add(30 minutes);
+    saleEnd = block.timestamp.add(saleDuration).add(30 minutes);
+    emit SaleStarts(saleStart);
+    emit WhitelistStarted(true);
   }
-
-  function qualify(uint tokenId) public view returns(bool _isQualified){
-    if( address(niceToken) == address(0)){
-      _isQualified = false;
-    }
-    else{
+  /// @notice qualify only checks quantity
+  /// @dev qualify is an overlook of the amount of CrushGod NFTs held and tokens staked
+  function qualify() public view returns(bool _isQualified){
       (uint staked,,,,) = staking.stakings(msg.sender);
-
-      try crushGod.ownerOf(tokenId) returns(address nftOwner){
-        _isQualified = 
-          nftOwner == msg.sender
-          && 
-          staked >= 10000 ether;
-      }
-      catch{
-        _isQualified= false;
-      }
-    }
+      uint nfts = crushGod.balanceOf(msg.sender);
+      _isQualified = nfts > 0 && staked >= 10000 ether;
+  }
+  /// @notice user will need to self whitelist prior to the sale
+  /// @param tokenId the NFT Id to register with
+  /// @dev once whitelisted, the token locked to that wallet.
+  function whitelistSelf(uint tokenId) public {
+    bool isQualified = qualify();
+    require(isQualified, "Unqualified");
+    require(whitelist[msg.sender] == 0, "Already whitelisted");
+    require(usedTokens[tokenId] == address(0), "Token already used");
+    require(crushGod.ownerOf(tokenId) == msg.sender, "Illegal owner");
+    whitelist[msg.sender] = tokenId;
   }
 
   function setNiceToken(address _tokenAddress) onlyOwner external {
@@ -77,7 +84,7 @@ contract Presale is Ownable {
   }
 
   function buyNice(uint amount, address _tokenAddress, uint nftId) external{
-
+    require(whitelist[msg.sender]  > 0, "Not Whitelisted");
   }
 
 }
