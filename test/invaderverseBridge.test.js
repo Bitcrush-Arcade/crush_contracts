@@ -260,16 +260,16 @@ _
       const thisChainTxnHash1 = await this.bridge1.requestBridge(receiver1, 2222, this.token1.address, token2TransferedWei, {from: user1}).call();
 
       // Gateway uses sendTransactionFailure. 
-      const {logs} = await this.bridge1.sendTransactionFailure(thisChainTxnHash1, {from: gateway});
+      const {logs1} = await this.bridge1.sendTransactionFailure(thisChainTxnHash1, {from: gateway});
 
       // Checking if event is correctly emitted
-      assert.ok(Array.isArray(logs));
-      assert.equal(logs.length, 1, "Only one event should've been emitted");
+      assert.ok(Array.isArray(logs1));
+      assert.equal(logs1.length, 1, "Only one event should've been emitted");
 
-      const log = logs[0];
-      assert.equal(log.event, 'BridgeFailed', "Wront event emitted");
-      assert.equal(log.args.requester, user1, "Wrong requester");
-      assert.equal(log.args.bridgeHash, thisChainTxnHash1, "Wrong txn hash");
+      const log1 = logs1[0];
+      assert.equal(log1.event, 'BridgeFailed', "Wront event emitted");
+      assert.equal(log1.args.requester, user1, "Wrong requester");
+      assert.equal(log1.args.bridgeHash, thisChainTxnHash1, "Wrong txn hash");
 
       //Checking if balance was minted back when refunding. Fee is taken into account.
       const mintedBalance = web3.utils.fromWei(await this.token1.balanceOf(user1));
@@ -286,8 +286,18 @@ _
       const thisChainTxnHash2 = await this.bridge1.requestBridge(receiver2, 2222, this.token2.address, token2TransferedWei, {from: user2}).call();
 
       // Gateway uses sendTransactionFailure. 
-      const {logs} = await this.bridge1.sendTransactionFailure(thisChainTxnHash2, {from: gateway});
+      const {logs2} = await this.bridge1.sendTransactionFailure(thisChainTxnHash2, {from: gateway});
 
+      // Checking if event is correctly emitted
+      assert.ok(Array.isArray(logs2));
+      assert.equal(logs2.length, 1, "Only one event should've been emitted");
+
+      const log2 = logs2[0];
+      assert.equal(log2.event, 'BridgeFailed', "Wront event emitted");
+      assert.equal(log2.args.requester, user2, "Wrong requester");
+      assert.equal(log2.args.bridgeHash, thisChainTxnHash2, "Wrong txn hash");
+
+      // Checking if tokens are refunded by being transferred back
       const transferedUserBalance = web3.utils.fromWei(await this.token2.balanceOf(user2));
       const transferedBridgeBalance = web3.utils.fromWei(await this.token2.balanceOf(this.bridge1.address));
 
