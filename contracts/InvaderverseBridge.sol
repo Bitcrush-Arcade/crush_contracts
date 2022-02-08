@@ -37,7 +37,7 @@ contract InvaderverseBridge is Ownable, ReentrancyGuard {
         bytes32 otherChainHash;
     }
 
-    uint public lockDuration = 172800; // Minimum lock time before unlocking/failing 1 hour
+    uint public lockDuration = 36 hours;
 
     uint public nonce = 1; // makes sure that all hashes created are different
     mapping( bytes32 => BridgeTx) public transactions;
@@ -188,6 +188,9 @@ contract InvaderverseBridge is Ownable, ReentrancyGuard {
         emit MirrorBurned(_tokenAddress, _fromChain, _amount, _burnHash );
     }
     // Owner functions
+    /// @notice enable/disable other chain to transfer tokens to
+    /// @param _chainID the chain to enable to bridge
+    /// @dev This is a toggler, so if this is called twice for the same ID, it'll enable and disable it
     function toggleChain(uint _chainID) external onlyOwner{
         validChains[_chainID] = !validChains[_chainID];
         emit ChainEdit(_chainID, validChains[_chainID]);
