@@ -4,10 +4,10 @@ const { web3 } = require('@openzeppelin/test-helpers/src/setup');
 const NiceBEP = artifacts.require("NICEToken");
 const NiceERC = artifacts.require("NiceTokenFtm");
 const CrushERC = artifacts.require("CrushErc20");
-const MetaBridge = artifacts.require("InvaderverseBridge");
+const InvaderverseBridge = artifacts.require("InvaderverseBridge");
 
 // These tests are for our main bridge contract that connects tokens in EVM chains. This bridge contract can work both as a main chain bridge (lock/unlock) 
-// and as a side bridge (mint/burn), depending on the token that's being bridged or recieved.  
+// and as a side bridge (mint/burn), depending on the token that's being bridged or recieved.
 // The type of bridge has to be specified for the token on both bridges. 
 // accounts[0] contract owner address (minter)
 // accounts[1] user1
@@ -27,8 +27,8 @@ contract('InvaderverseBridgeTest', ([minter, user1, user2, gateway, receiver1, d
     this.token1 = await NiceBEP.new('Nice Token','NICE',{from: minter});
     this.token2 = await NiceERC.new('Test Token1','TOKEN1',{from: minter});
     this.token3 = await CrushERC.new('Test Token2','TOKEN2',{from: minter});
-    this.bridge1 = await MetaBridge.new({from: gateway});
-    this.bridge2 = await MetaBridge.new({from: gateway});
+    this.bridge1 = await InvaderverseBridge.new({from: gateway});
+    this.bridge2 = await InvaderverseBridge.new({from: gateway});
     
     await this.token1.setBridge( this.bridge1.address, { from: minter});
     await this.token2.setBridge( this.bridge1.address, { from: minter});
@@ -321,23 +321,40 @@ _
     await expectRevert(this.bridge1.fulfillBridge(user1, 3, this.token1.address, 2222, testHash, {from: user1}), 'onlyGateway');
 
     // Recieving from valid chain, bridgeType == false (mint/burn), should mint to user1
-    await this.bridge1.fulfillBridge(user1, 3, this.token1.address, 2222, testHash, {from: gateway});
+    const {logs} = await this.bridge1.fulfillBridge(user1, 3, this.token1.address, 2222, testHash, {from: gateway});
     const userFinalBalance = new BN(await this.token1.balanceOf(user1)).toString();
     assert.equal(userFinalBalance, '3', 'Amount is not being minted');
+
+    // Checking if event is correctly emitted
+    assert.ok(Array.isArray(logs));
+    assert.equal(logs.length, 1, "Only one event should've been emitted");
+
+    const log = logs[0];
+    assert.equal(log.event, 'FulfillBridgeRequest', "Wront event emitted");
+    assert.equal(log.args._otherChainId, 2222, "Wrong requester");
+    assert.equal(log.args._otherChainHash.replace(/[0]{2}/g,""), testHash, "Wrong txn hash");
 
     // Recieving from valid chain, bridgeType == true (lock/unlock), should transfer to user1
     const testHash2 = web3.utils.asciiToHex("TEST_HASH2");
 
     await this.token2.mint(this.bridge1.address, 5,{ from: minter});
-    await this.bridge1.fulfillBridge(user1, 5, this.token2.address, 2222, testHash2,{from: gateway});
-    
+    const fulfillRc2 = await this.bridge1.fulfillBridge(user1, 5, this.token2.address, 2222, testHash2,{from: gateway});
+    const logs2 = fulfillRc2.logs
+
     const transferUserBalance = new BN(await this.token2.balanceOf(user1)).toString();
     const transferBridgeBalance = new BN(await this.token2.balanceOf(this.bridge1.address)).toString();
     
     assert.equal(transferUserBalance, '5', 'Amount is not transfered');
     assert.equal(transferBridgeBalance, '0', 'Amount is not transfered from bridge');
     
-    // CHECKING EVENT FROM FULFILL BRIDGE
+    // Checking if event is correctly emitted
+    assert.ok(Array.isArray(logs2));
+    assert.equal(logs2.length, 1, "Only one event should've been emitted");
+
+    const log2 = logs2[0];
+    assert.equal(log2.event, 'FulfillBridgeRequest', "Wront event emitted");
+    assert.equal(log2.args._otherChainId, 2222, "Wrong requester");
+    assert.equal(log2.args._otherChainHash.replace(/[0]{2}/g,""), testHash2, "Wrong txn hash");
 
   });
 
@@ -375,17 +392,57 @@ _
   });
 
   it("Must act accordingly with other bridge", async()=>{
-    //ASSUMING
-    // BRIDGE 1 LIVES IN CHAIN 1
-    // BRIDGE 2 LIVES IN CHAIN 2
-    // TOKEN 1  ==  TOKEN 2 JUST ON DIFFERENT CHAINS
 
+    // In this test, user1 will be sending NICE tokens to his wallet in receiver1. In this test we are the gateway.
 
-    // REQUEST BRIDGE OF TOKEN1 TO CHAIN 2
+    // Setting up 
+      const token1Fee = 100
+      const tokenFeeDivisor = 100000
+      const chain1Id = 1111
+      const chain2Id = 2222
 
-    // RECEIVE BRIDGE HASH
+      // Token 1 amounts
+      const token1Minted = 6
+      const token1Transfered = 4
+      const token1MintedWei = web3.utils.toWei(""+token1Minted)
+      const token1TransferedWei = web3.utils.toWei(""+token1Transfered)
 
-    // FULFILLBRIDGE ON CHAIN 2 
+      // Minting bep tokens to user1 for it to be able to bridge
+      await this.token1.mint(user1, token1MintedWei, {from: minter});
+
+      // user1 approves bridge1
+      await this.token1.approve(this.bridge1.address, token1MintedWei, {from: user1});
+
+      // Deployer sets up tokens. Their respective bridges must be added and minters toggled.
+      //ASSUMING BRIDGE 1 LIVES IN CHAIN 1 (ID: 1111) AND BRIDGE 2 LIVES IN CHAIN 2 (ID: 2222)
+      await this.token1.setBridge(this.bridge1.address, {from: minter});
+      await this.token1.toggleMinter(this.bridge1.address, {from: minter});
+
+      await this.token2.setBridge(this.bridge2.address, {from: minter});
+      await this.token2.toggleMinter(this.bridge2.address, {from: minter});
+
+      // Deployer sets up bridges by adding the tokens with their props
+      // TOKEN 1  ==  TOKEN 2 JUST ON DIFFERENT CHAINS
+      await this.bridge1.addToken(this.token1.address, token1Fee, false, true, chain2Id, {from: gateway}); //Token that needs mint/burn bridge on chain1
+      await this.bridge2.addToken(this.token2.address, token1Fee, false, true, chain1Id, {from: gateway}); //Token that needs mint/burn bridge on chain2
+
+    // Bridging tokens from chain1 to chain2. Tester will be calling functions as gateway.
+
+    // REQUEST BRIDGE BY USER1 OF TOKEN1(NICE BEP20) TO CHAIN 2 OF TOKEN2(NICE ERC20). It will be recieved by reciever1. Note they're the same type of token.
+    const {logs} = await this.bridge1.requestBridge(receiver1, chain2Id, this.token1.address, token1TransferedWei, {from: user1});
+    bridgeHash = logs[0].args.bridgeHash;
+
+    // GATEWAY RECEIVES BRIDGE EVENT FULFILLS BRIDGE ON CHAIN 2
+    await this.bridge2.fulfillBridge(receiver1, token1TransferedWei, this.token2.address, chain1Id, bridgeHash, {from: gateway});
+
+    // CHECKING FINAL BALANCES
+
+    const user1Balance = await this.token1.balanceOf(user1);
+    const receiver1Balance = await this.token2.balanceOf(receiver1);
+
+    assert.equal(user1Balance, token1MintedWei-token1TransferedWei-(token1TransferedWei*(token1Fee/tokenFeeDivisor)), 'Incorrect user1 balance');
+    assert.equal(receiver1Balance, token1TransferedWei, 'Incorrect receiver1 balance');
+     
   });
   
 });
