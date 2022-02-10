@@ -10,5 +10,5 @@ module.exports = async function ( deployer ) {
    const Token = await TestCoin.deployed()
    await deployer.deploy(StakeTest,Token.address)
    const Staking  = await StakeTest.deployed();
-   await deployer.deploy(Presale, NFT.address, Staking.address);
+   await deployer.deploy(Presale, NFT.address, Staking.address, Token.address);
 }
