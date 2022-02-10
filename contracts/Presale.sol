@@ -101,6 +101,7 @@ contract Presale is Ownable {
     require(whitelist[msg.sender]  > 0, "Whitelist only");
     require(block.timestamp < saleEnd, "SaleEnded");
     require(_amount >= 100 ether, "Minimum not met");
+    require(_amount <= 5000 ether, "Cap overflow");
     require(totalRaised < maxRaise, "Limit Exceeded");
     uint amount = _amount;
     // When exceeding, send the rest to the user

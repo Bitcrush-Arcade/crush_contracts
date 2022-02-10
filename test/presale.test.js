@@ -6,7 +6,7 @@ const TestNFT = artifacts.require("TestNFT");
 const TestStaking = artifacts.require("StakingTest");
 const TestCoin = artifacts.require("NICEToken");
 
-contract( "PresaleTest", ([minter, buyer1, buyer2, buyer3, buyer4, dev])=>{
+contract( "PresaleTest", ([minter, buyer1, buyer2, buyer3, buyer4, buyer5, dev])=>{
   beforeEach(async()=>{
     this.nft = await TestNFT.new("Crush God", "CG", {from: minter});
     this.token = await TestCoin.new("CrushCoin", "CRUSH", {from: minter})
@@ -17,29 +17,35 @@ contract( "PresaleTest", ([minter, buyer1, buyer2, buyer3, buyer4, dev])=>{
 
     await this.nft.mint(buyer1, 1,{from: minter})
     await this.nft.mint(buyer3, 2,{from: minter})
+    await this.nft.mint(buyer5, 3,{from: minter})
     await this.token.mint(buyer1, web3.utils.toWei("20000"),{from: minter})
     await this.token.mint(buyer2, web3.utils.toWei("20000"),{from: minter})
     await this.token.mint(buyer3, web3.utils.toWei("20000"),{from: minter})
     await this.token.mint(buyer4, web3.utils.toWei("20000"),{from: minter})
+    await this.token.mint(buyer5, web3.utils.toWei("20000"),{from: minter})
     await this.busd.mint(buyer1, web3.utils.toWei("3000"),{from: minter})
     await this.busd.mint(buyer2, web3.utils.toWei("3000"),{from: minter})
     await this.busd.mint(buyer3, web3.utils.toWei("3000"),{from: minter})
     await this.busd.mint(buyer4, web3.utils.toWei("3000"),{from: minter})
+    await this.busd.mint(buyer5, web3.utils.toWei("30000"),{from: minter})
 
     await this.token.approve(this.staking.address, web3.utils.toWei("100000"),{from: buyer1})
     await this.token.approve(this.staking.address, web3.utils.toWei("100000"),{from: buyer2})
     await this.token.approve(this.staking.address, web3.utils.toWei("100000"),{from: buyer3})
     await this.token.approve(this.staking.address, web3.utils.toWei("100000"),{from: buyer4})
+    await this.token.approve(this.staking.address, web3.utils.toWei("100000"),{from: buyer5})
 
     await this.busd.approve(this.presale.address, web3.utils.toWei("100000"),{from: buyer1})
     await this.busd.approve(this.presale.address, web3.utils.toWei("100000"),{from: buyer2})
     await this.busd.approve(this.presale.address, web3.utils.toWei("100000"),{from: buyer3})
     await this.busd.approve(this.presale.address, web3.utils.toWei("100000"),{from: buyer4})
+    await this.busd.approve(this.presale.address, web3.utils.toWei("100000"),{from: buyer5})
 
     await this.presale.setNiceToken( this.niceToken.address, {from: minter})
     await this.niceToken.toggleMinter(this.presale.address, {from: minter})
 
     await this.staking.addFunds(web3.utils.toWei("10000"),{from: buyer1})
+    await this.staking.addFunds(web3.utils.toWei("14000"),{from: buyer5})
 
   })
   // Sale start opens up whitelist first and set the timestamp for sale start
@@ -85,14 +91,16 @@ contract( "PresaleTest", ([minter, buyer1, buyer2, buyer3, buyer4, dev])=>{
     await time.increase(time.duration.hours(12) + time.duration.minutes(30)); //30 min increase + 100secs of sale duration
     await expectRevert( this.presale.buyNice(web3.utils.toWei("150"), {from: buyer1}), "SaleEnded")
   })
-  it("Should only allow to buy with exact BUSD", async ()=>{
+  it("Should only allow to buy with BUSD respecting restrictions", async ()=>{
     await this.presale.startSale({from: minter})
     await this.presale.whitelistSelf(1, {from: buyer1})
+    await this.presale.whitelistSelf(3, {from: buyer5})
     await time.increase(time.duration.minutes(30)) //increase whitelist time
     
     // SHOULD ALLOW A MINIMUM BUY OF 100$
     await expectRevert( this.presale.buyNice(web3.utils.toWei("50"),{from: buyer1}), "Minimum not met")
     await expectRevert( this.presale.buyNice(web3.utils.toWei("100.50"),{from: buyer1}), "Exact amounts only")
+    await expectRevert( this.presale.buyNice(web3.utils.toWei("5001"),{from: buyer5}), "Cap overflow")
     await this.presale.buyNice(web3.utils.toWei("100"), {from: buyer1})
     // MAXIMUM AMOUNT TBD
     const presaleBalance = web3.utils.fromWei(await this.busd.balanceOf(this.presale.address))
