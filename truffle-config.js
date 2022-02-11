@@ -22,7 +22,7 @@ const HDWalletProvider = require('@truffle/hdwallet-provider');
 // const infuraKey = "fj4jll3k.....";
 //
 //const fs = require('fs');
-//const mnemonic = fs.readFileSync(".secret").toString().trim();
+const secret_data = require("./env.json");
 
 module.exports = {
   /**
@@ -59,9 +59,13 @@ module.exports = {
     testnet: {
       host: "https://data-seed-prebsc-1-s1.binance.org/",     // Localhost (default: none)
       port: 8545,            // Standard Ethereum port (default: none)
-      network_id: "*",       // Any network (default: none)
+      network_id: 97,       // Any network (default: none)
       provider : function(){
-        return new HDWalletProvider('', "https://data-seed-prebsc-1-s1.binance.org:8545/");
+        return new HDWalletProvider({
+          mnemonic: secret_data.mnemonic,
+          providerOrUrl: "https://data-seed-prebsc-1-s1.binance.org:8545/",
+          addressIndex: 1
+        });
        }
      },
      mainnet : {
@@ -72,7 +76,7 @@ module.exports = {
       timeoutBlocks: 200,
       skipDryRun: true,       
       provider : function(){
-        return new HDWalletProvider('', "https://bsc-dataseed1.binance.org");
+        return new HDWalletProvider(secret_data.mnemonic, "https://bsc-dataseed1.binance.org");
        }
      }
     // Another network with more advanced options...
@@ -112,16 +116,21 @@ module.exports = {
     solc: {
       version: "0.8.9",    // Fetch exact version from solc-bin (default: truffle's version)
       // docker: true,        // Use "0.5.1" you've installed locally with docker (default: false)
-      // settings: {          // See the solidity docs for advice about optimization and evmVersion
-      //  optimizer: {
-      //    enabled: false,
-      //    runs: 200
-      //  },
+      settings: {          // See the solidity docs for advice about optimization and evmVersion
+       optimizer: {
+         enabled: false,
+         runs: 400
+       },
       //  evmVersion: "byzantium"
-      // }
+      }
     }
   },
-
+  plugins: [
+    'truffle-plugin-verify'
+  ],
+  api_keys:{
+    bscscan: secret_data.BSC_KEY
+  },
   // Truffle DB is currently disabled by default; to enable it, change enabled: false to enabled: true
   //
   // Note: if you migrated your contracts prior to enabling this field in your Truffle project and want
