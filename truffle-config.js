@@ -68,7 +68,7 @@ module.exports = {
         return new HDWalletProvider({
           mnemonic: mnemonic,
           providerOrUrl: "https://data-seed-prebsc-1-s1.binance.org:8545/",
-          addressIndex: 1
+          addressIndex: 0
         });
        }
      },
