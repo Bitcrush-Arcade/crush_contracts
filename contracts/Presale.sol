@@ -95,13 +95,15 @@ contract Presale is Ownable {
   }
   /// @notice Reserve NICE allocation with BUSD
   /// @param _amount Amount of BUSD to lock NICE amount
-  /// @dev minimum of $100 BUSD, if limit is exceeded we will allocate just a portion of that amount.
+  /// @dev minimum of $100 BUSD, max of $5K BUSD
+  /// @dev if maxRaise is exceeded we will allocate just a portion of that amount.
   function buyNice(uint _amount) external{
     require(_amount.mod(1 ether) == 0, "Exact amounts only");
     require(whitelist[msg.sender]  > 0, "Whitelist only");
     require(block.timestamp < saleEnd, "SaleEnded");
     require(_amount >= 100 ether, "Minimum not met");
-    require(_amount <= 5000 ether, "Cap overflow");
+    Buy storage userInfo = userBought[msg.sender];
+    require(_amount <= 5000 ether && _amount.add(userInfo.amountBought) <= 5000 ether, "Cap overflow");
     require(totalRaised < maxRaise, "Limit Exceeded");
     uint amount = _amount;
     // When exceeding, send the rest to the user
@@ -110,7 +112,6 @@ contract Presale is Ownable {
     }
 
     busd.safeTransferFrom(msg.sender, address(this), amount);
-    Buy storage userInfo = userBought[msg.sender];
     userInfo.amountOwed = userInfo.amountOwed.add( amount.mul(priceDec).div(pricePerToken) );
     userInfo.amountBought = userInfo.amountBought.add( amount );
     totalRaised = totalRaised.add(amount);
