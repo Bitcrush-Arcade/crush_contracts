@@ -27,7 +27,7 @@ contract InvaderverseBridge is Ownable, ReentrancyGuard {
         uint tokenFee;
         bool bridgeType; // true => lock/unlock; false => mint/burn
         bool status;
-        // bool hasBurnFrom;
+        uint minAmount;
     }
     struct BridgeTx{
         uint amount;
@@ -56,7 +56,7 @@ contract InvaderverseBridge is Ownable, ReentrancyGuard {
     event BridgeSuccess(address indexed requester, bytes32 bridgeHash);
     event BridgeFailed(address indexed requester, bytes32 bridgeHash);
     event FulfillBridgeRequest(uint _otherChainId, bytes32 _otherChainHash);
-    event ModifiedBridgeToken(uint indexed _chain, address indexed _token, bool _type, bool _status);
+    event ModifiedBridgeToken(uint indexed _chain, address indexed _token, bool _type, bool _status, uint _minimum);
     event MirrorBurned(address tokenAddress, uint256 otherChain, uint256 amount, bytes32 otherChainHash);
     event SetGateway(address gatewayAddress);
     event SetDev(address dev);
@@ -80,7 +80,7 @@ contract InvaderverseBridge is Ownable, ReentrancyGuard {
     ) external nonReentrant returns(bytes32 _bridgeHash){
         require(validChains[_chainId], "Invalid Chain");
         BridgeToken storage tokenInfo = validTokens[_chainId][_tokenAddress];
-        
+        require(tokenInfo.minAmount <= tokenInfo.minAmount, "Min not met");
         require(tokenInfo.status, "Invalid Token");
         NiceTokenFtm bridgedToken = NiceTokenFtm(_tokenAddress);
         nonce = nonce.add(1);
@@ -204,9 +204,9 @@ contract InvaderverseBridge is Ownable, ReentrancyGuard {
     /// @param bridgeType type of bridge implemented on this chain, false => mint/burn, true => lock/unlock
     /// @param status true for on, false for off
     /// @param _otherChainId the other chain ID, where we have the receiver
-    function addToken(address _thisChainTokenAddress, uint tokenFee, bool bridgeType, bool status, uint _otherChainId) external onlyOwner{
-        validTokens[_otherChainId][_thisChainTokenAddress] = BridgeToken(tokenFee, bridgeType, status);
-        emit ModifiedBridgeToken(_otherChainId, _thisChainTokenAddress, bridgeType, status);
+    function addToken(address _thisChainTokenAddress, uint tokenFee, bool bridgeType, bool status, uint _otherChainId, uint _minAmount) external onlyOwner{
+        validTokens[_otherChainId][_thisChainTokenAddress] = BridgeToken(tokenFee, bridgeType, status, _minAmount);
+        emit ModifiedBridgeToken(_otherChainId, _thisChainTokenAddress, bridgeType, status, _minAmount);
     }
     /// @notice Set the Gateway user Address
     /// @param _gateway the address to set
