@@ -23,9 +23,8 @@ contract Presale is Ownable {
     uint amountOwed;
   }
 
-  uint public saleStart;
-  uint public whitelistStart;
-  uint public saleEnd;
+  uint public constant saleStart = 1645401600;
+  uint public constant saleEnd = 1645488000;
   uint public constant vestingDuration = 2 weeks;
   StakingTest public immutable staking;
   ERC721 public immutable crushGod;
@@ -58,17 +57,6 @@ contract Presale is Ownable {
     busd = ERC20(_busd);
     devAddress = msg.sender;
   }
-  /// @notice start the sale
-  /// @dev this allows for 30 min of whitelisting time before sale start
-  /// @dev sale End is set for 12h and 30 min after whitelist starts
-  function startSale() external onlyOwner {
-    require(saleStart == 0 && saleEnd == 0 && whitelistStart == 0, "Sale already started");
-    whitelistStart = block.timestamp;
-    saleStart = block.timestamp.add(30 minutes);
-    saleEnd = block.timestamp.add(saleDuration).add(30 minutes);
-    emit SaleStarts(saleStart);
-    emit WhitelistStarted(true);
-  }
   /// @notice qualify only checks quantity
   /// @dev qualify is an overlook of the amount of CrushGod NFTs held and tokens staked
   function qualify() public view returns(bool _isQualified){
@@ -80,7 +68,6 @@ contract Presale is Ownable {
   /// @param tokenId the NFT Id to register with
   /// @dev once whitelisted, the token locked to that wallet.
   function whitelistSelf(uint tokenId) public {
-    require( whitelistStart > 0, "Whitelist not started");
     bool isQualified = qualify();
     require(isQualified, "Unqualified");
     require(whitelist[msg.sender] == 0, "Already whitelisted");
