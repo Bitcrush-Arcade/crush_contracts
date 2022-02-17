@@ -5,15 +5,19 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 contract StakingTest {
   ERC20 public token;
-  struct staked {
+  struct UserStaking {
+    uint256 shares;
     uint256 stakedAmount;
     uint256 claimedAmount;
     uint256 lastBlockCompounded;
     uint256 lastBlockStaked;
     uint256 index;
+    uint256 lastFrozenWithdraw;
+    uint256 apyBaseline;
+    uint256 profitBaseline;
   }
 
-  mapping(address => staked) public stakings;
+  mapping(address => UserStaking) public stakings;
 
   constructor(address _tokenAddress){
     token = ERC20(_tokenAddress);
