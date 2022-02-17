@@ -48,20 +48,6 @@ contract( "PresaleTest", ([minter, buyer1, buyer2, buyer3, buyer4, buyer5, dev])
     await this.staking.addFunds(web3.utils.toWei("14000"),{from: buyer5})
 
   })
-  // Sale start opens up whitelist first and set the timestamp for sale start
-  it("Should update the start sale for 12 hours and 30 min of whitelist time", async ()=>{
-    const saleDuration = new BN(await this.presale.saleDuration.call())
-    
-    const start = await this.presale.startSale({from: minter});
-    const currentBlock = new BN((await web3.eth.getBlock("latest")).timestamp);
-    expectEvent( start, "SaleStarts", {
-      startBlock: currentBlock.add( web3.utils.toBN("1800"))
-    })
-    const saleEnd = new BN(await this.presale.saleEnd.call()).toString();
-    
-    assert.equal(saleEnd, saleDuration.add(currentBlock.add( web3.utils.toBN("1800"))).toString(), "Sale end time not calculated");
-  })
-
   it("Should check if user has NFT and valid Staked Amount", async ()=>{
     await this.staking.addFunds(web3.utils.toWei("10000"),{from: buyer2})
     await this.staking.addFunds(web3.utils.toWei("5000"),{from: buyer3})
@@ -78,21 +64,16 @@ contract( "PresaleTest", ([minter, buyer1, buyer2, buyer3, buyer4, buyer5, dev])
     
   })
   it("Should only allow whitelists to buy", async() => {
-    await expectRevert( this.presale.whitelistSelf(1, {from: buyer1}), "Whitelist not started")
-    await this.presale.startSale({from: minter});
     await this.presale.whitelistSelf(1, {from: buyer1})
     await this.presale.buyNice(web3.utils.toWei("100"), {from: buyer1});
     await expectRevert( this.presale.buyNice(web3.utils.toWei("300"), {from: buyer2}), "Whitelist only")
   })
   it("Should not allow to buy after sale End 12 hours and 30 min", async ()=>{
-    await this.presale.startSale({from: minter})
     await this.presale.whitelistSelf(1, {from: buyer1})
-    const currentBlock = new BN((await web3.eth.getBlock("latest")).timestamp);
     await time.increase(time.duration.hours(12) + time.duration.minutes(30)); //30 min increase + 100secs of sale duration
     await expectRevert( this.presale.buyNice(web3.utils.toWei("150"), {from: buyer1}), "SaleEnded")
   })
   it("Should only allow to buy with BUSD respecting restrictions", async ()=>{
-    await this.presale.startSale({from: minter})
     await this.presale.whitelistSelf(1, {from: buyer1})
     await this.presale.whitelistSelf(3, {from: buyer5})
     await time.increase(time.duration.minutes(30)) //increase whitelist time
@@ -109,7 +90,6 @@ contract( "PresaleTest", ([minter, buyer1, buyer2, buyer3, buyer4, buyer5, dev])
     assert.equal(userFinalBalance, "2900", "BUSD was not removed correctly for user" )
   })
   it("Should show bought funds amount", async ()=>{
-    await this.presale.startSale({from: minter})
     await this.presale.whitelistSelf(1,{from:buyer1})
     await time.increase(time.duration.minutes(30)) //increase whitelist time
     await this.presale.buyNice(web3.utils.toWei("100"), {from: buyer1})
@@ -118,7 +98,6 @@ contract( "PresaleTest", ([minter, buyer1, buyer2, buyer3, buyer4, buyer5, dev])
     assert.equal(user1Info.amountOwed.toString(), new BN(web3.utils.toWei("100")).mul( new BN("10000")).div( new BN("47")).toString(), "Not the right amount owed")
   })
   it("Should allow to claim after sale ends", async ()=>{
-    await this.presale.startSale({from: minter})
     await this.presale.whitelistSelf(1, {from: buyer1})
     await time.increase(time.duration.minutes(30)); //30 minute increase for whitelist end
     await this.presale.buyNice(web3.utils.toWei("100"), {from: buyer1})
@@ -133,7 +112,6 @@ contract( "PresaleTest", ([minter, buyer1, buyer2, buyer3, buyer4, buyer5, dev])
   })
   it("Should allow to withdraw more after X amount of time", async ()=>{
 
-    await this.presale.startSale({from: minter})
     await this.presale.whitelistSelf(1, {from: buyer1})
     await time.increase(time.duration.minutes(30)); //30 minute increase for whitelist end
     await this.presale.buyNice(web3.utils.toWei("100"), {from: buyer1})
@@ -164,14 +142,12 @@ contract( "PresaleTest", ([minter, buyer1, buyer2, buyer3, buyer4, buyer5, dev])
     assert.ok(user1Nice.sub( new BN(web3.utils.toWei("100")).mul( new BN("10000")).div( new BN("47")).mul(new BN("100")).div( new BN("100"))) < new BN("10"), "Incorrect amount of NICE minted")
   })
   it("Should allow the owner to claim the raised funds", async () => {
-    await this.presale.startSale({from: minter})
     await this.presale.whitelistSelf(1, {from: buyer1})
     await time.increase(time.duration.minutes(30)); //30 minute increase for whitelist end
     await this.presale.buyNice(web3.utils.toWei("100"), {from: buyer1})
-    await expectRevert( this.presale.claimRaised({from: minter}), "Sale running")
     await time.increase(time.duration.hours(13));  //12 hours of sale duration
     await this.presale.claimRaised({from: minter});
-    const minterBalance = await this.busd.balanceOf(minter);
+    const minterBalance = await this.busd.balanceOf("0xADdb2B59d1B782e8392Ee03d7E2cEaA240e7f1c0");
     assert.equal( web3.utils.fromWei(minterBalance), "100", "Dev didn't get correct funds")
 
   })
