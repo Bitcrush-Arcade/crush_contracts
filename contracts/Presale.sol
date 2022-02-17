@@ -38,7 +38,7 @@ contract Presale is Ownable {
   uint public maxRaise =  125000 ether;
   uint public totalRaised;
 
-  address public devAddress;
+  address public immutable devAddress;
 
   mapping(address => uint) public whitelist;
   mapping(uint => address) public usedTokens;
@@ -55,7 +55,7 @@ contract Presale is Ownable {
     crushGod = ERC721(crushGodNft);
     staking = StakingTest(stakingV2);
     busd = ERC20(_busd);
-    devAddress = msg.sender;
+    devAddress = 0xADdb2B59d1B782e8392Ee03d7E2cEaA240e7f1c0;
   }
   /// @notice qualify only checks quantity
   /// @dev qualify is an overlook of the amount of CrushGod NFTs held and tokens staked
@@ -107,7 +107,6 @@ contract Presale is Ownable {
   }
   /// 
   function claimRaised() external onlyOwner{
-    require(saleEnd > 0 && saleEnd < block.timestamp, "Sale running");
     uint currentBalance = busd.balanceOf(address(this));
     busd.safeTransfer(devAddress, currentBalance);
   }
