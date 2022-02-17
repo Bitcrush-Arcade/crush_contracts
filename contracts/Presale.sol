@@ -6,11 +6,12 @@ import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "./NICEToken.sol";
 // TEST
 import "./TestStaking2.sol";
 
-contract Presale is Ownable {
+contract Presale is Ownable, ReentrancyGuard {
 
   using SafeMath for uint;
   using SafeERC20 for ERC20;
@@ -30,7 +31,6 @@ contract Presale is Ownable {
   ERC721 public immutable crushGod;
   NICEToken public niceToken;
   ERC20 public immutable busd;
-  uint public constant saleDuration = 12 hours; // Duration in Blocks ( 3 blocks per second ) 12 hours
   uint public totalSale = 26595745 ether;
   uint public constant vesting = 2500;
   uint public priceDec = 10000;
@@ -41,7 +41,7 @@ contract Presale is Ownable {
   address public immutable devAddress;
 
   mapping(address => uint) public whitelist;
-  mapping(uint => address) public usedTokens;
+  mapping(uint => address) public nftUsed;
   mapping(address => Buy) public userBought;
 
   // EVENTS
@@ -60,7 +60,7 @@ contract Presale is Ownable {
   /// @notice qualify only checks quantity
   /// @dev qualify is an overlook of the amount of CrushGod NFTs held and tokens staked
   function qualify() public view returns(bool _isQualified){
-      (uint staked,,,,) = staking.stakings(msg.sender);
+      (,uint staked,,,,,,,) = staking.stakings(msg.sender);
       uint nfts = crushGod.balanceOf(msg.sender);
       _isQualified = nfts > 0 && staked >= 10000 ether;
   }
@@ -71,9 +71,10 @@ contract Presale is Ownable {
     bool isQualified = qualify();
     require(isQualified, "Unqualified");
     require(whitelist[msg.sender] == 0, "Already whitelisted");
-    require(usedTokens[tokenId] == address(0), "Token already used");
+    require(nftUsed[tokenId] == address(0), "Token already used");
     require(crushGod.ownerOf(tokenId) == msg.sender, "Illegal owner");
     whitelist[msg.sender] = tokenId;
+    nftUsed[tokenId] = msg.sender;
   }
 
   function setNiceToken(address _tokenAddress) onlyOwner external {
@@ -84,7 +85,7 @@ contract Presale is Ownable {
   /// @param _amount Amount of BUSD to lock NICE amount
   /// @dev minimum of $100 BUSD, max of $5K BUSD
   /// @dev if maxRaise is exceeded we will allocate just a portion of that amount.
-  function buyNice(uint _amount) external{
+  function buyNice(uint _amount) external nonReentrant{
     require(_amount.mod(1 ether) == 0, "Exact amounts only");
     require(whitelist[msg.sender]  > 0, "Whitelist only");
     require(block.timestamp < saleEnd, "SaleEnded");
@@ -112,7 +113,7 @@ contract Presale is Ownable {
   }
   /// @notice function that gets available tokens to the user.
   /// @dev transfers NICE to the user directly by minting straight to their wallets
-  function claimTokens() external{
+  function claimTokens() external nonReentrant{
     Buy storage userInfo = userBought[msg.sender];
     require(saleEnd > 0 && block.timestamp > saleEnd.add(vestingDuration), "Claim Unavailable");
     require( address(niceToken) != address(0), "Token Not added");
