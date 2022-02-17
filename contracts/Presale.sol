@@ -25,7 +25,7 @@ contract Presale is Ownable, ReentrancyGuard {
   }
 
   uint public constant saleStart = 1645401600;
-  uint public constant saleEnd = 1645488000;
+  uint public constant saleEnd = 1645660800;
   uint public constant vestingDuration = 2 weeks;
   StakingTest public immutable staking;
   ERC721 public immutable crushGod;
