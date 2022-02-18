@@ -19,8 +19,6 @@ contract CrushErc20 is Context, IERC20, IERC20Metadata, Ownable {
 
     mapping(address => uint256) private _balances;
     mapping(address => mapping(address => uint256)) private _allowances;
-    mapping(address => bool) private validMinters;
-
 
     uint256 private _totalSupply;
 
@@ -118,8 +116,8 @@ contract CrushErc20 is Context, IERC20, IERC20Metadata, Ownable {
     /**
      * @dev See {IERC20-allowance}.
      */
-    function allowance(address owner, address spender) public view virtual override returns (uint256) {
-        return _allowances[owner][spender];
+    function allowance(address allowanceOwner, address allowanceSpender) public view virtual override returns (uint256) {
+        return _allowances[allowanceOwner][allowanceSpender];
     }
 
     /**
@@ -311,15 +309,15 @@ contract CrushErc20 is Context, IERC20, IERC20Metadata, Ownable {
      * - `spender` cannot be the zero address.
      */
     function _approve(
-        address owner,
-        address spender,
-        uint256 amount
+        address _approveOwner,
+        address _approveSpender,
+        uint256 _approveAmount
     ) internal virtual {
-        require(owner != address(0), "ERC20: approve from the zero address");
-        require(spender != address(0), "ERC20: approve to the zero address");
+        require(_approveOwner != address(0), "ERC20: approve from the zero address");
+        require(_approveSpender != address(0), "ERC20: approve to the zero address");
 
-        _allowances[owner][spender] = amount;
-        emit Approval(owner, spender, amount);
+        _allowances[_approveOwner][_approveSpender] = _approveAmount;
+        emit Approval(_approveOwner, _approveSpender, _approveAmount);
     }
     /**
      * @dev Bridge and minter Functions
@@ -328,6 +326,8 @@ contract CrushErc20 is Context, IERC20, IERC20Metadata, Ownable {
     /// @notice Sets Bridge when it's ready. This is the bridge that will be able to use onlyBridge functions.
     /// @param bridgeAddress is the address of the bridge on this chain
     function setBridge(address bridgeAddress) external onlyOwner {
+        require(bridgeAddress != address(0), "Bridge: invalid address");
+
         bridge = bridgeAddress;
         emit SetBridge(bridge);
     }

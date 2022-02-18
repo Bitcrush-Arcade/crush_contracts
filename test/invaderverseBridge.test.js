@@ -66,24 +66,24 @@ _
   it('Should allow owner only to add valid token', async() => {
 
     // Checking if onlyOwner
-    await expectRevert(this.bridge1.addToken(this.token1.address, 1, false, true, 8888, {from: user1}), 'Ownable: caller is not the owner');
+    await expectRevert(this.bridge1.addToken(this.token1.address, 1, false, true, 8888, web3.utils.toWei("1000"), {from: user1}), 'Ownable: caller is not the owner');
         
     // Checking if token was already added
     const isValid = (await this.bridge1.validTokens(8888,this.token1.address)).status;
     assert.ok(!isValid, 'Token was already added');
 
     // Adding NiceBEP
-    await this.bridge1.addToken(this.token1.address, 1, false, true, 8888, {from: gateway});
+    await this.bridge1.addToken(this.token1.address, 1, false, true, 8888, web3.utils.toWei("1000"), {from: gateway});
     let addedToken = (await this.bridge1.validTokens(8888,this.token1.address)).status;
     assert.ok(addedToken, 'Token was not added');
 
     // Adding NiceERC
-    await this.bridge1.addToken(this.token2.address, 1, false, true, 8888, {from: gateway});
+    await this.bridge1.addToken(this.token2.address, 1, false, true, 8888, web3.utils.toWei("1000"), {from: gateway});
     addedToken = (await this.bridge1.validTokens(8888,this.token1.address)).status;
     assert.ok(addedToken, 'Token was not added');
 
     // Adding CrushERC
-    await this.bridge1.addToken(this.token3.address, 1, false, true, 8888, {from: gateway});
+    await this.bridge1.addToken(this.token3.address, 1, false, true, 8888, web3.utils.toWei("1000"), {from: gateway});
     addedToken = (await this.bridge1.validTokens(8888,this.token1.address)).status;
     assert.ok(addedToken, 'Token was not added');
 
@@ -137,8 +137,8 @@ _
   it('Should allow user to request bridge to send tokens to another chain - BURN', async () => {
 
     // Adding tokens
-    await this.bridge1.addToken(this.token1.address, 1, false, true, 2222, {from: gateway}); //Token that needs mint/burn on this blockchain
-    await this.bridge1.addToken(this.token2.address, 1, true, true, 2222, {from: gateway}); //Token that needs lock/unlock on this blockchain
+    await this.bridge1.addToken(this.token1.address, 1, false, true, 2222, web3.utils.toWei("1"),{from: gateway}); //Token that needs mint/burn on this blockchain
+    await this.bridge1.addToken(this.token2.address, 1, true, true, 2222, web3.utils.toWei("1"),{from: gateway}); //Token that needs lock/unlock on this blockchain
 
     // Minting tokens to user1
     await this.token1.mint(user1, 10,{ from: minter});
@@ -193,7 +193,7 @@ _
     // Setting up
     await this.token1.mint(user1, 10, {from: minter});
     await this.token1.approve(this.bridge1.address, 100, {from: user1});
-    await this.bridge1.addToken(this.token1.address, 1, false, true, 2222, {from: gateway}); //Token that needs mint/burn on this blockchain
+    await this.bridge1.addToken(this.token1.address, 1, false, true, 2222, web3.utils.toWei("2"), {from: gateway}); //Token that needs mint/burn on this blockchain
 
     const receipt = await this.bridge1.requestBridge(receiver1, 2222, this.token1.address, 4, {from: user1});
     const bridgeHash = receipt.logs[0].args.bridgeHash
@@ -239,8 +239,8 @@ _
     await this.token1.mint(user1, token1MintedWei, {from: minter});
 
     // Adding tokens to the token map so they're valid tokens
-    await this.bridge1.addToken(this.token1.address, token1Fee, false, true, 2222, {from: gateway}); //Token that needs mint/burn on this blockchain
-    await this.bridge1.addToken(this.token2.address, token2Fee, true, true, 2222, {from: gateway}); //Token that needs lock/unlock on this blockchain
+    await this.bridge1.addToken(this.token1.address, token1Fee, false, true, 2222, web3.utils.toWei("1"), {from: gateway}); //Token that needs mint/burn on this blockchain
+    await this.bridge1.addToken(this.token2.address, token2Fee, true, true, 2222, web3.utils.toWei("1"), {from: gateway}); //Token that needs lock/unlock on this blockchain
 
     // user1 approving bridge1 100 wei 
     await this.token1.approve(this.bridge1.address, web3.utils.toWei("100"), {from: user1});
@@ -314,8 +314,8 @@ _
      await this.bridge1.toggleChain(2222, {from: gateway});
 
     // Adding token
-    await this.bridge1.addToken(this.token1.address, 1, false, true, 2222, {from: gateway});
-    await this.bridge1.addToken(this.token2.address, 1, true, true, 2222, {from: gateway});
+    await this.bridge1.addToken(this.token1.address, 1, false, true, 2222, web3.utils.toWei("1"), {from: gateway});
+    await this.bridge1.addToken(this.token2.address, 1, true, true, 2222, web3.utils.toWei("1"), {from: gateway});
 
     // Checking if onlyGateway
     await expectRevert(this.bridge1.fulfillBridge(user1, 3, this.token1.address, 2222, testHash, {from: user1}), 'onlyGateway');
@@ -364,7 +364,7 @@ _
   it('Should mirror burn when it happens in other chain', async() => {
     const testHash = web3.utils.asciiToHex("TEST_HASH");
     // Setting up
-    await this.bridge1.addToken(this.token1.address, 1, true, true, 2222, {from: gateway});
+    await this.bridge1.addToken(this.token1.address, 1, true, true, 2222, web3.utils.toWei("1"), {from: gateway});
     await this.token1.mint(this.bridge1.address, 10, {from: minter});
 
     // Checking if validChain
@@ -423,8 +423,8 @@ _
 
       // Deployer sets up bridges by adding the tokens with their props
       // TOKEN 1  ==  TOKEN 2 JUST ON DIFFERENT CHAINS
-      await this.bridge1.addToken(this.token1.address, token1Fee, false, true, chain2Id, {from: gateway}); //Token that needs mint/burn bridge on chain1
-      await this.bridge2.addToken(this.token2.address, token1Fee, false, true, chain1Id, {from: gateway}); //Token that needs mint/burn bridge on chain2
+      await this.bridge1.addToken(this.token1.address, token1Fee, false, true, chain2Id, web3.utils.toWei("1"), {from: gateway}); //Token that needs mint/burn bridge on chain1
+      await this.bridge2.addToken(this.token2.address, token1Fee, false, true, chain1Id, web3.utils.toWei("1"), {from: gateway}); //Token that needs mint/burn bridge on chain2
 
     // Bridging tokens from chain1 to chain2. Tester will be calling functions as gateway.
 

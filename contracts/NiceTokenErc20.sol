@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // OpenZeppelin Contracts v4.4.1 (token/ERC20/ERC20.sol)
 
-pragma solidity ^0.8.0;
+pragma solidity 0.8.12; 
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/interfaces/IERC20.sol";
@@ -120,8 +120,8 @@ contract NiceTokenFtm is Context, IERC20, IERC20Metadata, Ownable {
     /**
      * @dev See {IERC20-allowance}.
      */
-    function allowance(address owner, address spender) public view virtual override returns (uint256) {
-        return _allowances[owner][spender];
+    function allowance(address allowanceOwner, address allowanceSpender) public view virtual override returns (uint256) {
+        return _allowances[allowanceOwner][allowanceSpender];
     }
 
     /**
@@ -260,7 +260,6 @@ contract NiceTokenFtm is Context, IERC20, IERC20Metadata, Ownable {
     function _mint(address account, uint256 amount) internal virtual {
         require(account != address(0), "ERC20: mint to the zero address");
 
-
         _totalSupply += amount;
         _balances[account] += amount;
         emit Transfer(address(0), account, amount);
@@ -298,7 +297,6 @@ contract NiceTokenFtm is Context, IERC20, IERC20Metadata, Ownable {
         totalBurned = totalBurned.add(amount);
     }
 
-
     /**
      * @dev Sets `amount` as the allowance of `spender` over the `owner` s tokens.
      *
@@ -313,15 +311,15 @@ contract NiceTokenFtm is Context, IERC20, IERC20Metadata, Ownable {
      * - `spender` cannot be the zero address.
      */
     function _approve(
-        address owner,
-        address spender,
-        uint256 amount
+        address _approveOwner,
+        address _approveSpender,
+        uint256 _approveAmount
     ) internal virtual {
-        require(owner != address(0), "ERC20: approve from the zero address");
-        require(spender != address(0), "ERC20: approve to the zero address");
+        require(_approveOwner != address(0), "ERC20: approve from the zero address");
+        require(_approveSpender != address(0), "ERC20: approve to the zero address");
 
-        _allowances[owner][spender] = amount;
-        emit Approval(owner, spender, amount);
+        _allowances[_approveOwner][_approveSpender] = _approveAmount;
+        emit Approval(_approveOwner, _approveSpender, _approveAmount);
     }
 
     /**
@@ -331,6 +329,8 @@ contract NiceTokenFtm is Context, IERC20, IERC20Metadata, Ownable {
     /// @notice Sets Bridge when it's ready. This is the bridge that will be able to use onlyBridge functions.
     /// @param bridgeAddress is the address of the bridge on this chain
     function setBridge(address bridgeAddress) external onlyOwner{
+        require(bridgeAddress != address(0), "Bridge: invalid address");
+
         bridge = bridgeAddress;
         emit SetBridge(bridgeAddress);
     }
@@ -339,6 +339,8 @@ contract NiceTokenFtm is Context, IERC20, IERC20Metadata, Ownable {
     /// @param account is the target address 
     /// @param amount is the amount to mint
     function mint(address account, uint256 amount) onlyMinter external {
+        require(account != address(0), "Account: invalid address");
+
         _mint(account,amount);
     }
 
@@ -352,6 +354,8 @@ contract NiceTokenFtm is Context, IERC20, IERC20Metadata, Ownable {
     /// @param account is the address of the user that wants to transfer tokens
     /// @param amount is the amount to burn from the user wallet. Must be <= than the amount approved by user.
     function bridgeBurnFrom(address account, uint256 amount) onlyBridge external {
+        require(account != address(0), "Account: invalid address");
+
         uint256 currentAllowance = allowance(account, _msgSender());
         require(currentAllowance >= amount, "ERC20: burn amount exceeds allowance");
         unchecked {
@@ -363,6 +367,8 @@ contract NiceTokenFtm is Context, IERC20, IERC20Metadata, Ownable {
     /// @notice Allows owner to assign minter privileges to other addresses
     /// @param newMinter is the address of desired minter
     function toggleMinter(address newMinter) onlyOwner external{
+      require(newMinter != address(0), "Minter: invalid address");
+
       validMinters[newMinter] = !validMinters[newMinter];
       emit MintersEdit(newMinter, validMinters[newMinter]);
     }

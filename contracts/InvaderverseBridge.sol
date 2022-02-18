@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity 0.8.12; 
 
 //Remix style import
 //import { IERC20 } from "@openzeppelin/contracts@4.0.0/token/ERC20/IERC20.sol";
@@ -39,7 +39,7 @@ contract InvaderverseBridge is Ownable, ReentrancyGuard {
         bytes32 otherChainHash;
     }
 
-    uint public lockDuration = 36 hours;
+    uint constant public lockDuration = 36 hours;
 
     uint public nonce = 1; // makes sure that all hashes created are different
     mapping( bytes32 => BridgeTx) public transactions;
@@ -78,6 +78,9 @@ contract InvaderverseBridge is Ownable, ReentrancyGuard {
         address _tokenAddress,
         uint _amount
     ) external nonReentrant returns(bytes32 _bridgeHash){
+        require(_receiverAddress != address(0), "Receiver: invalid address");
+        require(_tokenAddress != address(0), "Token: invalid address");
+
         require(validChains[_chainId], "Invalid Chain");
         BridgeToken storage tokenInfo = validTokens[_chainId][_tokenAddress];
         require(tokenInfo.minAmount <= tokenInfo.minAmount, "Min not met");
@@ -162,6 +165,8 @@ contract InvaderverseBridge is Ownable, ReentrancyGuard {
     /// @param _otherChainId Chain ID the request comes from
     /// @param _otherChainHash Hash Pairing on otherChain
     function fulfillBridge(address _receiver, uint _amount, address _tokenAddress, uint _otherChainId, bytes32 _otherChainHash) external onlyGateway nonReentrant{
+        require(_receiver != address(0), "Receiver: invalid address");
+        require(_tokenAddress != address(0), "Token: invalid address");
 
         BridgeToken storage tokenInfo = validTokens[_otherChainId][_tokenAddress];
         require(tokenInfo.status, "Invalid Token");
@@ -184,6 +189,8 @@ contract InvaderverseBridge is Ownable, ReentrancyGuard {
     /// @param _fromChain the chain the command comes from
     /// @param _burnHash other chain's tx hash
     function mirrorBurn(address _tokenAddress, uint _amount, uint _fromChain, bytes32 _burnHash) external onlyGateway nonReentrant{
+        require(_tokenAddress != address(0), "Token: invalid address");
+
         BridgeToken storage tokenInfo = validTokens[_fromChain][_tokenAddress];
         require(tokenInfo.status, "Invalid Token");
         NiceTokenFtm(_tokenAddress).burn(_amount);
@@ -205,18 +212,24 @@ contract InvaderverseBridge is Ownable, ReentrancyGuard {
     /// @param status true for on, false for off
     /// @param _otherChainId the other chain ID, where we have the receiver
     function addToken(address _thisChainTokenAddress, uint tokenFee, bool bridgeType, bool status, uint _otherChainId, uint _minAmount) external onlyOwner{
+        require(_thisChainTokenAddress != address(0), "Token: invalid address");
+
         validTokens[_otherChainId][_thisChainTokenAddress] = BridgeToken(tokenFee, bridgeType, status, _minAmount);
         emit ModifiedBridgeToken(_otherChainId, _thisChainTokenAddress, bridgeType, status, _minAmount);
     }
     /// @notice Set the Gateway user Address
     /// @param _gateway the address to set
     function setGateway(address _gateway) external onlyOwner{
+        require(_gateway != address(0), "Gateway: invalid address");
+
         gateway = _gateway;
         emit SetGateway(_gateway);
     }
     /// @notice Set the Dev Address
     /// @param _devAddress the address to set
     function setDev(address _devAddress) external onlyOwner{
+        require(_devAddress != address(0), "Dev: invalid address");
+
         devAddress = _devAddress;
         emit SetDev(_devAddress);
     }

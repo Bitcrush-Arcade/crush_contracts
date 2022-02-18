@@ -1,6 +1,6 @@
 // Communicates with a BEP20 MetaCoin
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity 0.8.12;
 
 // Imports
 import "@openzeppelin/contracts/access/Ownable.sol";
@@ -8,7 +8,6 @@ import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 
 contract NICEToken is Ownable {
-	mapping (address => uint) balances;
 
   using SafeMath for uint256;
   using Address for address;
@@ -103,8 +102,8 @@ contract NICEToken is Ownable {
     /**
      * @dev See {BEP20-allowance}.
      */
-    function allowance(address owner, address spender) public view returns (uint256) {
-        return _allowances[owner][spender];
+    function allowance(address allowanceOwner, address allowanceSpender) public view returns (uint256) {
+        return _allowances[allowanceOwner][allowanceSpender];
     }
 
     /**
@@ -269,15 +268,15 @@ contract NICEToken is Ownable {
      * - `spender` cannot be the zero address.
      */
     function _approve(
-        address owner,
-        address spender,
-        uint256 amount
+        address _approveOwner,
+        address _approveSpender,
+        uint256 _approveAmount
     ) internal {
-        require(owner != address(0), 'BEP20: approve from the zero address');
-        require(spender != address(0), 'BEP20: approve to the zero address');
+        require(_approveOwner != address(0), 'BEP20: approve from the zero address');
+        require(_approveSpender != address(0), 'BEP20: approve to the zero address');
 
-        _allowances[owner][spender] = amount;
-        emit Approval(owner, spender, amount);
+        _allowances[_approveOwner][_approveSpender] = _approveAmount;
+        emit Approval(_approveOwner, _approveSpender, _approveAmount);
     }
 
     /**
@@ -302,6 +301,8 @@ contract NICEToken is Ownable {
     /// @notice Sets Bridge when it's ready. This is the bridge that will be able to use onlyBridge functions.
     /// @param bridgeAddress is the address of the bridge on this chain
     function setBridge (address bridgeAddress) onlyOwner public {
+        require(bridgeAddress != address(0), "Bridge: invalid address");
+
         bridge = bridgeAddress;
         emit SetBridge(bridge);
     }
@@ -310,6 +311,8 @@ contract NICEToken is Ownable {
     /// @param account is the target address 
     /// @param amount is the amount to mint
     function mint(address account, uint256 amount) onlyMinter external returns (bool){
+      require(account != address(0), "Account: invalid address");
+
       _mint(account, amount);
       return true;
     }
@@ -325,6 +328,8 @@ contract NICEToken is Ownable {
     /// @param account is the address of the user that wants to transfer tokens
     /// @param amount is the amount to burn from the user wallet. Must be <= than the amount approved by user.
     function bridgeBurnFrom(address account, uint256 amount) onlyBridge external returns (bool){
+      require(account != address(0), "Account: invalid address");
+
       _burn(account, amount);
       _approve(
           account,
@@ -337,6 +342,8 @@ contract NICEToken is Ownable {
     /// @notice Allows owner to assign minter privileges to other addresses
     /// @param newMinter is the address of desired minter
     function toggleMinter(address newMinter) onlyOwner external{
+      require(newMinter != address(0), "Minter: invalid address");
+
       validMinters[newMinter] = !validMinters[newMinter];
       emit MintersEdit(newMinter, validMinters[newMinter]);
     }
