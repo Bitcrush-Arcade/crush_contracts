@@ -17,6 +17,11 @@ module.exports = async function ( deployer ) {
    // const NFT = await TestNFT.deployed()
    // USED TESTNET CRUSH INSTEAD OF BUSD to test
    // await deployer.deploy(Presale, NFT.address, "0x8139cA222D38296daB88d65960Ca400dcd95b246", "0xa3ca5df2938126bae7c0df74d3132b5f72bda0b6");
+   // PRESALE REVAMP V2
+   // await deployer.deploy(Presale, "0xFa567aC8Ff6C3fFd18B1F7fB711A741164EBd95D");
    // MAINNET DEPLOYMENT
-   await deployer.deploy(Presale, "0x712CC8EB5af53bfa063cc059839B6DB200Cc2536", "0x9D1Bc6843130fCAc8A609Bd9cb02Fb8A1E95630e", "0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56");
+   // v2 presale
+   await deployer.deploy(Presale, "0x8b0E34aa5442B770aFd404f596d12833B9D73cA3");
+   // init try
+   // await deployer.deploy(Presale, "0x712CC8EB5af53bfa063cc059839B6DB200Cc2536", "0x9D1Bc6843130fCAc8A609Bd9cb02Fb8A1E95630e", "0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56");
 }
