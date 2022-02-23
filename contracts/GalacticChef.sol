@@ -2,13 +2,11 @@
 pragma solidity 0.8.12;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "./NiceToken.sol";
 
 contract GalacticChef is Ownable {
-  using SafeMath for uint;
   using SafeERC20 for NiceToken;
   using SafeERC20 for IERC20;
 
@@ -19,9 +17,9 @@ contract GalacticChef is Ownable {
 
   struct PoolInfo{
     uint8 poolType;
-    uint alloc;
-    uint fee;
+    uint mult;
     IERC20 token;
+    uint accRewardPerShare;
   }
   /*
   ** We have three different types of pools: Regular 0, Fixed 1, Third Party 2
@@ -33,9 +31,14 @@ contract GalacticChef is Ownable {
 
   uint constant public PERCENT = 1e12; // Divisor for percentage calculations
   uint constant public DIVISOR = 100000; // Divisor for fee percentage
+  uint constant public maxMult = 1000000; // Max Multiplier 100.0000
+  uint public currentMax; // The current multiplier total. Always <= maxMult
 
-  uint public regularAlloc;
-  uint public fixedAlloc;
+  // The number of chains where a GalacticChef exists. This helps have a consistent emission across all chains.
+  uint public chains;
+  // Emissions per second. Since we'll have multiple Chefs across chains the emission set per second
+  uint public maxEmissions;
+
   /*
   ** Reward Calculation:
   ** Fixed Pool Rewards = Emission*allocation / PERCENT
@@ -51,17 +54,29 @@ contract GalacticChef is Ownable {
   mapping( uint => PoolInfo) public poolInfo; // PID => PoolInfo
   mapping( uint => address ) public tpPools; //  PID => poolAddress
 
-  event AddPool(address token, uint allocation, uint fee, uint8 _type);
+  event AddPool(address token, uint multiplier, uint8 _type);
 
   constructor(address _niceToken){
     NICE = NiceToken(_niceToken);
   }
-
-  function addRegular(IERC20 _token, uint _fee, uint _alloc) external onlyOwner{
-    require( _fee < 20000, "add: invalid fee");
-    regularAlloc = regularAlloc.add(_alloc);
-    poolCounter ++;
-    poolInfo[poolCounter] = PoolInfo(0,_alloc,_fee,_token);
-    emit AddPool(_token, _alloc, _fee, 0);
+  /// @notice Add Farm of a specific token
+  /// @param _token the token that will be collected, Taken as address since ThirdParty pools will handle their own logic
+  /// @param _mult the multiplier the pool will have
+  /// @param _type is it a regular pool or a third party pool ( TRUE = ThirdParty )
+  function addPool(address _token, uint _mult, bool _type,uint[] calldata _pidEdit, uint[] calldata _pidMulEdit) external onlyOwner returns(uint _pid){
   }
+  /// @notice this is for frontend only, calculates the pending reward for a particular user in a specific pool. This does not affect with 
+  function pendingRewards(address _user, uint _pid)external {}
+
+  /// @notice This is for Third party pools only. this handles the reward 
+  function mintRewards(uint _pid) external{}
+
+  function deposit(uint _amount, uint _pid) external{}
+
+  function withdraw(uint _amount, uint _pid) external{}
+
+  function emergencyWithdraw(uint _amount, uint _pid) external{}
+
+  function editPool(uint _pid, uint _mult, uint[] calldata _pidEdit, uint[] calldata _pidMulEdit ) external onlyOwner{}
+
 }
