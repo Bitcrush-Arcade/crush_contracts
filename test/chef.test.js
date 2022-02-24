@@ -21,44 +21,37 @@ contract("GalacticChefTest", ([minter, user1, user2, user3, tp1, tp2]) =>{
 
   // OWNER ONLY
   // TP pools are pools where thirdParty Tokens are added in. Chef only needs to distribute the rewards for these.
-  it("Should allow owner to add regular pools", async () => {
+  it("Should allow owner to add a regular pool", async () => {
+    // First Pool added
     const fee = 600
-    const allocation = 1000
-    await expectRevert( this.chef.addRegular( this.lpToken.address, ""+fee, allocation ), "Ownable: caller is not the owner")
-    await expectRevert( this.chef.addRegular( this.lpToken.address, "25000", allocation ), "add: invalid fee")
-    await this.chef.addRegular( this.lpToken.address, ""+fee, allocation );
+    const multiplier = 250000; // MAX MULTIPLIER OF 100_0000
+    await expectRevert( this.chef.addPool( this.lpToken.address, multiplier, fee, false, [], [] ), "Ownable: caller is not the owner")
+    await expectRevert( this.chef.addPool( this.lpToken.address, multiplier, "", false, [], [] ), "add: invalid fee")
+    await this.chef.addPool( this.lpToken.address, multiplier, fee, false, [], [] );
 
     const poolData = await this.chef.poolInfo(1)
 
-    assert.equal(poolData.poolType.toString(), new BN(0).toString(), "Wrong pool type")
-    assert.equal(poolData.alloc.toString(), new BN(0).toString(), "Wrong pool allocation")
-    assert.equal(poolData.fee.toString(), new BN(0).toString(), "Wrong pool fee")
-    assert.equal(poolData.token, this.lpToken.address, "Wrong pool token")
-
-    assert.equal( new BN(await this.chef.regularAlloc()).toString(), "1000", "Total allocation not updating")
-
+    assert.ok(!poolData.poolType, "Type not added incorrectly")
+    assert.equal( new BN(poolData.mult).toString(), multiplier.toString(), "Multiplier added incorrectly")
+    assert.equal( new BN(poolData.fee).toString(), fee.toString(), "Fee not added correctly")
+    assert.equal( poolData.token, this.lpToken.address,"Token Addresses dont match")
+    assert.equal( new BN(poolData.accRewardPerShare).toString(), "0" ,"Whats up with the shares?")
   })
-  it("Should allow owner to add fixed pools", async () => {})
+  it("Should force adjustment of pool if multiplier exceeds max", async () => {})
   it("Should allow owner to add TP pools", async () => {})
   it("Should allow owner to edit fees on pools", async () => {})
-  it("Should allow owner to edit allocations on pools", async () => {})
-  it("Reward for fixed pools should be correctly calculated", async () => {})
+  it("Should allow owner to edit multiplier on pools", async () => {})
   it("Reward for regular pools should be correctly calculated", async () => {})
-  it("Reward for TP pools should be correctly calculated", async () => {})
+  it("Should edit the amount of active chefs to correct rewards given", async () => {})
+  it("Should change rewards calculated as time passes by", async () => {})
   // USERS
   // Regular POOLs
   it("Should allow user to deposit tokens to regular Pool ", async()=>{})
-  it("Should calculate correct shares for user per pool", async()=>{})
   it("Should calculate calculated reward for user per pool", async()=>{})
   it("Should allow user to withdraw tokens from regular Pool with rewards", async()=>{})
   it("Should allow user to emergency withdraw tokens from regular Pool without rewards", async()=>{})
   it("Should allow user to claim reward tokens from regular Pool ", async()=>{})
-  // Fixed POOLS
-  it("Should allow user to deposit tokens to fixed Pool ", async()=>{})
-  it("Should allow user to deposit tokens to fixed Pool ", async()=>{})
-  it("Should allow user to withdraw tokens from fixed Pool with rewards", async()=>{})
-  it("Should allow user to claim reward tokens from fixed Pool ", async()=>{})
   //  TP pool
   it("Should calculate rewards for TP pool", async()=>{})
-  it("Should only mint rewards for TP pool", async()=>{})
+  it("Should mint rewards for TP pool", async()=>{})
 })
