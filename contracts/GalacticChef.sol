@@ -64,16 +64,20 @@ contract GalacticChef is Ownable, ReentrancyGuard {
   event Withdraw( address indexed user, uint indexed pid, uint amount);
   event EmergencyWithdraw( address indexed user, uint indexed pid, uint amount);
   event UpdatePool( uint indexed pid, uint mult, uint fee);
-  
-  constructor(address _niceToken){
+  event UpdateEmissions(uint amount);
+  constructor(address _niceToken, uint _currentEmission, uint _chains){
     NICE = NiceToken(_niceToken);
     feeAddress = msg.sender;
+    maxEmissions = _currentEmission * _chains;
+    chains = _chains;
   }
   /// @notice Add Farm of a specific token
   /// @param _token the token that will be collected, Taken as address since ThirdParty pools will handle their own logic
   /// @param _mult the multiplier the pool will have
   /// @param _fee the fee to deposit on the pool
   /// @param _type is it a regular pool or a third party pool ( TRUE = ThirdParty )
+  /// @param _pidEdit is it a regular pool or a third party pool ( TRUE = ThirdParty )
+  /// @param _pidMulEdit is it a regular pool or a third party pool ( TRUE = ThirdParty )
   function addPool(
     address _token,
     uint _mult,
@@ -83,10 +87,10 @@ contract GalacticChef is Ownable, ReentrancyGuard {
     uint[] calldata _pidMulEdit
   ) external onlyOwner {
     require( _pidEdit.length == _pidMulEdit.length, "add: wrong edits");
-    require( _fee < 5001, "add: check fee");
+    require( _fee < 5001, "add: invalid fee");
     require( tokenPools[_token] == 0, "add: token repeated");
     //update multipliers and current Max
-    getTotalMultiplier(_pidEdit, _pidMulEdit);
+    updateMultipliers(_pidEdit, _pidMulEdit);
     require(currentMax + _mult <= maxMult, "add: wrong multiplier");
     currentMax = currentMax + _mult;
     poolCounter ++;
@@ -96,17 +100,17 @@ contract GalacticChef is Ownable, ReentrancyGuard {
   }
   // Make sure multipliers match
   /// @notice update the multipliers used
-  function getTotalMultiplier(uint[] calldata _pidEdit, uint[] calldata _pidMulEdit) internal {
+  function updateMultipliers(uint[] calldata _pidEdit, uint[] calldata _pidMulEdit) internal {
     if(_pidEdit.length == 0)
       return;
       // updateValues
+    uint newMax = currentMax;
     for(uint i = 0; i < _pidEdit.length; i++){
+      //Update the pool reward per share before editing the multiplier
+      updatePool(_pidEdit[i]);
+      newMax = newMax - poolInfo[_pidEdit[i]].mult + _pidMulEdit[i];
+      //decrease old val and increase new val
       poolInfo[_pidEdit[i]].mult = _pidMulEdit[i];
-    }
-    // calc new multiplier
-    uint newMax;
-    for(uint i = 1; i <= poolCounter; i++){
-      newMax = poolInfo[i].mult + newMax;
     }
     currentMax = newMax;
   }
@@ -124,7 +128,7 @@ contract GalacticChef is Ownable, ReentrancyGuard {
     uint tokenSupply = pool.token.balanceOf(address(this));
     if(block.timestamp > pool.lastRewardTs && tokenSupply > 0){
       uint multiplier = maxEmissions * (block.timestamp - pool.lastRewardTs) * PERCENT * pool.mult;
-      uint maxMultiplier = (currentMax < maxMult ? currentMax : maxMult) * tokenSupply;
+      uint maxMultiplier = currentMax * tokenSupply;
       updatedPerShare = updatedPerShare + (multiplier/maxMultiplier);
     }
     _pendingRewards = (updatedPerShare * user.amount - user.accClaim) / PERCENT;
@@ -136,10 +140,18 @@ contract GalacticChef is Ownable, ReentrancyGuard {
     uint selfBal = pool.token.balanceOf(address(this));
     if(pool.mult == 0 || selfBal == 0 || block.timestamp <= pool.lastRewardTs)
       return;
-    uint maxMultiplier = (currentMax < maxMult ? currentMax : maxMult) * selfBal;
+    uint maxMultiplier = currentMax * selfBal;
     uint periodReward = maxEmissions * (block.timestamp - pool.lastRewardTs) * PERCENT * pool.mult / maxMultiplier;
     pool.accRewardPerShare = pool.accRewardPerShare + periodReward;
     pool.lastRewardTs = block.timestamp;
+  }
+  /// @notice Update all pools accPerShare
+  /// @dev this might be expensive to call...
+  function massUpdatePools() public {
+    for(uint id = 1; id <= poolCounter; id ++){
+      if(poolInfo[id].mult > 0)
+        updatePool(id);
+    }
   }
 
   /// @notice This is for Third party pools only. this handles the reward 
@@ -217,20 +229,38 @@ contract GalacticChef is Ownable, ReentrancyGuard {
   ) external onlyOwner{
     PoolInfo storage pool = poolInfo[_pid];
     require(address(pool.token) != address(0), "edit: invalid");
-    getTotalMultiplier(_pidEdit, _pidMulEdit);
+    updateMultipliers(_pidEdit, _pidMulEdit);
     require(currentMax + _mult <= maxMult, "edit: wrong multiplier");
+    updatePool(_pid);
     pool.mult = _mult;
     emit UpdatePool(_pid, _mult, pool.fee);
   }
+
   function editPoolFee(
     uint _pid,
     uint _fee
   ) external onlyOwner{
     PoolInfo storage pool = poolInfo[_pid];
     require(address(pool.token) != address(0), "edit: invalid");
-    require( _fee < 2500, "edit: high fee");
+    require( _fee < 2501, "edit: high fee");
     pool.fee = _fee;
     emit UpdatePool(_pid, pool.mult, _fee);
+  }
+
+  function emissions() public view returns(uint _emitted){
+    _emitted = maxEmissions / chains;
+  }
+
+  function addChain() external onlyOwner{
+    massUpdatePools();
+    chains ++;
+  }
+
+  /// @notice Change emissions and set the log
+  function yearEmissionUpdate() external onlyOwner {
+    massUpdatePools();
+    maxEmissions = maxEmissions/2;
+    emit UpdateEmissions(maxEmissions);
   }
 
 }
