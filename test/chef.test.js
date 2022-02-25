@@ -288,8 +288,13 @@ contract("GalacticChefTest", ([minter, user1, user2, user3, tp1, tp2]) =>{
   //  TP pool
   it("Should not take deposits or make withdraws on TP pool", async()=>{
     //deposits and withdraws should fail
-
-
+    const m1 = 20000 // mul *2
+    const m2 = 30000 // mul *3
+    const fee = 0  // 100 00 fee 10.00%
+    
+    // Creating token pools
+    await this.chef.addPool( this.lpToken.address, m1, fee, false, [], []);
+   
 
   })
   it("Should mint rewards for TP pool", async()=>{})
