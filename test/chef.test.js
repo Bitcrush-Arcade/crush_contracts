@@ -311,7 +311,10 @@ contract("GalacticChefTest", ([minter, user1, user2, user3, tp1, tp2]) =>{
     await this.chef.addPool( tp1, m1, fee, true, [], []); //chef has his lptoken wallet
 
     // Depositing any kind of token into chef's wallet
-    // this.lpTokenReg1.deposit(,{from: user1})
+    this.lpTokenReg1.deposit(,{from: user1})
+
+    //Tp uses mintREwards
+    await this.chef.mintRewards(1, {from: tp1});
 
   })
 
