@@ -257,6 +257,7 @@ contract GalacticChef is Ownable, ReentrancyGuard {
   }
 
   /// @notice Change emissions and set the log
+  /// TODO: THIS SHOUDL HAPPEN AUTOMATICALLY
   function yearEmissionUpdate() external onlyOwner {
     massUpdatePools();
     maxEmissions = maxEmissions/2;
