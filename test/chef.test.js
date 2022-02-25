@@ -95,8 +95,7 @@ contract("GalacticChefTest", ([minter, user1, user2, user3, tp1, tp2]) =>{
     
   })
   it("Reward for regular pools should be correctly calculated", async () => {})
-  it("Should edit the amount of active chefs to correct rewards given", async () => {})
-  it("Should change rewards calculated as time passes by", async () => {})
+  it("Should edit the amount of active chains to correct rewards given", async () => {})
   // USERS
   // Regular POOLs 
   
@@ -293,11 +292,29 @@ contract("GalacticChefTest", ([minter, user1, user2, user3, tp1, tp2]) =>{
     const fee = 0  // 100 00 fee 10.00%
     
     // Creating token pools
-    await this.chef.addPool( this.lpToken.address, m1, fee, false, [], []);
-   
+    await this.chef.addPool( tp1, m1, fee, true, [], []);
+
+    // Expecting deposit and withdrawals to fail
+    await expectRevert(this.chef.deposit(60, 1,{from: user1}), "Invaild deposit");
+    await expectRevert(this.chef.withdraw(60, 1,{from: user1}), "Invaild deposit");
 
   })
-  it("Should mint rewards for TP pool", async()=>{})
+
+  it("Should mint rewards for TP pool", async()=>{
+
+    //deposits and withdraws should fail
+    const m1 = 20000 // mul *2
+    const m2 = 30000 // mul *3
+    const fee = 0  // 100 00 fee 10.00%
+    
+    // Creating token pools
+    await this.chef.addPool( tp1, m1, fee, true, [], []); //chef has his lptoken wallet
+
+    // Depositing any kind of token into chef's wallet
+    // this.lpTokenReg1.deposit(,{from: user1})
+
+  })
+
   it("SHould halve emissions yearly", async()=>{})
   it("Should split the emissions evenly in different chains", async()=>{})
 })

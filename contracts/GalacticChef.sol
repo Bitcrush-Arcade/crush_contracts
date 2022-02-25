@@ -42,6 +42,12 @@ contract GalacticChef is Ownable, ReentrancyGuard {
   uint public chains;
   // Emissions per second. Since we'll have multiple Chefs across chains the emission set per second
   uint public maxEmissions;
+  uint constant year1 = 1640995200;
+  uint constant year2 = 1672531200;
+  uint constant year3 = 1704067200;
+  uint constant year4 = 1735689600;
+  uint constant year5 = 1767225600;
+  uint constant year6 = 1798761600;
 
   /*
   ** Reward Calculation:
@@ -141,10 +147,37 @@ contract GalacticChef is Ownable, ReentrancyGuard {
     if(pool.mult == 0 || selfBal == 0 || block.timestamp <= pool.lastRewardTs)
       return;
     uint maxMultiplier = currentMax * selfBal;
-    uint periodReward = maxEmissions * (block.timestamp - pool.lastRewardTs) * PERCENT * pool.mult / maxMultiplier;
+    uint timeEmissions = getTimeEmissions(pool);
+    uint periodReward = timeEmissions * PERCENT * pool.mult / maxMultiplier;
     pool.accRewardPerShare = pool.accRewardPerShare + periodReward;
     pool.lastRewardTs = block.timestamp;
   }
+
+  function getTimeEmissions(PoolInfo storage _pool) internal returns (uint _emissions){
+    uint8 passingYears;
+    uint8 poolYears;
+    uint[6] memory checkYears = [year1, year2, year3, year4, year5, year6];
+    for(uint8 i  = 0; i < checkYears.length; i ++){
+        if(block.timestamp >= checkYears[i])
+          passingYears ++;
+        if(_pool.lastRewardTs >= checkYears[i])
+          poolYears ++;
+    }
+    if(poolYears > 5)
+      return 0;
+    if(passingYears > poolYears){
+      uint thisTimeDiff = passingYears > 5 ? 0 : block.timestamp - checkYears[passingYears - 1];
+      uint oldTimeDiff = checkYears[passingYears-1] - _pool.lastRewardTs;
+
+      _emissions = maxEmissions * thisTimeDiff * PERCENT / (chains * 2 * passingYears);
+      _emissions += maxEmissions * oldTimeDiff * PERCENT / (chains * 2 * poolYears);
+    }
+    else{
+      _emissions = maxEmissions * (block.timestamp - _pool.lastRewardTs) * PERCENT / ( chains * 2 * poolYears);
+    }
+    _pool.lastRewardTs = block.timestamp;
+  }
+
   /// @notice Update all pools accPerShare
   /// @dev this might be expensive to call...
   function massUpdatePools() public {
@@ -161,8 +194,7 @@ contract GalacticChef is Ownable, ReentrancyGuard {
     if(block.timestamp <= pool.lastRewardTs)
       return;
     pool.lastRewardTs = block.timestamp;
-    uint maxMultiplier = currentMax < maxMult ? currentMax : maxMult;
-    uint amount = (block.timestamp - pool.lastRewardTs) * maxEmissions * pool.mult / maxMultiplier;
+    uint amount = (block.timestamp - pool.lastRewardTs) * maxEmissions * pool.mult / currentMax;
     NICE.mint(address(pool.token), amount);
   }
 
@@ -254,14 +286,6 @@ contract GalacticChef is Ownable, ReentrancyGuard {
   function addChain() external onlyOwner{
     massUpdatePools();
     chains ++;
-  }
-
-  /// @notice Change emissions and set the log
-  /// TODO: THIS SHOUDL HAPPEN AUTOMATICALLY
-  function yearEmissionUpdate() external onlyOwner {
-    massUpdatePools();
-    maxEmissions = maxEmissions/2;
-    emit UpdateEmissions(maxEmissions);
   }
 
 }
