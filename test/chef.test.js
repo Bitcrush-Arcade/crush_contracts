@@ -13,9 +13,9 @@ contract("GalacticChefTest", ([minter, user1, user2, user3, tp1, tp2]) =>{
 
   beforeEach( async()=>{
     // Setting up emissions
-    const emissions = 10
+    this.emissions = 10
     this.rewardToken = await Token.new("Reward Token","RW")
-    this.chef = await Chef.new(this.rewardToken.address, toWei(emissions), 1)
+    this.chef = await Chef.new(this.rewardToken.address, toWei(this.emissions), 1)
     this.lpToken = await Token.new("Liquidity 1","LP1")
     this.lpTokenReg1 = await Token.new("Liquidity 2","LP2")
     this.lpTokenReg2 = await Token.new("Liquidity 3","LP3")
@@ -42,7 +42,7 @@ contract("GalacticChefTest", ([minter, user1, user2, user3, tp1, tp2]) =>{
     assert.equal( poolData.token, this.lpToken.address,"Token Addresses dont match")
     assert.equal( new BN(poolData.accRewardPerShare).toString(), "0" ,"Whats up with the shares?")
   })
-  it("Should force adjustment of pool if multiplier exceeds max", async () => {
+  it("Should adjust pool multipliers if new pool multiplier exceeds max", async () => {
     const fee = 0
     const m1 = 1000000 //100%
     const m2 = 100000  //10%
@@ -92,7 +92,30 @@ contract("GalacticChefTest", ([minter, user1, user2, user3, tp1, tp2]) =>{
     assert.equal( new BN(poolData.fee).toString(), (1500).toString(), "Fee not edited")
   })
   it("Should allow owner to edit multiplier on pools", async () => {
-    
+    const fee =    0
+    const m1 =     300000 //30X
+    const m2 =     100000 //10X
+    const adjust = 200000// 20X
+
+    // Added Regular Pool
+    await this.chef.addPool( this.lpToken.address, m1, fee, false, [], []);
+    await this.chef.addPool( this.lpTokenReg1.address, m1, fee, false, [], []);
+    await this.chef.addPool( this.lpTokenReg2.address, m1, fee, false, [], []);
+    await this.chef.addPool( this.rewardToken.address, m2, fee, false, [], []);
+
+    await expectRevert( this.chef.editPoolMult([4], [m1]) ,"mult: exceeds max" )
+    await expectRevert( this.chef.editPoolMult([5], [adjust]) ,"mult: nonexistent pool" )
+    await expectRevert( this.chef.editPoolMult([2,6], [adjust,m2]) ,"mult: nonexistent pool" )
+
+    await this.chef.editPoolMult([4,2], [adjust,adjust])
+
+    const pool2Data = await this.chef.poolInfo(2)
+    const pool4Data = await this.chef.poolInfo(4)
+    const max = await this.chef.currentMax()
+
+    assert.equal( pool2Data.mult.toString(), ""+adjust, "Invalid Multiplier 2")
+    assert.equal( pool4Data.mult.toString(), ""+adjust, "Invalid Multiplier 4")
+    assert.equal( max.toString(), "1000000", "Invalid Multiplier 4")
   })
   it("Reward for regular pools should be correctly calculated", async () => {})
   it("Should edit the amount of active chains to correct rewards given", async () => {})
@@ -128,8 +151,6 @@ contract("GalacticChefTest", ([minter, user1, user2, user3, tp1, tp2]) =>{
 
  })
 
-  it("Should set emissions", async() =>{})
-
   // function pendingRewards()  
   it("Should calculate calculated reward for user per pool", async()=>{
     const m1 = 20000 // 100 0000 mul *2
@@ -143,19 +164,16 @@ contract("GalacticChefTest", ([minter, user1, user2, user3, tp1, tp2]) =>{
 
     // approve token spend on contract
     await this.lpToken.approve(this.chef.address, toWei(100), {from: user1});
-    // Setting up emissions
-    const emissions = 10
-    await this.chef.setEmissions(toWei(emissions));
 
     // deposit funds to correct PID
     await this.chef.deposit(toWei(60), 1, {from: user1});
-    await time.increase( time.duration.minutes(30) )
+    await time.increase( time.duration.minutes(30) );
     const userReward = await this.chef.pendingRewards(user1, 1); 
     
 
     // Calculating reward with pendingReward()
     const userAmount = 60 //Total supply in liquidity pool
-    const multiplier = emissions * time.duration.minutes(30)*m1
+    const multiplier = this.emissions * time.duration.minutes(30)*m1
     const maxMultiplier = m1 * 60
     const updatedPerShare = (multiplier/maxMultiplier)
     const pendingRewards = (updatedPerShare*userAmount)
@@ -179,9 +197,6 @@ contract("GalacticChefTest", ([minter, user1, user2, user3, tp1, tp2]) =>{
 
   // approve token spend on contract
   await this.lpToken.approve(this.chef.address, toWei(100), {from: user1});
-  // Setting up emissions
-  const emissions = 10
-  await this.chef.setEmissions(toWei(emissions));
 
   // deposit funds to correct PID
   await this.chef.deposit(toWei(60), 1, {from: user1});
@@ -194,13 +209,13 @@ contract("GalacticChefTest", ([minter, user1, user2, user3, tp1, tp2]) =>{
 
   // Calculating reward 
   const userAmount = 60 //Total supply in liquidity pool
-  const multiplier = emissions * time.duration.minutes(30)*m1
+  const multiplier = this.emissions * time.duration.minutes(30)*m1
   const maxMultiplier = m1 * 60
   const updatedPerShare = (multiplier/maxMultiplier)
   const userRewards = (updatedPerShare*userAmount)
 
   // lp balance should be the total deposited
-  assert.equal( userLpBalance, 60, "Incorrect balance withdrawn");
+  assert.equal( userLpBalance.toString(), ""+60, "Incorrect balance withdrawn");
 
   // Nice balance should be reward
   assert.equal( web3.utils.fromWei(userNiceBalance), userRewards.toString() ,"Incorrect reward");
@@ -221,9 +236,6 @@ contract("GalacticChefTest", ([minter, user1, user2, user3, tp1, tp2]) =>{
   
     // approve token spend on contract
     await this.lpToken.approve(this.chef.address, toWei(100), {from: user1});
-    // Setting up emissions
-    const emissions = 10
-    await this.chef.setEmissions(toWei(emissions));
   
     // deposit funds to correct PID
     await this.chef.deposit(toWei(60), 1, {from: user1});
@@ -238,7 +250,7 @@ contract("GalacticChefTest", ([minter, user1, user2, user3, tp1, tp2]) =>{
     const userRewards = 0
   
     // lp balance should be the total deposited
-    assert.equal( userLpBalance, 60, "Incorrect balance withdrawn");
+    assert.equal( userLpBalance.toString(), ""+60, "Incorrect balance withdrawn");
   
     // Nice balance should be reward
     assert.equal( web3.utils.fromWei(userNiceBalance), userRewards.toString() ,"Incorrect reward");
@@ -257,9 +269,6 @@ contract("GalacticChefTest", ([minter, user1, user2, user3, tp1, tp2]) =>{
   
     // approve token spend on contract
     await this.lpToken.approve(this.chef.address, toWei(100), {from: user1});
-    // Setting up emissions
-    const emissions = 10
-    await this.chef.setEmissions(toWei(emissions));
   
     // deposit funds to correct PID
     await this.chef.deposit(60, 1, {from: user1});
@@ -272,13 +281,13 @@ contract("GalacticChefTest", ([minter, user1, user2, user3, tp1, tp2]) =>{
   
     // User reward should be 0 
     const userAmount = 60 //Total supply in liquidity pool
-    const multiplier = emissions * time.duration.minutes(30)*m1
+    const multiplier = this.emissions * time.duration.minutes(30)*m1
     const maxMultiplier = m1 * 60
     const updatedPerShare = (multiplier/maxMultiplier)
     const userRewards = (updatedPerShare*userAmount)
   
     // lp balance should be the total deposited
-    assert.equal( userLpBalance, 0, "Balance should be 0");
+    assert.equal( userLpBalance.toString(), ""+0, "Balance should be 0");
   
     // Nice balance should be reward
     assert.equal( web3.utils.fromWei(userNiceBalance), userRewards.toString() ,"Incorrect reward");
@@ -295,8 +304,8 @@ contract("GalacticChefTest", ([minter, user1, user2, user3, tp1, tp2]) =>{
     await this.chef.addPool( tp1, m1, fee, true, [], []);
 
     // Expecting deposit and withdrawals to fail
-    await expectRevert(this.chef.deposit(60, 1,{from: user1}), "Invaild deposit");
-    await expectRevert(this.chef.withdraw(60, 1,{from: user1}), "Invaild deposit");
+    await expectRevert(this.chef.deposit(60, 1,{from: user1}), "Deposit: Tp Pool");
+    await expectRevert(this.chef.withdraw(60, 1,{from: user1}), "Withdraw: Tp Pool");
 
   })
 
