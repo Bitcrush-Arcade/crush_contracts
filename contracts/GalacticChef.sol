@@ -106,6 +106,8 @@ contract GalacticChef is Ownable, ReentrancyGuard {
     poolCounter ++;
     poolInfo[poolCounter] = PoolInfo(_type, _mult, _fee, IERC20(_token), 0, block.timestamp);
     tokenPools[_token] = poolCounter;
+    if(_type)
+      tpPools[poolCounter] = _token;
     emit PoolAdded(_token, _mult, _fee, _type, poolCounter);
   }
   // Make sure multipliers match
@@ -146,7 +148,7 @@ contract GalacticChef is Ownable, ReentrancyGuard {
       uint maxMultiplier = currentMax * tokenSupply * PERCENT;
       updatedPerShare = updatedPerShare + (multiplier/maxMultiplier);
     }
-    _pendingRewards = (updatedPerShare * user.amount - user.accClaim) / PERCENT;
+    _pendingRewards = updatedPerShare * user.amount - user.accClaim;
   }
   /// @notice Update the accRewardPerShare for a specific pool
   /// @param _pid Pool Id to update the accumulated rewards of
@@ -155,10 +157,17 @@ contract GalacticChef is Ownable, ReentrancyGuard {
     uint selfBal = pool.token.balanceOf(address(this));
     if(pool.mult == 0 || selfBal == 0 || block.timestamp <= pool.lastRewardTs)
       return;
-    uint maxMultiplier = currentMax * selfBal * PERCENT;
+    uint maxMultiplier = currentMax * selfBal;
     uint periodReward = getTimeEmissions(pool) * pool.mult / maxMultiplier;
     pool.lastRewardTs = block.timestamp;
     pool.accRewardPerShare = pool.accRewardPerShare + periodReward;
+  }
+
+  function getCurrentEmissions(uint _pid) public view returns (uint _emissions){
+    PoolInfo storage pool = poolInfo[_pid];
+    if(address(pool.token) == address(0) || pool.mult == 0)
+      return 0;
+    _emissions = getTimeEmissions(pool);
   }
 
   function getTimeEmissions(PoolInfo storage _pool) internal view returns (uint _emissions){
