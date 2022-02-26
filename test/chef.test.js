@@ -169,14 +169,18 @@ contract("GalacticChefTest", ([minter, user1, user2, user3, tp1, tp2]) =>{
     await this.chef.deposit(toWei(60), 1, {from: user1});
     await time.increase( time.duration.minutes(30) );
     const userReward = await this.chef.pendingRewards(user1, 1); 
+
+    // PENDING: SHOULD CHECK ACTUAL REWARD WITH A DEPOSIT(0) AND SEE IF THEY MATCH
     
 
     // Calculating reward with pendingReward()
     const userAmount = 60 //Total supply in liquidity pool
     const multiplier = this.emissions * time.duration.minutes(30)*m1
-    const maxMultiplier = m1 * 60
+    const maxMultiplier = m1 * 60 
     const updatedPerShare = (multiplier/maxMultiplier)
     const pendingRewards = (updatedPerShare*userAmount)
+
+
 
     assert.equal( web3.utils.fromWei(userReward), pendingRewards.toString() ,"Incorrect reward");
 
@@ -202,20 +206,20 @@ contract("GalacticChefTest", ([minter, user1, user2, user3, tp1, tp2]) =>{
   await this.chef.deposit(toWei(60), 1, {from: user1});
 
   // Waiting half an hour and withdrawing staked lpTokens
-  await time.increase( time.duration.minutes(30) )
-  await this.chef.withdraw(60, 1, {from: user1}); 
+  await time.increase( time.duration.minutes(30))
+  await this.chef.withdraw(toWei(60), 1, {from: user1}); 
   const userLpBalance = await this.lpToken.balanceOf(user1);
   const userNiceBalance = await this.rewardToken.balanceOf(user1);
 
   // Calculating reward 
   const userAmount = 60 //Total supply in liquidity pool
-  const multiplier = this.emissions * time.duration.minutes(30)*m1
+  const multiplier = this.emissions * (time.duration.minutes(30))*m1
   const maxMultiplier = m1 * 60
   const updatedPerShare = (multiplier/maxMultiplier)
   const userRewards = (updatedPerShare*userAmount)
 
   // lp balance should be the total deposited
-  assert.equal( userLpBalance.toString(), ""+60, "Incorrect balance withdrawn");
+  assert.equal( web3.utils.fromWei(userLpBalance), ""+100, "Incorrect balance withdrawn");
 
   // Nice balance should be reward
   assert.equal( web3.utils.fromWei(userNiceBalance), userRewards.toString() ,"Incorrect reward");
@@ -250,7 +254,7 @@ contract("GalacticChefTest", ([minter, user1, user2, user3, tp1, tp2]) =>{
     const userRewards = 0
   
     // lp balance should be the total deposited
-    assert.equal( userLpBalance.toString(), ""+60, "Incorrect balance withdrawn");
+    assert.equal( web3.utils.fromWei(userLpBalance), ""+100, "Incorrect balance withdrawn");
   
     // Nice balance should be reward
     assert.equal( web3.utils.fromWei(userNiceBalance), userRewards.toString() ,"Incorrect reward");
@@ -271,10 +275,10 @@ contract("GalacticChefTest", ([minter, user1, user2, user3, tp1, tp2]) =>{
     await this.lpToken.approve(this.chef.address, toWei(100), {from: user1});
   
     // deposit funds to correct PID
-    await this.chef.deposit(60, 1, {from: user1});
+    await this.chef.deposit(toWei(60), 1, {from: user1});
   
     // Waiting half an hour and depositing 0 to harvest
-    await time.increase( time.duration.minutes(30) )
+    await time.increase( time.duration.minutes(30) );
     await this.chef.deposit(0, 1, {from: user1}); //reward gets transferred to user1 when depositing 0
     const userLpBalance = await this.lpToken.balanceOf(user1);
     const userNiceBalance = await this.rewardToken.balanceOf(user1);
@@ -286,8 +290,8 @@ contract("GalacticChefTest", ([minter, user1, user2, user3, tp1, tp2]) =>{
     const updatedPerShare = (multiplier/maxMultiplier)
     const userRewards = (updatedPerShare*userAmount)
   
-    // lp balance should be the total deposited
-    assert.equal( userLpBalance.toString(), ""+0, "Balance should be 0");
+    // Checking lp balance from user1 after deposit(0)
+    assert.equal( web3.utils.fromWei(userLpBalance), ""+40, "Balance should be 40");
   
     // Nice balance should be reward
     assert.equal( web3.utils.fromWei(userNiceBalance), userRewards.toString() ,"Incorrect reward");
@@ -311,22 +315,115 @@ contract("GalacticChefTest", ([minter, user1, user2, user3, tp1, tp2]) =>{
 
   it("Should mint rewards for TP pool", async()=>{
 
-    //deposits and withdraws should fail
     const m1 = 20000 // mul *2
-    const m2 = 30000 // mul *3
     const fee = 0  // 100 00 fee 10.00%
     
-    // Creating token pools
+    // Adding token pool to chef, pid = 1
     await this.chef.addPool( tp1, m1, fee, true, [], []); //chef has his lptoken wallet
 
-    // Depositing any kind of token into chef's wallet
-    this.lpTokenReg1.deposit(,{from: user1})
-
-    //Tp uses mintREwards
+    // tp1 mints rewards to its wallet through master chef
     await this.chef.mintRewards(1, {from: tp1});
+
+    // Checking tp1's wallet for the minted amount
+    const currentEmissions = await this.chef.getCurrentEmissions(1);
+    const mintedAmount = currentEmissions*m1/(m1*1e12)
+    const tp1Balance = this.rewardToken.balanceOf(tp1);
+
+    assert.equal(mintedAmount,tp1Balance, "Wrong amount minted");
 
   })
 
-  it("SHould halve emissions yearly", async()=>{})
+  it("Should halve emissions yearly", async()=>{
+
+    const m1 = 20000 // mul *2
+    const fee = 0  // 100 00 fee 10.00%
+
+    //Timestamps
+    const year1 = 1640995200 //00:00 2022
+    const year2 = 1672531200 //00:00 2023
+    const year3 = 1704067200 //00:00 2024
+    const year4 = 1735689600 //00:00 2025
+    const year5 = 1767225600 //00:00 2026
+    const year6 = 1798761600 //00:00 2027
+
+    // Setting up
+    // Adding token pool to chef, pid = 1
+    await this.chef.addPool( this.lpToken.address, m1, fee, false, [], []); 
+
+    // Minting tokens to user1
+    await this.lpToken.mint(user1, toWei(4000));
+
+    // Approve token spend on contract
+    await this.lpToken.approve(this.chef.address, toWei(4000), {from: user1});
+
+    // Setting time to 2022 jan 1 00:00
+    await time.increaseTo(year1);
+
+    // y1
+    // User1 deposits an amount to chef at 2022 jan 1, 00:00
+    await this.chef.deposit(toWei(60), 1, {from: user1});
+    // Then withdraws at 2022 jan 1, 00:30
+    await time.increase(time.duration.minutes(30));
+    await this.chef.withdraw(toWei(60), 1, {from: user1});
+
+    const y1Emissions = await this.chef.currentEmissions(1);
+    const y1RewardBalance = this.rewardToken.balanceOf(user1);
+
+    // Calculating rewards for year 1 withdrawal
+    const userAmount = 60 //Total supply in liquidity pool before withdrawal
+    const multiplier = this.emissions * time.duration.minutes(30)*m1
+    const maxMultiplier = m1 * 60
+    const updatedPerShare = (multiplier/maxMultiplier)
+    const y1UserRewards = (updatedPerShare*userAmount)
+
+    assert.equal(y1Emissions, toWei(this.emissions), "Incorrect y1 emissions");
+    assert.equal(y1RewardBalance, y1UserRewards, "Incorrect amount rewarded y1");
+
+    // y2
+    await time.increaseTo(year2);
+    // User1 deposits an amount to chef at 2023 jan 1, 00:00
+    await this.chef.deposit(toWei(60), 1, {from: user1});
+    // Then withdraws at 2023 jan 1, 00:30
+    await time.increase(time.duration.minutes(30));
+    await this.chef.withdraw(toWei(60), 1, {from: user1});
+
+    const y2Emissions = await this.chef.currentEmissions(1);
+    const y2RewardBalance = this.rewardToken.balanceOf(user1);
+
+    assert.equal(y2Emissions, toWei(this.emissions)/2, "Incorrect y1 emissions");
+    assert.equal(y2RewardBalance, (3/2)*y1UserRewards, "Incorrect amount rewarded y1");
+
+    // y3
+    await time.increaseTo(year3);
+    // User1 deposits an amount to chef at 2024 jan 1, 00:00
+    await this.chef.deposit(toWei(60), 1, {from: user1});
+    // Then withdraws at 2024 jan 1, 00:30
+    await time.increase(time.duration.minutes(30));
+    await this.chef.withdraw(toWei(60), 1, {from: user1});
+
+    const y3Emissions = await this.chef.currentEmissions(1);
+    const y3RewardBalance = this.rewardToken.balanceOf(user1);
+
+    assert.equal(y3Emissions, toWei(this.emissions)/4, "Incorrect y1 emissions");
+    assert.equal(y3RewardBalance, (7/4)*y1UserRewards, "Incorrect amount rewarded y1");
+
+    // y3 => y4
+    // Checking if rewards are calculated correctly when changing year
+    // 2024 last day 23:30
+    await time.increaseTo(year4-time.duration.minutes(30));
+    // User deposits
+    await this.chef.deposit(toWei(60), 1, {from: user1});
+    // Then withdraws in 2025 at 00:30
+    await time.increase(time.duration.hours(1));
+    await this.chef.withdraw(toWei(60), 1, {from: user1});
+
+    const y4Emissions = await this.chef.currentEmissions(1);
+    const y34RewardBalance = this.rewardToken.balanceOf(user1);
+
+    assert.equal(y4Emissions, toWei(this.emissions)/8, "Incorrect y1 emissions");
+    assert.equal(y34RewardBalance, (17/8)*y1UserRewards, "Incorrect amount rewarded y1");
+
+  })
   it("Should split the emissions evenly in different chains", async()=>{})
+
 })
