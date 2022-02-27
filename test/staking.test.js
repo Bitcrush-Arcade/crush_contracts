@@ -6,7 +6,7 @@ const CrushToken = artifacts.require('CRUSHToken');
 const BitcrushStaking = artifacts.require('BitcrushStaking');
 const BitcrushBankroll = artifacts.require('BitcrushBankroll');
 const BitcrushLiveWallet = artifacts.require('BitcrushLiveWallet');
-
+const BitcrushNiceStaking = artifacts.require("BitcrushNiceStaking");
 contract('Bitcrush', ([alice, bob, carol, robert, dev ,minter, tom, terry, jerry]) => {
     
     const toWei = ( number ) => {
@@ -31,10 +31,12 @@ contract('Bitcrush', ([alice, bob, carol, robert, dev ,minter, tom, terry, jerry
         this.crush = await CrushToken.new({ from: minter });
         this.staking = await BitcrushStaking.new(this.crush.address, toWei(1) ,dev, { from: minter },);
         this.bankroll = await BitcrushBankroll.new(this.crush.address,this.staking.address,dev,carol,6000,1000,200,2700,minter, { from: minter });
-        
+        this.niceStaking = await BitcrushNiceStaking.new(this.crush.address, toWei(1) ,dev, this.crush.address, { from: minter });
+        await this.niceStaking.setStakingPool(this.staking.address, { from: minter });
         await this.staking.setBankroll(this.bankroll.address,{from : minter});
         this.liveWallet = await BitcrushLiveWallet.new(this.crush.address,this.bankroll.address,minter ,{ from: minter });
         await this.staking.setLiveWallet(this.liveWallet.address, {from : minter});
+
 
 
         // await this.bankroll.setLiveWallet(this.liveWallet.address, {from : minter});
@@ -86,12 +88,22 @@ contract('Bitcrush', ([alice, bob, carol, robert, dev ,minter, tom, terry, jerry
             let terryStakings = await this.staking.stakings(terry)
             let jerryStakings = await this.staking.stakings(jerry)
             let currentBlock = (await web3.eth.getBlock('latest')).number
+            
             let aliceReward = await this.staking.pendingReward(alice)
             let bobReward = await this.staking.pendingReward(bob)
             let tomReward = await this.staking.pendingReward(tom)
             let carolReward = await this.staking.pendingReward(carol)
             let terryReward = await this.staking.pendingReward(terry)
             let jerryReward = await this.staking.pendingReward(jerry)
+
+            let aliceNiceReward = await this.niceStaking.niceRewards(alice)
+            let bobNiceReward = await this.niceStaking.niceRewards(bob)
+            let tomNiceReward = await this.niceStaking.niceRewards(tom)
+            let carolNiceReward = await this.niceStaking.niceRewards(carol)
+            let terryNiceReward = await this.niceStaking.niceRewards(terry)
+            let jerryNiceReward = await this.niceStaking.niceRewards(jerry)
+
+
             let pool = fromWei(await this.staking.totalPool())
             let indexes = []
             try{ indexes.push(await this.staking.addressIndexes(0))}catch { indexes.push("-")}
@@ -107,26 +119,32 @@ contract('Bitcrush', ([alice, bob, carol, robert, dev ,minter, tom, terry, jerry
                 a: {
                     reward: fromWei(aliceReward.toString()),
                     staked: fromWei(aliceStakings.stakedAmount.toString()),
+                    niceReward : fromWei(aliceNiceReward.toString()),
                 },
                 b: {
                     reward: fromWei(bobReward.toString()),
                     staked: fromWei(bobStakings.stakedAmount.toString()),
+                    niceReward : fromWei(bobNiceReward.toString()),
                 },
                 t: {
                     reward: fromWei(tomReward.toString()),
                     staked: fromWei(tomStakings.stakedAmount.toString()),
+                    niceReward : fromWei(tomNiceReward.toString()),
                 },
                 ter: {
                     reward: fromWei(terryReward.toString()),
                     staked: fromWei(terryStakings.stakedAmount.toString()),
+                    niceReward : fromWei(terryNiceReward.toString()),
                 },
                 j: {
                     reward: fromWei(jerryReward.toString()),
                     staked: fromWei(jerryStakings.stakedAmount.toString()),
+                    niceReward : fromWei(jerryNiceReward.toString()),
                 },
                 c: {
                     reward: fromWei(carolReward.toString()),
                     staked: fromWei(carolStakings.stakedAmount.toString()),
+                    niceReward : fromWei(carolNiceReward.toString()),
                 },
                 // // totalBankroll: fromWei( await this.bankroll.totalBankroll()),
                 // stakingProfits: profits,
@@ -216,27 +234,27 @@ contract('Bitcrush', ([alice, bob, carol, robert, dev ,minter, tom, terry, jerry
         await waitForBlocks(10)
         await this.logStakes()
         logSection('compound1')
-        await this.staking.compoundAll({from: carol})
+        await this.niceStaking.compoundAll({from: carol})
         await this.logStakes()
         await waitForBlocks(10)
         await this.logStakes()
         logSection('compound2')
-        await this.staking.compoundAll({from: carol})
+        await this.niceStaking.compoundAll({from: carol})
         await this.logStakes()
         await waitForBlocks(10)
         await this.logStakes()
         logSection('compound3')
-        await this.staking.compoundAll({from: carol})
+        await this.niceStaking.compoundAll({from: carol})
         await this.logStakes()
         await waitForBlocks(10)
         await this.logStakes()
         logSection('compound4')
-        await this.staking.compoundAll({from: carol})
+        await this.niceStaking.compoundAll({from: carol})
         await this.logStakes()
         await waitForBlocks(10)
         await this.logStakes()
         logSection('compound5')
-        await this.staking.compoundAll({from: carol})
+        await this.niceStaking.compoundAll({from: carol})
         await this.logStakes()
 
 

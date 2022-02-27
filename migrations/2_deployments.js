@@ -16,28 +16,31 @@ module.exports = async function (deployer) {
     await deployer.deploy(BitcrushLiveWallet, "0xa3ca5df2938126bae7c0df74d3132b5f72bda0b6", bankrollInstance.address,"0x0E5De84bFC1A9799a0FdA4eF0Bd13b6A20e97d89");
     let liveWalletInstance = await BitcrushLiveWallet.deployed();
     
-    await stakingInstance.setBankroll(bankrollInstance.address);
-    await stakingInstance.setLiveWallet(liveWalletInstance.address);
+    //await stakingInstance.setBankroll(bankrollInstance.address);
+    //await stakingInstance.setLiveWallet(liveWalletInstance.address);
 
     //await bankrollInstance.setLiveWallet(liveWalletInstance.address);
     //await bankrollInstance.setBitcrushStaking (stakingInstance.address);
 
     //await liveWalletInstance.setBitcrushBankroll(bankrollInstance.address);
-    await liveWalletInstance.setStakingPool(stakingInstance.address);
+   
+   
+   // await liveWalletInstance.setStakingPool(stakingInstance.address);
 
     
     
     
-    let crush = await CRUSHToken.at("0xa3ca5df2938126bae7c0df74d3132b5f72bda0b6");
+    /* let crush = await CRUSHToken.at("0xa3ca5df2938126bae7c0df74d3132b5f72bda0b6");
     await crush.approve(bankrollInstance.address,150000000000000000000n);
     await bankrollInstance.addToBankroll(150000000000000000000n);
     await crush.approve(stakingInstance.address,10000000000000000000000n);
     await stakingInstance.addRewardToPool(10000000000000000000000n); 
-    await stakingInstance.setAutoCompoundLimit(1);
+     await stakingInstance.setAutoCompoundLimit(1);
     await bankrollInstance.setProfitThreshold(100000000000000000000n); 
     await liveWalletInstance.setLockPeriod(259200);
     
     await bankrollInstance.authorizeAddress(liveWalletInstance.address); 
+    */
     //---------------------
     //for live wallet update
    /*  let stakingInstance = await BitcrushStaking.at("0x83f47386e243461AAcE9Fd60cCbdF64D8c96731E");
