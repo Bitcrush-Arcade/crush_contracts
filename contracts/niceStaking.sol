@@ -12,7 +12,6 @@ import "./staking.sol";
 
 contract BitcrushNiceStaking is Ownable {
     using SafeMath for uint256;
-    using SafeBEP20 for CRUSHToken;
     using SafeBEP20 for BEP20;
     uint256 public performanceFeeCompounder = 10; // 10/10000 * 100 = 0.1%
     uint256 public constant MAX_FEE = 1000; // 1000/10000 * 100 = 10%
@@ -91,7 +90,7 @@ contract BitcrushNiceStaking is Ownable {
             lastAutoCompoundBlock <= block.number,
             "Compound All not yet applicable."
         );
-        stakingPool.compoundAll();
+        
         uint256 compounderReward = 0;
         uint256 batchStartingIndex = stakingPool.batchStartingIndex();
         uint256 indexesLength = stakingPool.indexesLength();
@@ -137,8 +136,8 @@ contract BitcrushNiceStaking is Ownable {
         }
 
         lastAutoCompoundBlock = block.number;
-
-        nice.safeTransfer(msg.sender, compounderReward);
+        //nice.safeTransfer(msg.sender, compounderReward);
+        stakingPool.compoundAll();
     }
 
     function withdrawNiceRewards() public {

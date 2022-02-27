@@ -67,7 +67,7 @@ contract('Bitcrush', ([alice, bob, carol, robert, dev ,minter, tom, terry, jerry
         await this.crush.approve(this.staking.address, toWei(30000000), {from : minter});
         await this.staking.addRewardToPool( toWei(20), {from : minter});
 
-        await this.staking.setAutoCompoundLimit(6, {from : minter});
+        await this.staking.setAutoCompoundLimit(3, {from : minter});
         await this.bankroll.setProfitThreshold( toWei(100), {from : minter});
         
         await this.crush.approve( this.staking.address, toWei(30000000), {from: alice})
@@ -126,22 +126,22 @@ contract('Bitcrush', ([alice, bob, carol, robert, dev ,minter, tom, terry, jerry
                     staked: fromWei(bobStakings.stakedAmount.toString()),
                     niceReward : fromWei(bobNiceReward.toString()),
                 },
-                t: {
+                c: {
                     reward: fromWei(tomReward.toString()),
                     staked: fromWei(tomStakings.stakedAmount.toString()),
                     niceReward : fromWei(tomNiceReward.toString()),
                 },
-                ter: {
+                d: {
                     reward: fromWei(terryReward.toString()),
                     staked: fromWei(terryStakings.stakedAmount.toString()),
                     niceReward : fromWei(terryNiceReward.toString()),
                 },
-                j: {
+                e: {
                     reward: fromWei(jerryReward.toString()),
                     staked: fromWei(jerryStakings.stakedAmount.toString()),
                     niceReward : fromWei(jerryNiceReward.toString()),
                 },
-                c: {
+                f: {
                     reward: fromWei(carolReward.toString()),
                     staked: fromWei(carolStakings.stakedAmount.toString()),
                     niceReward : fromWei(carolNiceReward.toString()),
