@@ -206,14 +206,14 @@ contract GalacticChef is Ownable, ReentrancyGuard {
   }
 
   /// @notice This is for Third party pools only. this handles the reward 
-  function mintRewards(uint _pid) external nonReentrant{
+  function mintRewards(uint _pid) external nonReentrant returns(uint _rewardsGiven){
     PoolInfo storage pool = poolInfo[_pid];
     require(pool.poolType && tpPools[_pid] == msg.sender, "Not tp pool");
     if(block.timestamp <= pool.lastRewardTs)
-      return;
-    uint amount = getTimeEmissions(pool) * pool.mult / (currentMax * PERCENT);
+      return 0;
+    _rewardsGiven = getTimeEmissions(pool) * pool.mult / (currentMax * PERCENT);
     pool.lastRewardTs = block.timestamp;
-    NICE.mint(address(pool.token), amount);
+    NICE.mint(address(pool.token), _rewardsGiven);
   }
 
   function deposit(uint _amount, uint _pid) external nonReentrant{
