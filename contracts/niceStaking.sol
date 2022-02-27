@@ -2,12 +2,9 @@
 pragma solidity >=0.6.5;
 
 import "@pancakeswap/pancake-swap-lib/contracts/access/Ownable.sol";
-import "./CrushCoin.sol";
 import "@pancakeswap/pancake-swap-lib/contracts/math/SafeMath.sol";
 import "@pancakeswap/pancake-swap-lib/contracts/token/BEP20/SafeBEP20.sol";
 import "@pancakeswap/pancake-swap-lib/contracts/token/BEP20/BEP20.sol";
-import "./HouseBankroll.sol";
-import "./LiveWallet.sol";
 import "./staking.sol";
 
 contract BitcrushNiceStaking is Ownable {
