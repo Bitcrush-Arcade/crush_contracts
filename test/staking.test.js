@@ -67,7 +67,7 @@ contract('Bitcrush', ([alice, bob, carol, robert, dev ,minter, tom, terry, jerry
         await this.crush.approve(this.staking.address, toWei(30000000), {from : minter});
         await this.staking.addRewardToPool( toWei(20), {from : minter});
 
-        await this.staking.setAutoCompoundLimit(2, {from : minter});
+        await this.staking.setAutoCompoundLimit(3, {from : minter});
         await this.bankroll.setProfitThreshold( toWei(100), {from : minter});
         
         await this.crush.approve( this.staking.address, toWei(30000000), {from: alice})
@@ -254,6 +254,9 @@ contract('Bitcrush', ([alice, bob, carol, robert, dev ,minter, tom, terry, jerry
         await waitForBlocks(10)
         await this.logStakes()
         logSection('compound5')
+        await this.niceStaking.compoundAll({from: carol})
+        await this.logStakes()
+        logSection('compound6')
         await this.niceStaking.compoundAll({from: carol})
         await this.logStakes()
 
