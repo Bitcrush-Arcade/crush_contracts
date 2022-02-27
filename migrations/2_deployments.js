@@ -4,16 +4,18 @@ const BitcrushLiveWallet = artifacts.require("BitcrushLiveWallet");
 const CRUSHToken = artifacts.require("CRUSHToken");
 const BitcrushLiquidityBankroll = artifacts.require("BitcrushLiquidityBankroll");
 const BitcrushTokenLiveWallet = artifacts.require("BitcrushTokenLiveWallet");
-
+const BitcrushTestingBankroll = artifacts.require("BitcrushTestingBankroll");
 module.exports = async function (deployer) {
     //for bitcrush
     let stakingInstance = await BitcrushStaking.at("0x8139cA222D38296daB88d65960Ca400dcd95b246");
     
+    await deployer.deploy(BitcrushTestingBankroll, "0x0E5De84bFC1A9799a0FdA4eF0Bd13b6A20e97d89","0x8babbb98678facc7342735486c851abd7a0d17ca");
+    let testingBankroll = await BitcrushTestingBankroll.deployed();
     
     await deployer.deploy(BitcrushLiquidityBankroll, "0x0E5De84bFC1A9799a0FdA4eF0Bd13b6A20e97d89");
     let bankrollInstance = await BitcrushLiquidityBankroll.deployed();
     
-    await deployer.deploy(BitcrushTokenLiveWallet,"0xeD24FC36d5Ee211Ea25A80239Fb8C4Cfd80f12Ee" ,"0xa3ca5df2938126bae7c0df74d3132b5f72bda0b6", "0xb40287dA5A314F6AB864498355b1FCDe6703956D","0x0E5De84bFC1A9799a0FdA4eF0Bd13b6A20e97d89","0x3380aE82e39E42Ca34EbEd69aF67fAa0683Bb5c1", bankrollInstance.address);
+    await deployer.deploy(BitcrushTokenLiveWallet,"0x78867BbEeF44f2326bF8DDd1941a4439382EF2A7" ,"0x8babbb98678facc7342735486c851abd7a0d17ca", testingBankroll.address,"0x0E5De84bFC1A9799a0FdA4eF0Bd13b6A20e97d89","0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3", bankrollInstance.address);
     let liveWalletInstance = await BitcrushLiveWallet.deployed();
     
     await bankrollInstance.authorizeAddress(liveWalletInstance.address);
