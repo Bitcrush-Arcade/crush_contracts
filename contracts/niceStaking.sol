@@ -78,7 +78,10 @@ contract BitcrushNiceStaking is Ownable {
     function pendingProfits(address _address) public view returns (uint256) {
         UserStaking memory user = stakings[_address];
         (user.shares, , , , , , , , ) = stakingPool.stakings(_address);
-        return user.shares.mul(accProfitPerShare).div(1e12).sub(user.profitBaseline);
+        return
+            user.shares.mul(accProfitPerShare).div(1e12).sub(
+                user.profitBaseline
+            );
     }
 
     /// compounds the rewards of all users in the pool
@@ -90,25 +93,26 @@ contract BitcrushNiceStaking is Ownable {
         );
         stakingPool.compoundAll();
         uint256 compounderReward = 0;
-        uint256 batchStart = stakingPool.batchStartingIndex();
-        if (stakingPool.batchStartingIndex() >= stakingPool.indexesLength())
-            batchStart = 0;
+        uint256 batchStartingIndex = stakingPool.batchStartingIndex();
+        uint256 indexesLength = stakingPool.indexesLength();
+        uint256 autoCompundLimit = stakingPool.autoCompoundLimit();
 
-        uint256 batchLimit = stakingPool.indexesLength();
+        uint256 batchStart = batchStartingIndex;
+        if (batchStartingIndex >= indexesLength) batchStart = 0;
+
+        uint256 batchLimit = indexesLength;
         if (
-            stakingPool.indexesLength() <= stakingPool.autoCompoundLimit() ||
-            batchStart.add(stakingPool.autoCompoundLimit()) >=
-            stakingPool.indexesLength()
-        ) batchLimit = stakingPool.indexesLength();
-        else batchLimit = batchStart.add(stakingPool.autoCompoundLimit());
+            indexesLength <= autoCompundLimit ||
+            batchStart.add(autoCompundLimit) >= indexesLength
+        ) batchLimit = indexesLength;
+        else batchLimit = batchStart.add(autoCompundLimit);
 
         updateProfits();
         for (uint256 i = batchStart; i < batchLimit; i++) {
-            UserStaking storage currentUser = stakings[
-                stakingPool.addressIndexes(i)
-            ];
+            address currentAddress = stakingPool.addressIndexes(i);
+            UserStaking storage currentUser = stakings[currentAddress];
             (currentUser.shares, , , , , , , , ) = stakingPool.stakings(
-                stakingPool.addressIndexes(i)
+                currentAddress
             );
 
             uint256 stakerReward = currentUser
@@ -121,15 +125,14 @@ contract BitcrushNiceStaking is Ownable {
             );
 
             if (stakerReward > 0) {
-                
                 uint256 cpAllReward = stakerReward
                     .mul(performanceFeeCompounder)
                     .div(divisor);
                 compounderReward = compounderReward.add(cpAllReward);
                 stakerReward = stakerReward.sub(cpAllReward);
-                niceRewards[stakingPool.addressIndexes(i)] = niceRewards[
-                    stakingPool.addressIndexes(i)
-                ].add(stakerReward);
+                niceRewards[currentAddress] = niceRewards[currentAddress].add(
+                    stakerReward
+                );
             }
         }
 
@@ -154,5 +157,7 @@ contract BitcrushNiceStaking is Ownable {
 
     /// emergency withdraw funds of users
     /// @dev transfer all available funds of users to users wallet
-    function emergencyWithdraw() public {}
+    function emergencyWithdraw() public {
+        nice.safeTransfer(msg.sender, niceRewards[msg.sender]);
+    }
 }
