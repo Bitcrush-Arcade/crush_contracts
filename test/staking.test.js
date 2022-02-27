@@ -31,7 +31,7 @@ contract('Bitcrush', ([alice, bob, carol, robert, dev ,minter, tom, terry, jerry
         this.crush = await CrushToken.new({ from: minter });
         this.staking = await BitcrushStaking.new(this.crush.address, toWei(1) ,dev, { from: minter },);
         this.bankroll = await BitcrushBankroll.new(this.crush.address,this.staking.address,dev,carol,6000,1000,200,2700,minter, { from: minter });
-        this.niceStaking = await BitcrushNiceStaking.new(this.crush.address, toWei(1) ,dev, this.crush.address, { from: minter });
+        this.niceStaking = await BitcrushNiceStaking.new(this.crush.address, { from: minter });
         await this.niceStaking.setStakingPool(this.staking.address, { from: minter });
         await this.staking.setBankroll(this.bankroll.address,{from : minter});
         this.liveWallet = await BitcrushLiveWallet.new(this.crush.address,this.bankroll.address,minter ,{ from: minter });
@@ -67,7 +67,7 @@ contract('Bitcrush', ([alice, bob, carol, robert, dev ,minter, tom, terry, jerry
         await this.crush.approve(this.staking.address, toWei(30000000), {from : minter});
         await this.staking.addRewardToPool( toWei(20), {from : minter});
 
-        await this.staking.setAutoCompoundLimit(3, {from : minter});
+        await this.staking.setAutoCompoundLimit(6, {from : minter});
         await this.bankroll.setProfitThreshold( toWei(100), {from : minter});
         
         await this.crush.approve( this.staking.address, toWei(30000000), {from: alice})
@@ -256,8 +256,12 @@ contract('Bitcrush', ([alice, bob, carol, robert, dev ,minter, tom, terry, jerry
         logSection('compound5')
         await this.niceStaking.compoundAll({from: carol})
         await this.logStakes()
+        await waitForBlocks(10)
+        await this.logStakes()
         logSection('compound6')
         await this.niceStaking.compoundAll({from: carol})
+        await this.logStakes()
+        await waitForBlocks(10)
         await this.logStakes()
 
 
