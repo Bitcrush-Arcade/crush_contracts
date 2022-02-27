@@ -322,15 +322,17 @@ contract("GalacticChefTest", ([minter, user1, user2, user3, tp1, tp2]) =>{
     // Adding token pool to chef, pid = 1
     await this.chef.addPool( tp1, m1, fee, true, [], []); //chef has his lptoken wallet
 
+    // Advancing time to year 1 and 30 mins after deployment
+    await time.increase(time.duration.minutes(30));
+
     // tp1 mints rewards to its wallet through master chef
     await this.chef.mintRewards(1, {from: tp1});
 
     // Checking tp1's wallet for the minted amount
-    const currentEmissions = await this.chef.getCurrentEmissions(1);
-    const mintedAmount = currentEmissions*m1/(m1*1e12)
-    const tp1Balance = this.rewardToken.balanceOf(tp1);
+    const tp1Balance = await this.rewardToken.balanceOf(tp1);
+    const mintedAmount = await this.chef.getCurrentEmissions(1) * m1 / (m1 * 1e12);
 
-    assert.equal(mintedAmount,tp1Balance, "Wrong amount minted");
+    assert.equal( web3.utils.fromWei(tp1Balance), mintedAmount.toString(), "Wrong amount minted");
 
   })
 
