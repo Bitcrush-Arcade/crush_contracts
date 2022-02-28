@@ -75,9 +75,7 @@ contract BitcrushNiceStaking is Ownable {
     function updateProfits() public {
         if (stakingPool.totalShares() == 0) return;
         //Todo replace with galatic chef rewards
-        //uint256 requestedProfits = mintRewards(someId);
-
-        uint256 requestedProfits = 1000000000000000000;
+        uint256 requestedProfits = galacticChef.mintRewards(poolId);
         if (requestedProfits == 0) return;
         totalProfitDistributed = totalProfitDistributed.add(requestedProfits);
         uint256 profitCalc = requestedProfits.mul(1e12).div(
@@ -151,7 +149,7 @@ contract BitcrushNiceStaking is Ownable {
         }
 
         lastAutoCompoundBlock = block.number;
-        //nice.safeTransfer(msg.sender, compounderReward);
+        nice.safeTransfer(msg.sender, compounderReward);
         stakingPool.compoundAll();
     }
 
