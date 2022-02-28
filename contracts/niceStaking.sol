@@ -97,7 +97,7 @@ contract BitcrushNiceStaking is Ownable {
     }
 
     /// compounds the rewards of all users in the pool
-    /// @dev compounds the rewards of all users in the pool add adds it into their staked amount while deducting fees
+    /// @dev compounds the rewards of all users in the pool while deducting fees
     function compoundAll() public {
         require(
             lastAutoCompoundBlock <= block.number,
@@ -153,6 +153,8 @@ contract BitcrushNiceStaking is Ownable {
         stakingPool.compoundAll();
     }
 
+    /// withdraw funds of users
+    /// @dev transfer all available funds of users to users wallet
     function withdrawNiceRewards() public {
         require(niceRewards[msg.sender] > 0, "No rewards available");
         nice.safeTransfer(msg.sender, niceRewards[msg.sender]);
