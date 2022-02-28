@@ -13,15 +13,51 @@ contract("GalacticChefTest", ([minter, user1, user2, user3, tp1, tp2]) =>{
 
   beforeEach( async()=>{
     // Setting up emissions
-    this.emissions = 10
+    this.maxEmissions = 20
+    this.nextEmissions = 10
     this.rewardToken = await Token.new("Reward Token","RW")
-    this.chef = await Chef.new(this.rewardToken.address, toWei(this.emissions), 1)
+    this.chef = await Chef.new(this.rewardToken.address, toWei(this.maxEmissions), toWei(this.nextEmissions), 1);
     this.lpToken = await Token.new("Liquidity 1","LP1")
     this.lpTokenReg1 = await Token.new("Liquidity 2","LP2")
     this.lpTokenReg2 = await Token.new("Liquidity 3","LP3")
     // Allows Chef to mint
     await this.rewardToken.toggleMinter(this.chef.address)
     this.divisor = 10000
+  })
+
+  it("Should split the emissions evenly in different chains", async()=>{
+
+    const m1 = 20000 // mul *2
+    const fee = 0  // 100 00 fee 10.00%
+    
+    // Adding token pool to chef, pid = 1
+    await this.chef.addPool( this.lpToken.address, m1, fee, false, [], []); //chef has his lptoken wallet
+
+    // Advancing to 30 mins after deployment
+    // Checking emissions for 1 chain
+    await time.increase(time.duration.minutes(30));
+    const oneChainEmissions = new BN (await this.chef.getCurrentEmissions(1)).div( new BN("1000000000000"));
+
+    // Checking emissions for 2 chains
+    await this.chef.addChain({from: minter});
+    await time.increase(time.duration.minutes(30));
+    const twoChainEmissions = new BN (await this.chef.getCurrentEmissions(1)).div( new BN("1000000000000"));
+
+    // Checking emissions for 3 chains
+    await this.chef.addChain({from: minter});
+    await time.increase(time.duration.minutes(30));
+    const threeChainEmissions = new BN (await this.chef.getCurrentEmissions(1)).div( new BN("1000000000000"));
+
+    // Checking emissions for 4 chains
+    await this.chef.addChain({from: minter});
+    await time.increase(time.duration.minutes(30));
+    const fourChainEmissions = new BN (await this.chef.getCurrentEmissions(1)).div( new BN("1000000000000"));
+
+    assert.equal(parseFloat(web3.utils.fromWei(oneChainEmissions)), 1800*this.maxEmissions, "Should not split emissions");
+    assert.equal(parseFloat(web3.utils.fromWei(twoChainEmissions)), 1800*this.maxEmissions/2, "Should not split emissions");
+    assert.equal(parseFloat(web3.utils.fromWei(threeChainEmissions)), 1800*this.maxEmissions/3, "Should not split emissions");
+    assert.equal(parseFloat(web3.utils.fromWei(fourChainEmissions)), 1800*this.maxEmissions/4, "Should not split emissions");
+
   })
 
   // OWNER ONLY
@@ -117,8 +153,7 @@ contract("GalacticChefTest", ([minter, user1, user2, user3, tp1, tp2]) =>{
     assert.equal( pool4Data.mult.toString(), ""+adjust, "Invalid Multiplier 4")
     assert.equal( max.toString(), "1000000", "Invalid Multiplier 4")
   })
-  it("Reward for regular pools should be correctly calculated", async () => {})
-  it("Should edit the amount of active chains to correct rewards given", async () => {})
+
   // USERS
   // Regular POOLs 
   
@@ -170,19 +205,18 @@ contract("GalacticChefTest", ([minter, user1, user2, user3, tp1, tp2]) =>{
     await time.increase( time.duration.minutes(30) );
     const userReward = await this.chef.pendingRewards(user1, 1); 
 
-    // PENDING: SHOULD CHECK ACTUAL REWARD WITH A DEPOSIT(0) AND SEE IF THEY MATCH
-    
+    await this.chef.deposit(0, 1, {from: user1});
+    const userBalance = await this.rewardToken.balanceOf(user1);
 
     // Calculating reward with pendingReward()
     const userAmount = 60 //Total supply in liquidity pool
-    const multiplier = this.emissions * time.duration.minutes(30)*m1
+    const multiplier = this.maxEmissions * time.duration.minutes(30)*m1
     const maxMultiplier = m1 * 60 
     const updatedPerShare = (multiplier/maxMultiplier)
     const pendingRewards = (updatedPerShare*userAmount)
 
-
-
-    assert.equal( web3.utils.fromWei(userReward), pendingRewards.toString() ,"Incorrect reward");
+    assert.ok(Math.abs(parseFloat(web3.utils.fromWei(userBalance)) - pendingRewards) < 32, "Incorrect user reward" );
+    assert.ok(Math.abs(parseFloat(web3.utils.fromWei(userReward)) - pendingRewards) < 32, "Incorrect pending reward");
 
   })
 
@@ -213,7 +247,7 @@ contract("GalacticChefTest", ([minter, user1, user2, user3, tp1, tp2]) =>{
 
   // Calculating reward 
   const userAmount = 60 //Total supply in liquidity pool
-  const multiplier = this.emissions * (time.duration.minutes(30))*m1
+  const multiplier = this.maxEmissions * (time.duration.minutes(30))*m1
   const maxMultiplier = m1 * 60
   const updatedPerShare = (multiplier/maxMultiplier)
   const userRewards = (updatedPerShare*userAmount)
@@ -285,7 +319,7 @@ contract("GalacticChefTest", ([minter, user1, user2, user3, tp1, tp2]) =>{
   
     // User reward should be 0 
     const userAmount = 60 //Total supply in liquidity pool
-    const multiplier = this.emissions * time.duration.minutes(30)*m1
+    const multiplier = this.maxEmissions * time.duration.minutes(30)*m1
     const maxMultiplier = m1 * 60
     const updatedPerShare = (multiplier/maxMultiplier)
     const userRewards = (updatedPerShare*userAmount)
@@ -326,13 +360,13 @@ contract("GalacticChefTest", ([minter, user1, user2, user3, tp1, tp2]) =>{
     await time.increase(time.duration.minutes(30));
 
     // tp1 mints rewards to its wallet through master chef
+    const mintedAmount = web3.utils.fromWei(await this.chef.getCurrentEmissions(1)) * m1 / (m1 * 1e12);
     await this.chef.mintRewards(1, {from: tp1});
 
     // Checking tp1's wallet for the minted amount
     const tp1Balance = await this.rewardToken.balanceOf(tp1);
-    const mintedAmount = await this.chef.getCurrentEmissions(1) * m1 / (m1 * 1e12);
 
-    assert.equal( web3.utils.fromWei(tp1Balance), mintedAmount.toString(), "Wrong amount minted");
+    assert.ok(Math.abs(parseFloat(web3.utils.fromWei(tp1Balance)) - mintedAmount) < 32, "Wrong amount minted");
 
   })
 
@@ -342,11 +376,9 @@ contract("GalacticChefTest", ([minter, user1, user2, user3, tp1, tp2]) =>{
     const fee = 0  // 100 00 fee 10.00%
 
     //Timestamps
-    const year1 = 1640995200 //00:00 2022
     const year2 = 1672531200 //00:00 2023
     const year3 = 1704067200 //00:00 2024
     const year4 = 1735689600 //00:00 2025
-    const year5 = 1767225600 //00:00 2026
     const year6 = 1798761600 //00:00 2027
 
     // Setting up
@@ -359,28 +391,25 @@ contract("GalacticChefTest", ([minter, user1, user2, user3, tp1, tp2]) =>{
     // Approve token spend on contract
     await this.lpToken.approve(this.chef.address, toWei(4000), {from: user1});
 
-    // Setting time to 2022 jan 1 00:00
-    await time.increaseTo(year1);
-
-    // y1
-    // User1 deposits an amount to chef at 2022 jan 1, 00:00
+    // Assuming the contract is deployed on some time y1
+    // User1 deposits an amount to chef at 2022 any day, 00:00
     await this.chef.deposit(toWei(60), 1, {from: user1});
-    // Then withdraws at 2022 jan 1, 00:30
+    // Then withdraws at 2022 that day, 00:30
     await time.increase(time.duration.minutes(30));
+    const y1Emissions = web3.utils.fromWei(new BN(await this.chef.getCurrentEmissions(1)).div( new BN("1000000000000")));
     await this.chef.withdraw(toWei(60), 1, {from: user1});
 
-    const y1Emissions = await this.chef.currentEmissions(1);
-    const y1RewardBalance = this.rewardToken.balanceOf(user1);
+    const y1RewardBalance = await this.rewardToken.balanceOf(user1);
 
     // Calculating rewards for year 1 withdrawal
     const userAmount = 60 //Total supply in liquidity pool before withdrawal
-    const multiplier = this.emissions * time.duration.minutes(30)*m1
+    const multiplier = this.maxEmissions * time.duration.minutes(30)*m1
     const maxMultiplier = m1 * 60
     const updatedPerShare = (multiplier/maxMultiplier)
     const y1UserRewards = (updatedPerShare*userAmount)
 
-    assert.equal(y1Emissions, toWei(this.emissions), "Incorrect y1 emissions");
-    assert.equal(y1RewardBalance, y1UserRewards, "Incorrect amount rewarded y1");
+    assert.ok(Math.abs(y1Emissions - y1UserRewards) < 32, "Incorrect y1 emissions");
+    assert.ok(Math.abs(parseFloat(web3.utils.fromWei(y1RewardBalance)) - y1UserRewards) < 32, "Incorrect amount rewarded y1");
 
     // y2
     await time.increaseTo(year2);
@@ -388,13 +417,20 @@ contract("GalacticChefTest", ([minter, user1, user2, user3, tp1, tp2]) =>{
     await this.chef.deposit(toWei(60), 1, {from: user1});
     // Then withdraws at 2023 jan 1, 00:30
     await time.increase(time.duration.minutes(30));
+    const y2Emissions = new BN (await this.chef.getCurrentEmissions(1)).div( new BN("1000000000000"));
     await this.chef.withdraw(toWei(60), 1, {from: user1});
+    
+    const y2RewardBalance = await this.rewardToken.balanceOf(user1);
 
-    const y2Emissions = await this.chef.currentEmissions(1);
-    const y2RewardBalance = this.rewardToken.balanceOf(user1);
+    // Calculating rewards for year 2 withdrawal
+    const userAmount2 = 60 //Total supply in liquidity pool before withdrawal
+    const multiplier2 = this.nextEmissions * time.duration.minutes(30) * m1
+    const maxMultiplier2 = m1 * 60
+    const updatedPerShare2 = (multiplier2/maxMultiplier2)
+    const y2UserRewards = (updatedPerShare2*userAmount2)
 
-    assert.equal(y2Emissions, toWei(this.emissions)/2, "Incorrect y1 emissions");
-    assert.equal(y2RewardBalance, (3/2)*y1UserRewards, "Incorrect amount rewarded y1");
+    assert.ok(Math.abs(parseFloat(web3.utils.fromWei(y2Emissions)) - y2UserRewards) < 32, "Incorrect y2 emissions");
+    assert.ok(Math.abs(parseFloat(web3.utils.fromWei(y2RewardBalance)) - (y1UserRewards + y2UserRewards)) < 32, "Incorrect amount rewarded y2");
 
     // y3
     await time.increaseTo(year3);
@@ -402,13 +438,14 @@ contract("GalacticChefTest", ([minter, user1, user2, user3, tp1, tp2]) =>{
     await this.chef.deposit(toWei(60), 1, {from: user1});
     // Then withdraws at 2024 jan 1, 00:30
     await time.increase(time.duration.minutes(30));
+    const y3Emissions = new BN (await this.chef.getCurrentEmissions(1)).div( new BN("1000000000000"));
+
     await this.chef.withdraw(toWei(60), 1, {from: user1});
+    
+    const y3RewardBalance = await this.rewardToken.balanceOf(user1);
 
-    const y3Emissions = await this.chef.currentEmissions(1);
-    const y3RewardBalance = this.rewardToken.balanceOf(user1);
-
-    assert.equal(y3Emissions, toWei(this.emissions)/4, "Incorrect y1 emissions");
-    assert.equal(y3RewardBalance, (7/4)*y1UserRewards, "Incorrect amount rewarded y1");
+    assert.ok(Math.abs(parseFloat(web3.utils.fromWei(y3Emissions)) - (y2UserRewards/2)) < 32, "Incorrect y3 emissions");
+    assert.ok(Math.abs(parseFloat(web3.utils.fromWei(y3RewardBalance)) - (y1UserRewards + (3/2)*y2UserRewards)) < 32, "Incorrect amount rewarded y3");
 
     // y3 => y4
     // Checking if rewards are calculated correctly when changing year
@@ -418,15 +455,47 @@ contract("GalacticChefTest", ([minter, user1, user2, user3, tp1, tp2]) =>{
     await this.chef.deposit(toWei(60), 1, {from: user1});
     // Then withdraws in 2025 at 00:30
     await time.increase(time.duration.hours(1));
+    const y34Emissions = new BN(await this.chef.getCurrentEmissions(1)).div(new BN("1000000000000"));
+
     await this.chef.withdraw(toWei(60), 1, {from: user1});
 
-    const y4Emissions = await this.chef.currentEmissions(1);
-    const y34RewardBalance = this.rewardToken.balanceOf(user1);
+    const y34RewardBalance = await this.rewardToken.balanceOf(user1);
 
-    assert.equal(y4Emissions, toWei(this.emissions)/8, "Incorrect y1 emissions");
-    assert.equal(y34RewardBalance, (17/8)*y1UserRewards, "Incorrect amount rewarded y1");
+    assert.ok(Math.abs(parseFloat(web3.utils.fromWei(y34Emissions)) - (3/4)*y2UserRewards) < 32, "Incorrect y34 emissions");
+    assert.ok(Math.abs(parseFloat(web3.utils.fromWei(y34RewardBalance)) - (y1UserRewards + (9/4)*y2UserRewards)) < 32, "Incorrect amount rewarded y34");
+
+    // y5 => y6
+    // Checking if rewards are calculated correctly when changing year
+    // 2026 last day 23:30
+    await time.increaseTo(year6 - time.duration.minutes(30));
+    // User deposits
+    await this.chef.deposit(toWei(60), 1, {from: user1});
+    // Then withdraws in 2027 at 00:30
+    await time.increase(time.duration.hours(1));
+    const y56Emissions = new BN(await this.chef.getCurrentEmissions(1)).div(new BN("1000000000000"));
+
+    await this.chef.withdraw(toWei(60), 1, {from: user1});
+
+    const y56RewardBalance = await this.rewardToken.balanceOf(user1);
+
+    assert.ok(Math.abs(parseFloat(web3.utils.fromWei(y56Emissions)) - y2UserRewards/8) < 32, "Incorrect y56 emissions");
+    assert.ok(Math.abs(parseFloat(web3.utils.fromWei(y56RewardBalance)) - (y1UserRewards + (19/8)*y2UserRewards)) < 32, "Incorrect amount rewarded y56");
+
+    // y6: no emissions after y5
+    // User deposits
+    await this.chef.deposit(toWei(60), 1, {from: user1});
+    // Then withdraws 30 mins later
+    await time.increase(time.duration.minutes(30));
+    const y6Emissions = new BN(await this.chef.getCurrentEmissions(1)).div(new BN("1000000000000"));
+
+    await this.chef.withdraw(toWei(60), 1, {from: user1});
+
+    const y6RewardBalance = await this.rewardToken.balanceOf(user1);
+
+    // Current emissions and reward balance should not change from last time 
+    assert.equal(web3.utils.fromWei(y6Emissions), "0", "Incorrect y6 emissions");
+    assert.ok(Math.abs(parseFloat(web3.utils.fromWei(y6RewardBalance)) - (y1UserRewards + (19/8)*y2UserRewards)) < 32, "Incorrect amount rewarded y6");
 
   })
-  it("Should split the emissions evenly in different chains", async()=>{})
 
 })

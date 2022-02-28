@@ -24,6 +24,11 @@ contract GalacticChef is Ownable, ReentrancyGuard {
     uint accRewardPerShare;
     uint lastRewardTs;
   }
+  /// Timestamp Specific
+  uint constant SECONDS_PER_DAY = 24 * 60 * 60;
+  uint constant SECONDS_PER_HOUR = 60 * 60;
+  uint constant SECONDS_PER_MINUTE = 60;
+  int constant OFFSET19700101 = 2440588;
   /*
   ** We have two different types of pools: Regular False, Third True
   ** Nice has a fixed emission given per second due to tokenomics
@@ -41,14 +46,8 @@ contract GalacticChef is Ownable, ReentrancyGuard {
   // The number of chains where a GalacticChef exists. This helps have a consistent emission across all chains.
   uint public chains;
   // Emissions per second. Since we'll have multiple Chefs across chains the emission set per second
-  uint public maxEmissions;
-  uint constant year1 = 1640995200;
-  uint constant year2 = 1672531200;
-  uint constant year3 = 1704067200;
-  uint constant year4 = 1735689600;
-  uint constant year5 = 1767225600;
-  uint constant year6 = 1798761600;
-
+  uint public immutable initMax; // First year only
+  uint public immutable nextMax; // Subsequent Years
   /*
   ** Reward Calculation:
   ** Fixed Pool Rewards = Emission*allocation / PERCENT
@@ -75,10 +74,11 @@ contract GalacticChef is Ownable, ReentrancyGuard {
 
   event LogEvent(uint number, string data);
 
-  constructor(address _niceToken, uint _maxEmission, uint _chains){
+  constructor(address _niceToken, uint _maxEmission, uint _nextEmission,uint _chains){
     NICE = NiceToken(_niceToken);
     feeAddress = msg.sender;
-    maxEmissions = _maxEmission ;
+    initMax = _maxEmission ; // 20
+    nextMax = _nextEmission; // 10
     chains = _chains;
   }
   /// @notice Add Farm of a specific token
@@ -155,8 +155,10 @@ contract GalacticChef is Ownable, ReentrancyGuard {
   function updatePool(uint _pid) public {
     PoolInfo storage pool = poolInfo[_pid];
     uint selfBal = pool.token.balanceOf(address(this));
-    if(pool.mult == 0 || selfBal == 0 || block.timestamp <= pool.lastRewardTs)
+    if(pool.mult == 0 || selfBal == 0 || block.timestamp <= pool.lastRewardTs){
+      pool.lastRewardTs = block.timestamp;
       return;
+    }
     uint maxMultiplier = currentMax * selfBal;
     uint periodReward = getTimeEmissions(pool) * pool.mult / maxMultiplier;
     pool.lastRewardTs = block.timestamp;
@@ -171,25 +173,26 @@ contract GalacticChef is Ownable, ReentrancyGuard {
   }
 
   function getTimeEmissions(PoolInfo storage _pool) internal view returns (uint _emissions){
-    uint8 passingYears;
-    uint8 poolYears;
-    uint[6] memory checkYears = [year1, year2, year3, year4, year5, year6];
-    for(uint8 i  = 0; i < checkYears.length; i ++){
-        if(block.timestamp >= checkYears[i])
-          passingYears ++;
-        if(_pool.lastRewardTs >= checkYears[i])
-          poolYears ++;
-    }
-    if(poolYears > 5)
+    (uint currentYear,,) = timestampToDateTime(block.timestamp);
+    (uint poolYear,,) = timestampToDateTime(_pool.lastRewardTs);
+    uint divPool;
+    uint yearDiff = currentYear - poolYear;
+    uint maxEmissions = poolYear > 2022 ? nextMax : initMax;
+    if(poolYear > 2026)
       return 0;
-    uint divPassing = passingYears == 1 ? 1 : (2 * (passingYears - 1));
-    uint divPool = poolYears == 1 ? 1 : (2 * (poolYears - 1));
-    if(passingYears > poolYears){
-      uint thisTimeDiff = passingYears > 5 ? 0 : block.timestamp - checkYears[passingYears - 1];
-      uint oldTimeDiff = checkYears[passingYears-1] - _pool.lastRewardTs;
+    
+    divPool = poolYear <= 2023 ? 1 : (2 ** (poolYear - 2023));
 
-      _emissions = maxEmissions * thisTimeDiff * PERCENT / (chains * divPassing);
-      _emissions += maxEmissions * oldTimeDiff * PERCENT / (chains * divPool);
+    if(yearDiff > 0){
+      //LAST YEAR EMISSIONS
+      uint timeDiff = timestampFromDateTime(currentYear,1,1,0,0,0) - _pool.lastRewardTs;
+      _emissions += maxEmissions * timeDiff * PERCENT / (chains * divPool);
+      // NEW YEAR NEW EMISSIONS
+      if( maxEmissions != nextMax )
+        maxEmissions = nextMax;
+      divPool = currentYear == 2023 ? 1 : (2 ** (currentYear - 2023));
+      timeDiff = currentYear > 2026 ? 0 : block.timestamp - timestampFromDateTime(currentYear,1,1,0,0,0);
+      _emissions += maxEmissions * timeDiff * PERCENT / (chains * divPool);
     }
     else{
       _emissions = maxEmissions * (block.timestamp - _pool.lastRewardTs) * PERCENT / ( chains * divPool);
@@ -200,8 +203,13 @@ contract GalacticChef is Ownable, ReentrancyGuard {
   /// @dev this might be expensive to call...
   function massUpdatePools() public {
     for(uint id = 1; id <= poolCounter; id ++){
-      if(poolInfo[id].mult > 0)
+      emit LogEvent(id, "pool update");
+      if(poolInfo[id].mult == 0)
+        continue; 
+      if(!poolInfo[id].poolType)
         updatePool(id);
+      else
+        _mintRewards(id);
     }
   }
 
@@ -209,11 +217,16 @@ contract GalacticChef is Ownable, ReentrancyGuard {
   function mintRewards(uint _pid) external nonReentrant returns(uint _rewardsGiven){
     PoolInfo storage pool = poolInfo[_pid];
     require(pool.poolType && tpPools[_pid] == msg.sender, "Not tp pool");
+    _rewardsGiven =_mintRewards(_pid);
+  }
+
+  function _mintRewards(uint _pid) internal returns(uint _minted){
+    PoolInfo storage pool = poolInfo[_pid];
     if(block.timestamp <= pool.lastRewardTs)
       return 0;
-    _rewardsGiven = getTimeEmissions(pool) * pool.mult / (currentMax * PERCENT);
+    _minted = getTimeEmissions(pool) * pool.mult / (currentMax * PERCENT);
     pool.lastRewardTs = block.timestamp;
-    NICE.mint(address(pool.token), _rewardsGiven);
+    NICE.mint(address(pool.token), _minted);
   }
 
   function deposit(uint _amount, uint _pid) external nonReentrant{
@@ -292,7 +305,50 @@ contract GalacticChef is Ownable, ReentrancyGuard {
 
   function addChain() external onlyOwner{
     massUpdatePools();
-    chains ++;
+    chains = chains + 1;
   }
+
+
+  function timestampToDateTime(uint timestamp) internal pure returns (uint year, uint month, uint day) {
+        (year, month, day) = _daysToDate(timestamp / SECONDS_PER_DAY);
+    }
+    
+    function timestampFromDateTime(uint year, uint month, uint day, uint hour, uint minute, uint second) internal pure returns (uint timestamp) {
+        timestamp = _daysFromDate(year, month, day) * SECONDS_PER_DAY + hour * SECONDS_PER_HOUR + minute * SECONDS_PER_MINUTE + second;
+    }
+
+    function _daysToDate(uint _days) internal pure returns (uint year, uint month, uint day) {
+        int __days = int(_days);
+
+        int L = __days + 68569 + OFFSET19700101;
+        int N = 4 * L / 146097;
+        L = L - (146097 * N + 3) / 4;
+        int _year = 4000 * (L + 1) / 1461001;
+        L = L - 1461 * _year / 4 + 31;
+        int _month = 80 * L / 2447;
+        int _day = L - 2447 * _month / 80;
+        L = _month / 11;
+        _month = _month + 2 - 12 * L;
+        _year = 100 * (N - 49) + _year + L;
+
+        year = uint(_year);
+        month = uint(_month);
+        day = uint(_day);
+    }
+    function _daysFromDate(uint year, uint month, uint day) internal pure returns (uint _days) {
+        require(year >= 1970);
+        int _year = int(year);
+        int _month = int(month);
+        int _day = int(day);
+
+        int __days = _day
+          - 32075
+          + 1461 * (_year + 4800 + (_month - 14) / 12) / 4
+          + 367 * (_month - 2 - (_month - 14) / 12 * 12) / 12
+          - 3 * ((_year + 4900 + (_month - 14) / 12) / 100) / 4
+          - OFFSET19700101;
+
+        _days = uint(__days);
+    }
 
 }
