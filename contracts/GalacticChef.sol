@@ -7,6 +7,10 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "./NiceToken.sol";
 
+interface IFeeDistributor{
+  function receiveFees(uint _pid, uint _amount) external;
+}
+
 contract GalacticChef is Ownable, ReentrancyGuard {
   using SafeERC20 for NiceToken;
   using SafeERC20 for IERC20;
@@ -23,6 +27,7 @@ contract GalacticChef is Ownable, ReentrancyGuard {
     IERC20 token;
     uint accRewardPerShare;
     uint lastRewardTs;
+    bool isLP;
   }
   /// Timestamp Specific
   uint constant SECONDS_PER_DAY = 24 * 60 * 60;
@@ -59,6 +64,9 @@ contract GalacticChef is Ownable, ReentrancyGuard {
   // Reward Token
   NiceToken public NICE;
 
+  // FEE distribution
+  IFeeDistributor public feeDistributor;
+
   mapping( uint => mapping( address => UserInfo)) public userInfo; // PID => USER_ADDRESS => userInfo
   mapping( uint => PoolInfo) public poolInfo; // PID => PoolInfo
   mapping( uint => address ) public tpPools; //  PID => poolAddress
@@ -84,6 +92,7 @@ contract GalacticChef is Ownable, ReentrancyGuard {
   /// @notice Add Farm of a specific token
   /// @param _token the token that will be collected, Taken as address since ThirdParty pools will handle their own logic
   /// @param _mult the multiplier the pool will have
+  /// @param _isLP is the token an LP token
   /// @param _fee the fee to deposit on the pool
   /// @param _type is it a regular pool or a third party pool ( TRUE = ThirdParty )
   /// @param _pidEdit is it a regular pool or a third party pool ( TRUE = ThirdParty )
@@ -91,8 +100,9 @@ contract GalacticChef is Ownable, ReentrancyGuard {
   function addPool(
     address _token,
     uint _mult,
-    uint _fee,
     bool _type,
+    uint _fee,
+    bool _isLP,
     uint[] calldata _pidEdit,
     uint[] calldata _pidMulEdit
   ) external onlyOwner {
@@ -104,7 +114,7 @@ contract GalacticChef is Ownable, ReentrancyGuard {
     require(currentMax + _mult <= maxMult, "add: wrong multiplier");
     currentMax = currentMax + _mult;
     poolCounter ++;
-    poolInfo[poolCounter] = PoolInfo(_type, _mult, _fee, IERC20(_token), 0, block.timestamp);
+    poolInfo[poolCounter] = PoolInfo(_type, _mult, _fee, IERC20(_token), 0, block.timestamp, _isLP);
     tokenPools[_token] = poolCounter;
     if(_type)
       tpPools[poolCounter] = _token;
@@ -245,7 +255,19 @@ contract GalacticChef is Ownable, ReentrancyGuard {
     if(usedAmount > 0){
       if(pool.fee > 0){
         usedAmount = usedAmount * pool.fee / FEE_DIV;
-        pool.token.safeTransferFrom(address(msg.sender), feeAddress, usedAmount);
+        if(address(feeDistributor) == address(0))
+          pool.token.safeTransferFrom(address(msg.sender), feeAddress, usedAmount);
+        else{
+          pool.token.approve(address(feeDistributor), usedAmount);
+          try feeDistributor.receiveFees(_pid, usedAmount){
+            emit LogEvent(usedAmount, "Success Fee Distribution");
+          }
+          catch{
+            emit LogEvent(usedAmount, "Failed Fee Distribution");
+            pool.token.safeTransferFrom(address(msg.sender), feeAddress, usedAmount);
+            pool.token.approve(address(feeDistributor),0);
+          }
+        }
         usedAmount = _amount - usedAmount;
       }
       user.amount = user.amount + usedAmount;
@@ -308,7 +330,7 @@ contract GalacticChef is Ownable, ReentrancyGuard {
     chains = chains + 1;
   }
 
-
+  // DATE TIME HELPER FNS
   function timestampToDateTime(uint timestamp) internal pure returns (uint year, uint month, uint day) {
         (year, month, day) = _daysToDate(timestamp / SECONDS_PER_DAY);
     }
