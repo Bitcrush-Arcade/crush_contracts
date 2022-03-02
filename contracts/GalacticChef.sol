@@ -92,8 +92,8 @@ contract GalacticChef is Ownable, ReentrancyGuard {
   /// @notice Add Farm of a specific token
   /// @param _token the token that will be collected, Taken as address since ThirdParty pools will handle their own logic
   /// @param _mult the multiplier the pool will have
-  /// @param _isLP is the token an LP token
   /// @param _fee the fee to deposit on the pool
+  /// @param _isLP is the token an LP token
   /// @param _type is it a regular pool or a third party pool ( TRUE = ThirdParty )
   /// @param _pidEdit is it a regular pool or a third party pool ( TRUE = ThirdParty )
   /// @param _pidMulEdit is it a regular pool or a third party pool ( TRUE = ThirdParty )
@@ -161,7 +161,7 @@ contract GalacticChef is Ownable, ReentrancyGuard {
     _pendingRewards = updatedPerShare * user.amount - user.accClaim;
   }
   /// @notice Update the accRewardPerShare for a specific pool
-  /// @param _pid Pool Id to update the accumulated rewards of
+  /// @param _pid Pool Id to update the accumulated rewards 
   function updatePool(uint _pid) public {
     PoolInfo storage pool = poolInfo[_pid];
     uint selfBal = pool.token.balanceOf(address(this));
@@ -175,6 +175,10 @@ contract GalacticChef is Ownable, ReentrancyGuard {
     pool.accRewardPerShare = pool.accRewardPerShare + periodReward;
   }
 
+  /// @notice getCurrentEmissions allows external users to get the current reward emissions
+  /// It Uses getTimeEmissions to get the current emissions for the pool between last reward emission and current emission
+  /// @param _pid Pool Id  from which we need emissions calculated
+  /// @return _emissions emissions for the given pool between 
   function getCurrentEmissions(uint _pid) public view returns (uint _emissions){
     PoolInfo storage pool = poolInfo[_pid];
     if(address(pool.token) == address(0) || pool.mult == 0)
@@ -182,6 +186,10 @@ contract GalacticChef is Ownable, ReentrancyGuard {
     _emissions = getTimeEmissions(pool);
   }
 
+  /// @notice getCurrentEmissions calculates the current rewards between last reward emission and current emission timestamps
+  /// The function takes into account if that period is within the same year or it spans across two different years, since the emission rate changes yearly
+  /// @param _pool Pool Id  from which we need emissions calculated
+  /// @return _emissions reward token emissions calculated between the last reward emission and the current emission 
   function getTimeEmissions(PoolInfo storage _pool) internal view returns (uint _emissions){
     (uint currentYear,,) = timestampToDateTime(block.timestamp);
     (uint poolYear,,) = timestampToDateTime(_pool.lastRewardTs);
@@ -223,13 +231,18 @@ contract GalacticChef is Ownable, ReentrancyGuard {
     }
   }
 
-  /// @notice This is for Third party pools only. this handles the reward 
+  /// @notice This is for Third party pools only. This handles the reward. 
+  /// @param _pid ID of the third party pool that requests minted rewards 
+  /// @return _rewardsGiven Amount of rewards minted to the third party pool 
   function mintRewards(uint _pid) external nonReentrant returns(uint _rewardsGiven){
     PoolInfo storage pool = poolInfo[_pid];
     require(pool.poolType && tpPools[_pid] == msg.sender, "Not tp pool");
     _rewardsGiven =_mintRewards(_pid);
   }
 
+  /// @notice Internal function that Mints the amount of rewards calculated between last emission and current emission
+  /// @param _pid ID of the third party pool that requests minted rewards 
+  /// @return _minted Amount of rewards minted to the pool 
   function _mintRewards(uint _pid) internal returns(uint _minted){
     PoolInfo storage pool = poolInfo[_pid];
     if(block.timestamp <= pool.lastRewardTs)
@@ -239,6 +252,9 @@ contract GalacticChef is Ownable, ReentrancyGuard {
     NICE.mint(address(pool.token), _minted);
   }
 
+  /// @notice Allows user to deposit pool token to chef. Transfers rewards to user.
+  /// @param _amount Amount of pool tokens to stake 
+  /// @param _pid Pool ID which indicates the type of token  
   function deposit(uint _amount, uint _pid) external nonReentrant{
     PoolInfo storage pool = poolInfo[_pid];
     UserInfo storage user = userInfo[_pid][msg.sender];
@@ -277,6 +293,9 @@ contract GalacticChef is Ownable, ReentrancyGuard {
     emit Deposit(msg.sender, _pid, _amount);
   }
 
+  /// @notice Withdraws pool token from chef. Transfers rewards to user. 
+  /// @param _amount Amount of pool tokens to withdraw. 
+  /// @param _pid Pool ID which indicates the type of token 
   function withdraw(uint _amount, uint _pid) external nonReentrant{
     PoolInfo storage pool = poolInfo[_pid];
     UserInfo storage user = userInfo[_pid][msg.sender];
@@ -295,6 +314,8 @@ contract GalacticChef is Ownable, ReentrancyGuard {
     emit Withdraw(msg.sender, _pid, _amount);
   }
 
+  /// @notice Emergency withdraws all the pool tokens from chef. In this case there's no reward. 
+  /// @param _pid Pool ID which indicates the type of token
   function emergencyWithdraw(uint _pid) external nonReentrant{
     PoolInfo storage pool = poolInfo[_pid];
     UserInfo storage user = userInfo[_pid][msg.sender];
@@ -306,6 +327,9 @@ contract GalacticChef is Ownable, ReentrancyGuard {
     emit EmergencyWithdraw(msg.sender, _pid, _amount);
   }
 
+  /// @notice Edits the pool multiplier and updates pools with new params
+  /// @param _pidEdit Pool ID
+  /// @param _pidMulEdit New multiplier
   function editPoolMult(
     uint[] calldata _pidEdit,
     uint[] calldata _pidMulEdit
@@ -313,7 +337,10 @@ contract GalacticChef is Ownable, ReentrancyGuard {
     updateMultipliers(_pidEdit, _pidMulEdit);
     emit UpdatePools(_pidEdit, _pidMulEdit);
   }
-
+  
+  /// @notice Edits pool fee and updates pools with new params
+  /// @param _pid Pool Id
+  /// @param _fee New pool fee
   function editPoolFee(
     uint _pid,
     uint _fee
@@ -325,52 +352,89 @@ contract GalacticChef is Ownable, ReentrancyGuard {
     emit UpdatePool(_pid, pool.mult, _fee);
   }
 
+  /// @notice Adds 1 to the amount of chains to which emissions are split
+  /// This factor is used in the emissions calculation
   function addChain() external onlyOwner{
     massUpdatePools();
     chains = chains + 1;
   }
 
-  // DATE TIME HELPER FNS
+  /// @notice Converts timestamp to date time
+  /// @param year Year
+  /// @param month Month
+  /// @param day Day 
   function timestampToDateTime(uint timestamp) internal pure returns (uint year, uint month, uint day) {
         (year, month, day) = _daysToDate(timestamp / SECONDS_PER_DAY);
-    }
-    
-    function timestampFromDateTime(uint year, uint month, uint day, uint hour, uint minute, uint second) internal pure returns (uint timestamp) {
-        timestamp = _daysFromDate(year, month, day) * SECONDS_PER_DAY + hour * SECONDS_PER_HOUR + minute * SECONDS_PER_MINUTE + second;
-    }
+  }
 
-    function _daysToDate(uint _days) internal pure returns (uint year, uint month, uint day) {
-        int __days = int(_days);
+  /// @notice Converts date time into timestamp 
+  /// @param year Year
+  /// @param month Month
+  /// @param day Day
+  /// @param hour Hour
+  /// @param minute Minute
+  /// @param second Second
+  function timestampFromDateTime(uint year, uint month, uint day, uint hour, uint minute, uint second) internal pure returns (uint timestamp) {
+      timestamp = _daysFromDate(year, month, day) * SECONDS_PER_DAY + hour * SECONDS_PER_HOUR + minute * SECONDS_PER_MINUTE + second;
+  }
 
-        int L = __days + 68569 + OFFSET19700101;
-        int N = 4 * L / 146097;
-        L = L - (146097 * N + 3) / 4;
-        int _year = 4000 * (L + 1) / 1461001;
-        L = L - 1461 * _year / 4 + 31;
-        int _month = 80 * L / 2447;
-        int _day = L - 2447 * _month / 80;
-        L = _month / 11;
-        _month = _month + 2 - 12 * L;
-        _year = 100 * (N - 49) + _year + L;
 
-        year = uint(_year);
-        month = uint(_month);
-        day = uint(_day);
-    }
-    function _daysFromDate(uint year, uint month, uint day) internal pure returns (uint _days) {
-        require(year >= 1970);
-        int _year = int(year);
-        int _month = int(month);
-        int _day = int(day);
+  // -------------------------------------------------------------------`
+  // Timestamp fns taken from BokkyPooBah's DateTime Library
+  //
+  // Gas efficient Solidity date and time library
+  //
+  // https://github.com/bokkypoobah/BokkyPooBahsDateTimeLibrary
+  //
+  // Enjoy. (c) BokkyPooBah / Bok Consulting Pty Ltd 2018.
+  //
+  // GNU Lesser General Public License 3.0
+  // https://www.gnu.org/licenses/lgpl-3.0.en.html
+  // ---------------------------------------------------------------------------- 
 
-        int __days = _day
-          - 32075
-          + 1461 * (_year + 4800 + (_month - 14) / 12) / 4
-          + 367 * (_month - 2 - (_month - 14) / 12 * 12) / 12
-          - 3 * ((_year + 4900 + (_month - 14) / 12) / 100) / 4
-          - OFFSET19700101;
+  /// @notice converts days to date
+  /// @param _days amount of days 
+  /// @return year
+  /// @return month
+  /// @return day 
+  function _daysToDate(uint _days) internal pure returns (uint year, uint month, uint day) {
+      int __days = int(_days);
 
-        _days = uint(__days);
-    }
+      int L = __days + 68569 + OFFSET19700101;
+      int N = 4 * L / 146097;
+      L = L - (146097 * N + 3) / 4;
+      int _year = 4000 * (L + 1) / 1461001;
+      L = L - 1461 * _year / 4 + 31;
+      int _month = 80 * L / 2447;
+      int _day = L - 2447 * _month / 80;
+      L = _month / 11;
+      _month = _month + 2 - 12 * L;
+      _year = 100 * (N - 49) + _year + L;
+
+      year = uint(_year);
+      month = uint(_month);
+      day = uint(_day);
+  }
+
+  /// @notice converts days to date
+  /// @param year Year
+  /// @param month Month
+  /// @param day Day
+  /// @return _days Days
+  function _daysFromDate(uint year, uint month, uint day) internal pure returns (uint _days) {
+      require(year >= 1970);
+      int _year = int(year);
+      int _month = int(month);
+      int _day = int(day);
+
+      int __days = _day
+        - 32075
+        + 1461 * (_year + 4800 + (_month - 14) / 12) / 4
+        + 367 * (_month - 2 - (_month - 14) / 12 * 12) / 12
+        - 3 * ((_year + 4900 + (_month - 14) / 12) / 100) / 4
+        - OFFSET19700101;
+
+      _days = uint(__days);
+  }
 
 }
