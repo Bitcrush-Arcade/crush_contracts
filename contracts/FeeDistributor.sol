@@ -5,152 +5,9 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-
 import './GalacticChef.sol';
-
-interface IPancakePair {
-    event Approval(address indexed owner, address indexed spender, uint value);
-    event Transfer(address indexed from, address indexed to, uint value);
-
-    function name() external pure returns (string memory);
-    function symbol() external pure returns (string memory);
-    function decimals() external pure returns (uint8);
-    function totalSupply() external view returns (uint);
-    function balanceOf(address owner) external view returns (uint);
-    function allowance(address owner, address spender) external view returns (uint);
-
-    function approve(address spender, uint value) external returns (bool);
-    function transfer(address to, uint value) external returns (bool);
-    function transferFrom(address from, address to, uint value) external returns (bool);
-
-    function DOMAIN_SEPARATOR() external view returns (bytes32);
-    function PERMIT_TYPEHASH() external pure returns (bytes32);
-    function nonces(address owner) external view returns (uint);
-
-    function permit(address owner, address spender, uint value, uint deadline, uint8 v, bytes32 r, bytes32 s) external;
-
-    event Mint(address indexed sender, uint amount0, uint amount1);
-    event Burn(address indexed sender, uint amount0, uint amount1, address indexed to);
-    event Swap(
-        address indexed sender,
-        uint amount0In,
-        uint amount1In,
-        uint amount0Out,
-        uint amount1Out,
-        address indexed to
-    );
-    event Sync(uint112 reserve0, uint112 reserve1);
-
-    function MINIMUM_LIQUIDITY() external pure returns (uint);
-    function factory() external view returns (address);
-    function token0() external view returns (address);
-    function token1() external view returns (address);
-    function getReserves() external view returns (uint112 reserve0, uint112 reserve1, uint32 blockTimestampLast);
-    function price0CumulativeLast() external view returns (uint);
-    function price1CumulativeLast() external view returns (uint);
-    function kLast() external view returns (uint);
-
-    function mint(address to) external returns (uint liquidity);
-    function burn(address to) external returns (uint amount0, uint amount1);
-    function swap(uint amount0Out, uint amount1Out, address to, bytes calldata data) external;
-    function skim(address to) external;
-    function sync() external;
-
-    function initialize(address, address) external;
-}
-interface IPancakeRouter {
-    function factory() external pure returns (address);
-    function WETH() external pure returns (address);
-
-    function addLiquidity(
-        address tokenA,
-        address tokenB,
-        uint amountADesired,
-        uint amountBDesired,
-        uint amountAMin,
-        uint amountBMin,
-        address to,
-        uint deadline
-    ) external returns (uint amountA, uint amountB, uint liquidity);
-    function addLiquidityETH(
-        address token,
-        uint amountTokenDesired,
-        uint amountTokenMin,
-        uint amountETHMin,
-        address to,
-        uint deadline
-    ) external payable returns (uint amountToken, uint amountETH, uint liquidity);
-    function removeLiquidity(
-        address tokenA,
-        address tokenB,
-        uint liquidity,
-        uint amountAMin,
-        uint amountBMin,
-        address to,
-        uint deadline
-    ) external returns (uint amountA, uint amountB);
-    function removeLiquidityETH(
-        address token,
-        uint liquidity,
-        uint amountTokenMin,
-        uint amountETHMin,
-        address to,
-        uint deadline
-    ) external returns (uint amountToken, uint amountETH);
-    function removeLiquidityWithPermit(
-        address tokenA,
-        address tokenB,
-        uint liquidity,
-        uint amountAMin,
-        uint amountBMin,
-        address to,
-        uint deadline,
-        bool approveMax, uint8 v, bytes32 r, bytes32 s
-    ) external returns (uint amountA, uint amountB);
-    function removeLiquidityETHWithPermit(
-        address token,
-        uint liquidity,
-        uint amountTokenMin,
-        uint amountETHMin,
-        address to,
-        uint deadline,
-        bool approveMax, uint8 v, bytes32 r, bytes32 s
-    ) external returns (uint amountToken, uint amountETH);
-    function swapExactTokensForTokens(
-        uint amountIn,
-        uint amountOutMin,
-        address[] calldata path,
-        address to,
-        uint deadline
-    ) external returns (uint[] memory amounts);
-    function swapTokensForExactTokens(
-        uint amountOut,
-        uint amountInMax,
-        address[] calldata path,
-        address to,
-        uint deadline
-    ) external returns (uint[] memory amounts);
-    function swapExactETHForTokens(uint amountOutMin, address[] calldata path, address to, uint deadline)
-        external
-        payable
-        returns (uint[] memory amounts);
-    function swapTokensForExactETH(uint amountOut, uint amountInMax, address[] calldata path, address to, uint deadline)
-        external
-        returns (uint[] memory amounts);
-    function swapExactTokensForETH(uint amountIn, uint amountOutMin, address[] calldata path, address to, uint deadline)
-        external
-        returns (uint[] memory amounts);
-    function swapETHForExactTokens(uint amountOut, address[] calldata path, address to, uint deadline)
-        external
-        payable
-        returns (uint[] memory amounts);
-
-    function quote(uint amountA, uint reserveA, uint reserveB) external pure returns (uint amountB);
-    function getAmountOut(uint amountIn, uint reserveIn, uint reserveOut) external pure returns (uint amountOut);
-    function getAmountIn(uint amountOut, uint reserveIn, uint reserveOut) external pure returns (uint amountIn);
-    function getAmountsOut(uint amountIn, address[] calldata path) external view returns (uint[] memory amounts);
-    function getAmountsIn(uint amountOut, address[] calldata path) external view returns (uint[] memory amounts);
-}
+import './IPancakePair.sol';
+import './IPancakeRouter.sol';
 
 contract FeeDistributor is Ownable{
   using SafeERC20 for ERC20Burnable;
@@ -160,20 +17,19 @@ contract FeeDistributor is Ownable{
     uint buyback;
     uint liquidity;
     uint team;
-    bool[2] tokenToUse;
+    bool bbNice;
+    bool liqNice;
     /**
       if it's an LP token we can definitely burn it to get the contained tokens
       else it's a Single asset token and have to swap it for base eth token 
       before buying anything else.
-     tokenToUse[0] token to buyback and burn
+     bbNice token to buyback and burn
       is it CRUSH (false) or NICE (true)
-     tokenToUse[1] token to get liquidity for
+     liqNice token to get liquidity for
       is it CRUSH/BNB(false) or NICE/BNB (true)
     **/
     IPancakeRouter router; // main router for this token
-    address[] tokens; // Tokens to swap to/from to get to wBNB
-    address[] token0path; // maybe it wont be necessary
-    address[] token1path; // maybe it wont be necessary
+    uint slippage;
   }
   address public immutable baseToken; // wBNB || wETH || etc
   address[] public crushPath; // [0]wBNB to [1]CRUSH
@@ -189,7 +45,10 @@ contract FeeDistributor is Ownable{
   uint constant public DIVISOR = 10000;
   GalacticChef public chef;
 
-  mapping( uint => FeeData ) feeData;
+  mapping( uint => FeeData ) public feeData;
+  mapping( uint => address[]) public tokenPath; // RECEIVED TOKEN TO WBNB
+  mapping( uint => address[]) public token0Path; // LP TOKEN 0 TO WBNB
+  mapping( uint => address[]) public token1Path; // LP TOKEN 1 TO WBNB
 
   event AddPoolFee(uint indexed _pid);
   event EditFee(uint indexed _pid, uint bb, uint liq, uint team);
@@ -208,6 +67,27 @@ contract FeeDistributor is Ownable{
     idoPrice = _idoPrice;
   }
 
+  function addorEditFee(
+    uint[5] calldata _fees, // 0 pid, 1 buyback, 2 liquidity, 3 team, 4 slippage
+    bool _bbNice,
+    bool _liqNice,
+    address router,
+    address[]calldata _tokens,
+    address[]calldata _token0Path,
+    address[]calldata _token1Path 
+  ) external onlyOwner{
+
+    require(_fees[1] + _fees[2] + _fees[3] == DIVISOR, "Incorrect Fee distribution");
+    require(router != address(0), "Incorrect Router");
+    require(_tokens.length > 0, "need a path to base");
+    require(_fees[4] >= 50 && _fees[4] <= 2000, "slippage too low");
+    feeData[ _fees[0]] = FeeData(_fees[1], _fees[2], _fees[3], _bbNice, _liqNice, IPancakeRouter(router), _fees[4]);
+    tokenPath[ _fees[0]] = _tokens;
+    token0Path[ _fees[0]] = _token0Path;
+    token1Path[ _fees[0]] = _token1Path;
+    emit AddPoolFee( _fees[0]);
+  }
+
   /// @notice Function that distributes fees to the respective flows
   /// @dev This function requires funds to be sent beforehand to this contract
   function receiveFees(uint _pid, uint _amount) external onlyChef{
@@ -219,14 +99,14 @@ contract FeeDistributor is Ownable{
     uint wBNBtoWorkWith;
     // IS LP TOKEN ?
     if(isLP){
-      IPancakePair lp = IPancakePair( address(token));
-      uint[]memory minAmounts = feeInfo.router.getAmountsOut(_amount, feeInfo.tokens);
-      // YES SWAP LP FLOW
-      lp.approve(address(feeInfo.router), _amount);
+      // YES SWAP LP FLOW;
+      uint[]memory minAmounts = feeInfo.router.getAmountsOut(_amount, tokenPath[_pid]);
+      
+      token.approve(address(feeInfo.router), _amount);
       // remove liquidity
       (uint returnedA, uint returnedB) = feeInfo.router.removeLiquidity(
-        feeInfo.tokens[0],
-        feeInfo.tokens[1],
+        tokenPath[_pid][0],
+        tokenPath[_pid][1],
         _amount,
         minAmounts[0], //A AMOUNT
         minAmounts[1], //B AMOUNT
@@ -234,41 +114,31 @@ contract FeeDistributor is Ownable{
         block.timestamp + 5 // recommended by arishali
       );
       // swap token0 for wBNB
-      if(feeInfo.tokens[0]!= baseToken){
-        minAmounts = feeInfo.router.getAmountsOut(returnedA, feeInfo.token0path);
-        minAmounts = feeInfo.router.swapExactTokensForTokens(
-          returnedA,
-          minAmounts[feeInfo.token0path.length - 1],
-          feeInfo.token0path,
-          address(this),
-          block.timestamp + 10 //maybe since we already spent 5 secs on prev
-        );
-        wBNBtoWorkWith += minAmounts[ minAmounts.length -1];
+      if(tokenPath[_pid][0]!= baseToken){
+        (minAmounts[0], minAmounts[1]) = swapForWrap(returnedA, token0Path[_pid], feeInfo);
+        if(returnedA - minAmounts[0] > 0)
+          IERC20(tokenPath[_pid][0]).transfer(deadWallet, returnedA - minAmounts[0]);
+        wBNBtoWorkWith += minAmounts[1];
       }
       else
         wBNBtoWorkWith += returnedA;
       // swap token1 for wBNB (if necessary)
-      if(feeInfo.tokens[1]!= baseToken){
-        minAmounts = feeInfo.router.getAmountsOut(returnedB, feeInfo.token1path);
-        minAmounts = feeInfo.router.swapExactTokensForTokens(
-          returnedB,
-          minAmounts[feeInfo.token1path.length - 1],
-          feeInfo.token0path,
-          address(this),
-          block.timestamp + 10 //maybe since we already spent 5 secs on prev
-        );
-        wBNBtoWorkWith += minAmounts[ minAmounts.length -1];
+      if(tokenPath[_pid][1]!= baseToken){
+        (minAmounts[0], minAmounts[1]) = swapForWrap(returnedB, token1Path[_pid], feeInfo);
+        if(returnedA - minAmounts[0] > 0)
+          IERC20(tokenPath[_pid][1]).transfer(deadWallet, returnedB - minAmounts[0]);
+        wBNBtoWorkWith += minAmounts[1];
       }
       else
         wBNBtoWorkWith += returnedB;
     }
     else{
       // NO SWAP ERC FLOW
-      uint[] memory minAmount = feeInfo.router.getAmountsOut(_amount, feeInfo.token0path);
+      uint[] memory minAmount = feeInfo.router.getAmountsOut(_amount, token0Path[_pid]);
       minAmount = feeInfo.router.swapExactTokensForTokens(
         _amount,
-        minAmount[minAmount.length -1],
-        feeInfo.token0path,
+        minAmount[minAmount.length -1] * ((DIVISOR - feeInfo.slippage) / DIVISOR),
+        token0Path[_pid],
         address(this),
         block.timestamp + 5
       );
@@ -299,9 +169,9 @@ contract FeeDistributor is Ownable{
         ? _wBnb * _feeInfo.liquidity / DIVISOR 
         : _wBnb - buyback;
       liquidity = bnbLiquidity/2;
-      niceGot = (_feeInfo.tokenToUse[0] ? 0 : buyback) + (_feeInfo.tokenToUse[1] ? 0 : liquidity);
-      crushGot = (_feeInfo.tokenToUse[0] ? buyback : 0) + (_feeInfo.tokenToUse[1] ? liquidity : 0);
-      bnbLiquidity = (_feeInfo.tokenToUse[1] ? crushGot : niceGot);
+      niceGot = (_feeInfo.bbNice ? 0 : buyback) + (_feeInfo.liqNice ? 0 : liquidity);
+      crushGot = (_feeInfo.bbNice ? buyback : 0) + (_feeInfo.liqNice ? liquidity : 0);
+      bnbLiquidity = (_feeInfo.liqNice ? crushGot : niceGot);
       if(niceGot > 0){
         (niceGot,_team) = swapWrapForToken(niceGot, niceLiq, nicePath);
         workBnb -= _team;
@@ -319,7 +189,7 @@ contract FeeDistributor is Ownable{
     // ADD LIQUIDITY AND BURN (TRANSFER TO DEAD ADDRESS)
     if(liquidity > 0){
       uint tokensForLiquidity = (liquidity * 1e12) / bnbLiquidity;
-      if(_feeInfo.tokenToUse[1]){
+      if(_feeInfo.liqNice){
         // add liquidity to NICE
         tokensForLiquidity = niceGot * tokensForLiquidity / 1e12;
         (bnbLiquidity, tokensForLiquidity, liquidity) = tokenRouter.addLiquidity(
@@ -368,6 +238,8 @@ contract FeeDistributor is Ownable{
 
   }
 
+  /// @notice simplify swap request
+  /// @dev ONLY FOR NICE AND CRUSH SWAPPING
   function swapWrapForToken(
     uint _amountWBnb,
     IPancakePair _pair,
@@ -382,7 +254,7 @@ contract FeeDistributor is Ownable{
     uint minToGet = tokenRouter.getAmountOut(_amountWBnb, res0, res1);
     uint[] memory swappedTokens = tokenRouter.swapExactTokensForTokens(
       _amountWBnb,
-      minToGet,
+      minToGet * 990/1000, 
       path,
       address(this),
       block.timestamp + 5
@@ -391,12 +263,33 @@ contract FeeDistributor is Ownable{
     _wBnbUsed = swappedTokens[0];
   }
   /// @notice Check that current Nice Price is above IDO
-  /// @dev 
+  /// @dev 
   function checkPrice() public view returns (bool _aboveIDO){
     (uint reserve0, uint reserve1, ) = IPancakePair(niceLiquidity).getReserves();
     reserve1 = reserve1 > 0 ? reserve1 : 1; //just in case
     _aboveIDO = (reserve0 * 1 ether/ reserve1) > idoPrice;
-  } 
+  }
+
+  function swapForWrap(
+    uint inputAmount,
+    address[] storage path,
+    FeeData storage feeInfo
+  ) internal returns(
+    uint amountLeft,
+    uint wBnbReturned
+  ){
+    uint[] memory swapAmounts = feeInfo.router.getAmountsOut(inputAmount, path);
+    swapAmounts = feeInfo.router.swapExactTokensForTokens(
+      inputAmount,
+      swapAmounts[path.length - 1] * ((DIVISOR - feeInfo.slippage) / DIVISOR),
+      path,
+      address(this),
+      block.timestamp + 10 
+    );
+    amountLeft = inputAmount - swapAmounts[0];
+    wBnbReturned = swapAmounts[ swapAmounts.length -1];
+  }
+
 
 
 }
