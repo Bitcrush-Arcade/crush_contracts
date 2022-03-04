@@ -12,8 +12,10 @@ contract NftWhitelist is Ownable{
   mapping(address => bool) public whitelist;
   bool public wlStart;
   bool public wlOver;
+  bool public claimed;
   bool public buyersUpdated;
-  uint public requiredAmount = 100000000000000000 ; // 0.1BNB as minimum variable
+  uint public requiredAmount = 0.1 ether; // 0.1BNB as minimum variable
+  address public fundsAddress;
 
   // EVENTS
   event WhitelistUser(address _user);
@@ -22,6 +24,10 @@ contract NftWhitelist is Ownable{
   event BuyersFullyAdded(bool _added);
   event WhitelistOver(bool _isOver);
   event ClaimUsedBnb(uint amount);
+
+  constructor(address payable _fundReceiver){
+    fundsAddress = _fundReceiver;
+  }
 
   //UserFunctions
   function reserveSpot() external payable{
@@ -89,6 +95,16 @@ contract NftWhitelist is Ownable{
   function startWhitelist() external onlyOwner{
     require(!wlStart, "Whitelist started");
     wlStart = true;
+  }
+
+  function claimLockedAmount() external onlyOwner{
+    require(wlOver && buyersUpdated && !claimed, "Something's missing");
+    require(buyers > 0, "No one bought :(");
+    claimed = true;
+    uint sendAmount = buyers * requiredAmount;
+    (bool success,) = payable(fundsAddress).call{value: sendAmount}("");
+    require(success, "Couldnt send");
+    emit ClaimUsedBnb(sendAmount);
   }
 
 }
