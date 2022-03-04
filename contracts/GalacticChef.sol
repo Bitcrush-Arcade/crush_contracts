@@ -76,6 +76,7 @@ contract GalacticChef is Ownable, ReentrancyGuard {
   event UpdatePools( uint[] pid, uint[] mult );
   event UpdatePool( uint indexed pid, uint mult, uint fee);
   event UpdateEmissions(uint amount);
+  event FeeAddressEdit(address _newAddress, bool _isContract);
 
   event LogEvent(uint number, string data);
 
@@ -354,6 +355,17 @@ contract GalacticChef is Ownable, ReentrancyGuard {
   function addChain() external onlyOwner{
     massUpdatePools();
     chains = chains + 1;
+  }
+
+  function editFeeAddress(address _feeReceiver, bool _isContract) external onlyOwner{
+    if(_isContract)
+      feeDistributor = IFeeDistributor(_feeReceiver);
+    else{
+      require(_feeReceiver != address(0), "set receiver");
+      feeAddress = _feeReceiver;
+    }
+    emit FeeAddressEdit(_feeReceiver, _isContract);
+
   }
 
   /// @notice Converts timestamp to date time

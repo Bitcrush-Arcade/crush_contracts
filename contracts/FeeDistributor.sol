@@ -54,6 +54,9 @@ contract FeeDistributor is Ownable{
   event EditFee(uint indexed _pid, uint bb, uint liq, uint team);
   event UpdateRouter(uint indexed _pid, address router);
   event UpdatePath(uint indexed _pid, address router);
+  event UpdateTeamWallet(address _teamW);
+  event UpdateRouter(address _router);
+  event UpdateCore(bool isNice, address liquidity, uint pathSize );
 
   modifier onlyChef {
     require( msg.sender == address(chef), "onlyChef");
@@ -290,6 +293,30 @@ contract FeeDistributor is Ownable{
     wBnbReturned = swapAmounts[ swapAmounts.length -1];
   }
 
+  function setBaseRouter( address _newRouter )external onlyOwner{
+    require(_newRouter != address(0), "No zero");
+    tokenRouter = IPancakeRouter(_newRouter);
+    emit UpdateRouter(_newRouter);
+  }
 
+  function setBaseRouting(bool _isNice, address _liquidity, address[]calldata _path )external onlyOwner{
+    require(_liquidity != address(0), "No zero");
+    require(_path.length > 1, "at least 2 tokens");
+    if(_isNice){
+      niceLiquidity = _liquidity;
+      nicePath = _path;
+    }
+    else{
+      crushLiquidity = _liquidity;
+      crushPath = _path;
+    }
+    emit UpdateCore(_isNice, _liquidity, _path.length);
+  }
+
+  function setTeamWallet(address _newTeamW) external onlyOwner {
+    require(_newTeamW != address(0), "Cant pay 0");
+    teamWallet = _newTeamW;
+    emit UpdateTeamWallet(_newTeamW)
+  }
 
 }
