@@ -9,9 +9,19 @@ contract("NFTWhitelist",([minter, user1, user2,user3, user4, receiver]) => {
     const wl = await NftWhitelist.new();
   })
 
-  it("Should start the whitelist", async()=>{})
+  // function startWhitelist() external OnlyOwner
+  it("Should start the whitelist", async()=>{
+    
+
+  })
+
+  // function setRequiredAmount(uint _newRequired) external OnlyOwner
   it("Should set Required Amount only before wlStarts", async()=>{})
+
+  // function reserveSpot() external payable
   it("Should not allow reserve before wlStarts", async()=>{})
+
+  // 
   it("Should take only required amount from User", async()=>{})
   it("Should fail if user sends funds just like that", async()=>{})
   it("Should not allow reserves after whitelist ends", async()=>{})
