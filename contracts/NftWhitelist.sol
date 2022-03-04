@@ -10,7 +10,7 @@ contract NftWhitelist is Ownable{
   address[] public allWhitelisters;
   mapping(address => uint) public bought;
   mapping(address => bool) public whitelist;
-
+  bool public wlStart;
   bool public wlOver;
   bool public buyersUpdated;
   uint public requiredAmount = 100000000000000000 ; // 0.1BNB as minimum variable
@@ -21,10 +21,11 @@ contract NftWhitelist is Ownable{
   event BuyerUpdate(uint added, uint total);
   event BuyersFullyAdded(bool _added);
   event WhitelistOver(bool _isOver);
+  event ClaimUsedBnb(uint amount);
 
   //UserFunctions
   function reserveSpot() external payable{
-    require(!wlOver, "Whitelist Over");
+    require(!wlOver && wlStart, "Whitelist Over");
     require(!whitelist[msg.sender], "Already whitelisted");
     require(msg.value == requiredAmount, "Check sent eth");
     whitelist[msg.sender] = true;
@@ -68,7 +69,7 @@ contract NftWhitelist is Ownable{
   }
 
   function whitelistIsOver() external onlyOwner{
-    require(!wlOver, "Already over");
+    require(!wlOver && wlStart, "Already over");
     wlOver = true;
     emit WhitelistOver(wlOver);
   }
@@ -76,12 +77,18 @@ contract NftWhitelist is Ownable{
     require(!buyersUpdated, "No turning back");
     buyersUpdated = !buyersUpdated;
     emit BuyersFullyAdded(buyersUpdated);
+
   }
 
   function setRequiredAmount(uint _newRequired) external onlyOwner{
-    require(_newRequired > 0, "not a giveaway");
+    require(_newRequired > 0 && !wlStart, "not a giveaway");
     requiredAmount = _newRequired;
     emit ChangeRequired(_newRequired);
+  }
+
+  function startWhitelist() external onlyOwner{
+    require(!wlStart, "Whitelist started");
+    wlStart = true;
   }
 
 }
