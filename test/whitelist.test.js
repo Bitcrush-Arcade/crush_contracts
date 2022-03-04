@@ -1,4 +1,5 @@
 const { BN, expectRevert, expectEvent, time } = require("@openzeppelin/test-helpers");
+const { assertion } = require("@openzeppelin/test-helpers/src/expectRevert");
 const { web3 } = require('@openzeppelin/test-helpers/src/setup');
 
 
@@ -11,7 +12,8 @@ contract("NFTWhitelist",([minter, user1, user2,user3, user4, receiver]) => {
 
   // function startWhitelist() external OnlyOwner
   it("Should start the whitelist", async()=>{
-    
+    await this.wl.startWhitelist({from: minter});
+    assert.ok();
 
   })
 
