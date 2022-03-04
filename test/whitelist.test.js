@@ -12,8 +12,12 @@ contract("NFTWhitelist",([minter, user1, user2,user3, user4, receiver]) => {
 
   // function startWhitelist() external OnlyOwner
   it("Should start the whitelist", async()=>{
+    // Checking if wlStarted is 0 by default
+    assert.ok(!this.wl.wlStart(), "Whitelist should not start yet");
+
+    // Starting wl 
     await this.wl.startWhitelist({from: minter});
-    assert.ok();
+    assert.ok(this.wl.wlStart(), "Whitelist not started properly");
 
   })
 
