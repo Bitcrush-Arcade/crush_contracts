@@ -61,8 +61,7 @@ contract("NFTWhitelist",([minter, user1, user2,user3, user4, receiver]) => {
     assert.equal(this.wl.whitelisters, 1, "Incorrect total whitelisters");
 
   })
-
-  // 
+  
   it("Should take only required amount from User", async()=>{})
   it("Should fail if user sends funds just like that", async()=>{})
   it("Should not allow reserves after whitelist ends", async()=>{})
