@@ -4,7 +4,7 @@ pragma solidity 0.8.12;
 interface IStaking {
     function compoundAll() external;
 
-    function totalShares() external returns (uint256 totalShares);
+    function totalShares() external returns (uint256 _totalShares);
 
     function stakings(address) external returns (
             uint256 shares,
@@ -17,13 +17,13 @@ interface IStaking {
             uint256 apyBaseline,
             uint256 profitBaseline
         );
-    function batchStartingIndex() external returns (uint256 batchStartingIndex);
+    function batchStartingIndex() external returns (uint256 _batchStartingIndex);
     
     function indexesLength() external returns (uint256 _length);
     
-    function autoCompoundLimit() external returns (uint256 autoCompoundLimit);
+    function autoCompoundLimit() external returns (uint256 _autoCompoundLimit);
     
-    function addressIndexes(uint256 index) external returns (address _address);
+    function addressIndexes(uint256 _index) external returns (address _address);
 
 
 }
