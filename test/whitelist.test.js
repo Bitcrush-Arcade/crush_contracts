@@ -105,8 +105,45 @@ contract("NFTWhitelist",([minter, user1, user2,user3, user4, receiver]) => {
       spotRefund({from: user3}),
       "You bought an Emperor"
       )
-    
-  })
-  it("Should allow refunds of users that did not buy", async()=>{})
-  it("Should claim the funds from users that bought an NFT", async()=>{})
+      
+    })
+    it("Should allow refunds of users that did not buy", async()=>{
+      await this.wl.startWhitelist()
+      const userInit = new BN(await web3.eth.getBalance(user2))
+      await this.wl.reserveSpot({from: user1, value: web3.utils.toWei("0.1","ether")});
+      await this.wl.reserveSpot({from: user2, value: web3.utils.toWei("0.1","ether")});
+      await this.wl.reserveSpot({from: user3, value: web3.utils.toWei("0.1","ether")});
+      await this.wl.whitelistIsOver()
+      await this.wl.updateBuyers([user1,user3],[10,20])
+      await this.wl.allBuyersAdded();
+      await spotRefund({from: user2})
+      const userFinal = new BN(await web3.eth.getBalance(user2))
+      console.log({
+        userInit: userInit.toString(),
+        userFinal: userFinal.toString(),
+      })
+      assert.ok(
+        parseInt(web3.utils.fromWei(userInit.sub(userFinal))) < 0.1
+        ,"Unacceptable Diff"
+      )
+      
+    })
+    it("Should claim the funds from users that bought an NFT", async()=>{
+      await this.wl.startWhitelist()
+      await this.wl.reserveSpot({from: user1, value: web3.utils.toWei("0.1","ether")});
+      await this.wl.reserveSpot({from: user2, value: web3.utils.toWei("0.1","ether")});
+      await this.wl.reserveSpot({from: user3, value: web3.utils.toWei("0.1","ether")});
+      await this.wl.whitelistIsOver()
+      await this.wl.updateBuyers([user1,user3],[10,20])
+      await this.wl.allBuyersAdded();
+      const userInit = new BN(await web3.eth.getBalance(receiver))
+      await this.wl.claimLockedAmount();
+      const userFinal = new BN(await web3.eth.getBalance(receiver))
+
+      assert.equal(
+        web3.utils.fromWei(userFinal.sub(userInit).toString()),
+        "0.2"
+      )
+
+    })
 })
