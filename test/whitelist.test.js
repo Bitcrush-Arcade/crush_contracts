@@ -140,8 +140,6 @@ contract("NFTWhitelist",([minter, user1, user2,user3, user4, receiver]) => {
       )
     
     await this.wl.spotRefund({from: user2});
-    // const user2Balance = await new BN(web3.eth.getBalance(user2)).toString();
-    // assert.equal(user2Balance, web3.utils.toWei("0", "ether"), "Incorrect amount refunded"); DOES SPOT REFUND REFUND FUNDS?
 
     // Expecting refund from user3 to fail: user3 did buy an Emperor
     await expectRevert(
@@ -149,8 +147,6 @@ contract("NFTWhitelist",([minter, user1, user2,user3, user4, receiver]) => {
       "You bought an Emperor"
       )
 
-    
-      
     })
     it("Should allow refunds of users that did not buy", async()=>{
 
