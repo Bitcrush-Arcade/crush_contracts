@@ -56,72 +56,133 @@ contract("NFTWhitelist",([minter, user1, user2,user3, user4, receiver]) => {
     await this.wl.startWhitelist();
     await this.wl.reserveSpot({from: user1, value: web3.utils.toWei("0.1","ether")});
     
-    assert.ok(this.wl.whitelist[user1].call(), "User not added to whitelist");
-    assert.equal(this.wl.allWhitelisters[0].call(), user1, "Not in list");
-    assert.equal(this.wl.whitelisters, 1, "Incorrect total whitelisters");
+    assert.ok(this.wl.whitelist(user1), "User not added to whitelist");
+
+    const whitelister0 = await this.wl.allWhitelisters.call(0);
+    const totalWhitelisters = await this.wl.whitelisters.call(); 
+
+    assert.equal(whitelister0, user1, "Not in whitelist array");
+    assert.equal(totalWhitelisters, 1, "Incorrect total whitelisters");
+
+    // Checking what happens if user1 tries to reserveSpot again
+    expectRevert(this.wl.reserveSpot({from: user1, value: web3.utils.toWei("0.1", "ether")}), "Already whitelisted");
 
   })
   
+  // function reserveSpot() external payable
   it("Should take only required amount from User", async()=>{
+
+    // Starting whitelist
     await this.wl.startWhitelist()
-    const userInit = new BN(await web3.eth.getBalance(user1))
-    await this.wl.reserveSpot({from: user1, value: web3.utils.toWei("0.1","ether")});
-    const userFinal = new BN(await web3.eth.getBalance(user1))
     
+    //user1 initial balance
+    //const userInit = new BN(await web3.eth.getBalance(user1));
+    await this.wl.reserveSpot({from: user1, value: web3.utils.toWei("0.1","ether")});
+    //const userFinal = new BN(await web3.eth.getBalance(user1));
+    const contractBalance = new BN(await web3.eth.getBalance(this.wl.address));
+    
+    // Checking if the wallet balance is 0.1 ether
+    // assert.equal(
+    //   Math.abs(web3.utils.fromWei(userInit.sub(userFinal))), SUB OPERATION LOSES PRECISION, REPLACED VALUE WITH CONTRACT BALANCE FOR A PRECISE ASSERTION
+    //   "0.1",
+    //   "Difference doesnt match"
+    // )
     assert.equal(
-      web3.utils.fromWei(userInit.sub(userFinal)),
+      web3.utils.fromWei(contractBalance),
       "0.1",
       "Difference doesnt match"
-    )
+    );
   })
+
+  // sendTransaction from other user wallet should fail
   it("Should fail if user sends funds just like that", async()=>{
     await expectRevert(
       web3.eth.sendTransaction({from: user1, to: this.wl.address, value: web3.utils.toWei("0.1","ether")}),
       "Keep your money"
     )
   })
+
+  // function whitelistIsOver() external OnlyOwner
   it("Should not allow reserves after whitelist ends", async()=>{
+    // Starting and ending wl 
     await this.wl.startWhitelist()
     await this.wl.whitelistIsOver()
+
+    // Expecting reserveSpot to fail
     await expectRevert(
       this.wl.reserveSpot({from: user1, value: web3.utils.toWei("0.1","ether")}),
       "Whitelist Over"
       )
     })
+
+  // functions updateBuyers, allBuyersAdded, spotRefund
   it("Should lock funds for users that managed to buy", async()=>{
+
+    // Starting wl
     await this.wl.startWhitelist()
+
+    // Users 1, 2 and 3 reserve spots
     await this.wl.reserveSpot({from: user1, value: web3.utils.toWei("0.1","ether")});
     await this.wl.reserveSpot({from: user2, value: web3.utils.toWei("0.1","ether")});
     await this.wl.reserveSpot({from: user3, value: web3.utils.toWei("0.1","ether")});
     await this.wl.whitelistIsOver()
+
+    // updating buyers user1 and user3 with the new NFT ID's
     await this.wl.updateBuyers([user1,user3],[10,20])
+
+    // Acknowledging that all users have been updated and added
     await this.wl.allBuyersAdded();
+
+    // Expecting refund from user1 to fail: user1 did buy an Emperor
     await expectRevert(
-      spotRefund({from: user1}),
+      this.wl.spotRefund({from: user1}),
       "You bought an Emperor"
       )
-    await spotRefund({from: user2})
+    
+    await this.wl.spotRefund({from: user2});
+    // const user2Balance = await new BN(web3.eth.getBalance(user2)).toString();
+    // assert.equal(user2Balance, web3.utils.toWei("0", "ether"), "Incorrect amount refunded"); DOES SPOT REFUND REFUND FUNDS?
+
+    // Expecting refund from user3 to fail: user3 did buy an Emperor
     await expectRevert(
-      spotRefund({from: user3}),
+      this.wl.spotRefund({from: user3}),
       "You bought an Emperor"
       )
+
+    
       
     })
     it("Should allow refunds of users that did not buy", async()=>{
+
+      // Starting wl
       await this.wl.startWhitelist()
+
+      // Getting initial ether balance from user2 (should be 0)
       const userInit = new BN(await web3.eth.getBalance(user2))
+
+      // users 1, 2 and 3 reserve spots 
       await this.wl.reserveSpot({from: user1, value: web3.utils.toWei("0.1","ether")});
       await this.wl.reserveSpot({from: user2, value: web3.utils.toWei("0.1","ether")});
       await this.wl.reserveSpot({from: user3, value: web3.utils.toWei("0.1","ether")});
+
+      // Ending wl
       await this.wl.whitelistIsOver()
+
+      // Updating buyers, user1 and use3 bought nft with ID's 10 and 20 respectively
       await this.wl.updateBuyers([user1,user3],[10,20])
+
+      // Acknowledging that all buyers have been added
       await this.wl.allBuyersAdded();
-      await spotRefund({from: user2})
-      const userFinal = new BN(await web3.eth.getBalance(user2))
+
+      // User2 asks for a refund
+      await this.wl.spotRefund({from: user2});
+      const userFinal = new BN(await web3.eth.getBalance(user2));
       console.log({
         userInit: userInit.toString(),
         userFinal: userFinal.toString(),
       })
+
+      // Asserting with error margin, since js sub function loses precision
       assert.ok(
         parseInt(web3.utils.fromWei(userInit.sub(userFinal))) < 0.1
         ,"Unacceptable Diff"
@@ -129,17 +190,34 @@ contract("NFTWhitelist",([minter, user1, user2,user3, user4, receiver]) => {
       
     })
     it("Should claim the funds from users that bought an NFT", async()=>{
+
+      // Starting wl
       await this.wl.startWhitelist()
+
+      // users 1, 2 and 3 reserve spots
       await this.wl.reserveSpot({from: user1, value: web3.utils.toWei("0.1","ether")});
       await this.wl.reserveSpot({from: user2, value: web3.utils.toWei("0.1","ether")});
       await this.wl.reserveSpot({from: user3, value: web3.utils.toWei("0.1","ether")});
+
+      // Ending wl
       await this.wl.whitelistIsOver()
+
+      // Updating buyers with their respective NFT id
       await this.wl.updateBuyers([user1,user3],[10,20])
+
+      // Acknowledging that all buyers have been added
       await this.wl.allBuyersAdded();
+
+      // Checking receiver wallet balance (should be 0)
       const userInit = new BN(await web3.eth.getBalance(receiver))
+
+      // Claiming funds from whitelist wallet into receiver
       await this.wl.claimLockedAmount();
+
+      // Checking receiver funds after claim
       const userFinal = new BN(await web3.eth.getBalance(receiver))
 
+      // Funds on receiver wallet 
       assert.equal(
         web3.utils.fromWei(userFinal.sub(userInit).toString()),
         "0.2"
