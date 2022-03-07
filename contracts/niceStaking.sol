@@ -157,10 +157,10 @@ contract BitcrushNiceStaking is Ownable {
     /// @dev transfer all available funds of users to users wallet
     function withdrawNiceRewards() public {
         require(niceRewards[msg.sender] > 0, "No rewards available");
-        nice.safeTransfer(msg.sender, niceRewards[msg.sender]);
-        niceRewards[msg.sender] = niceRewards[msg.sender].sub(
-                   niceRewards[msg.sender]
-                );
+        uint256 amount = niceRewards[msg.sender];
+        niceRewards[msg.sender] = 0;
+        nice.safeTransfer(msg.sender, amount);
+        
     }
 
     /// Store `_fee`.
@@ -175,9 +175,8 @@ contract BitcrushNiceStaking is Ownable {
     /// emergency withdraw funds of users
     /// @dev transfer all available funds of users to users wallet
     function emergencyWithdraw() public {
-        nice.safeTransfer(msg.sender, niceRewards[msg.sender]);
-        niceRewards[msg.sender] = niceRewards[msg.sender].sub(
-                   niceRewards[msg.sender]
-                );
+        uint256 amount = niceRewards[msg.sender];
+        niceRewards[msg.sender] = 0;
+        nice.safeTransfer(msg.sender, amount);
     }
 }
