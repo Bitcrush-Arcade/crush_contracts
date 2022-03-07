@@ -36,6 +36,9 @@ contract BitcrushNiceStaking is Ownable {
 
     uint256 public deploymentTimeStamp;
 
+    event PerformanceFeeUpdated(uint256 newFee);
+    event PoolIdUpdated (uint256 poolId);
+
     constructor(IERC20 _nice) {
         nice = _nice;
         deploymentTimeStamp = block.timestamp;
@@ -68,6 +71,7 @@ contract BitcrushNiceStaking is Ownable {
     /// @dev stores the _poolId address in the state variable `poolId`
     function setPoolId (uint256 _poolId) public onlyOwner {
         poolId = _poolId;
+        emit PoolIdUpdated(_poolId);
     }
 
     /// @notice updates accProfitPerShare based on current Profit available and totalShares
@@ -170,6 +174,7 @@ contract BitcrushNiceStaking is Ownable {
         require(_fee > 0, "Fee must be greater than 0");
         require(_fee < MAX_FEE, "Fee must be less than 10%");
         performanceFeeCompounder = _fee;
+        emit PerformanceFeeUpdated(_fee);
     }
 
     /// emergency withdraw funds of users
