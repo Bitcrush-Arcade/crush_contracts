@@ -64,6 +64,7 @@ contract FeeDistributor is Ownable{
   }
 
   constructor(address _chef, address _baseWrapped, uint _idoPrice){
+    require(_chef != address(0) && _baseWrapped != address(0),"Zero address");
     chef = GalacticChef(_chef);
     baseToken = _baseWrapped;
     // _idoPrice must be NICE/BNB NOT BNB/NICE
