@@ -43,9 +43,9 @@ module.exports = {
     // options below to some value.
     //
     development: {
-     host: "127.0.0.1",     // Localhost (default: none)
-     port: 9545,            // Standard Ethereum port (default: none)
-     network_id: "*",       // Any network (default: none)
+      host: "127.0.0.1",     // Localhost (default: none)
+      port: 9545,            // Standard Ethereum port (default: none)
+      network_id: "*",       // Any network (default: none)
     },
     /* testnet:{
       provider: () => new HDWalletProvider( mnemonic, `https://data-seed-prebsc-1-s1.binance.org:8545`),
@@ -60,21 +60,25 @@ module.exports = {
       host: "https://data-seed-prebsc-1-s1.binance.org/",     // Localhost (default: none)
       port: 8545,            // Standard Ethereum port (default: none)
       network_id: "*",       // Any network (default: none)
-      provider : function(){
+      provider: function ()
+      {
         return new HDWalletProvider('', "https://data-seed-prebsc-1-s1.binance.org:8545/");
-       }
-     },
-     mainnet : {
-      host: "https://bsc-dataseed1.binance.org",     // Localhost (default: none)
-      port: 8545,            // Standard Ethereum port (default: none)
+      }
+    },
+    mainnet: {
       network_id: 56,        // Any network (default: none)
-      confirmations: 10,
+      confirmations: 2,
       timeoutBlocks: 200,
-      skipDryRun: true,       
-      provider : function(){
-        return new HDWalletProvider('', "https://bsc-dataseed1.binance.org");
-       }
-     }
+      networkCheckTimeout: 100000000,
+      skipDryRun: true,
+      provider: function ()
+      {
+        return new HDWalletProvider('',
+          // "wss://bsc-ws-node.nariox.org:443" // FOR DEPLOY
+          "https://bsc-dataseed1.defibit.io/" // FOR VERIFY
+        );
+      }
+    }
     // Another network with more advanced options...
     // advanced: {
     // port: 8777,             // Custom port
@@ -113,13 +117,17 @@ module.exports = {
       version: "0.8.12",    // Fetch exact version from solc-bin (default: truffle's version)
       // docker: true,        // Use "0.5.1" you've installed locally with docker (default: false)
       settings: {          // See the solidity docs for advice about optimization and evmVersion
-       optimizer: {
-         enabled: false,
-         runs: 400
-       },
-      //  evmVersion: "byzantium"
+        optimizer: {
+          enabled: true,
+          runs: 200
+        },
+        //  evmVersion: "byzantium"
       }
     }
+  },
+  plugins: ['truffle-plugin-verify'],
+  api_keys: {
+    bscscan: ''
   },
 
   // Truffle DB is currently disabled by default; to enable it, change enabled: false to enabled: true
