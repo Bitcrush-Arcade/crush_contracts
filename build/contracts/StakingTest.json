@@ -1,0 +1,4162 @@
+{
+  "abi": [
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_tokenAddress",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "nonpayable",
+      "type": "constructor"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "_amount",
+          "type": "uint256"
+        }
+      ],
+      "name": "addFunds",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "name": "stakings",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "shares",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "stakedAmount",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "claimedAmount",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "lastBlockCompounded",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "lastBlockStaked",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "index",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "lastFrozenWithdraw",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "apyBaseline",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "profitBaseline",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "token",
+      "outputs": [
+        {
+          "internalType": "contract ERC20",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    }
+  ],
+  "allSourcePaths": {
+    "12": "/Users/jmf/.brownie/packages/OpenZeppelin/openzeppelin-contracts@4.5.0/contracts/utils/Context.sol",
+    "2": "/Users/jmf/.brownie/packages/OpenZeppelin/openzeppelin-contracts@4.5.0/contracts/token/ERC20/ERC20.sol",
+    "28": "contracts/TestStaking2.sol",
+    "3": "/Users/jmf/.brownie/packages/OpenZeppelin/openzeppelin-contracts@4.5.0/contracts/token/ERC20/IERC20.sol",
+    "5": "/Users/jmf/.brownie/packages/OpenZeppelin/openzeppelin-contracts@4.5.0/contracts/token/ERC20/extensions/IERC20Metadata.sol"
+  },
+  "ast": {
+    "absolutePath": "contracts/TestStaking2.sol",
+    "exportedSymbols": {
+      "Context": [
+        12716
+      ],
+      "ERC20": [
+        12296
+      ],
+      "IERC20": [
+        12374
+      ],
+      "IERC20Metadata": [
+        12399
+      ],
+      "StakingTest": [
+        11023
+      ]
+    },
+    "id": 11024,
+    "license": "MIT",
+    "nodeType": "SourceUnit",
+    "nodes": [
+      {
+        "id": 10950,
+        "literals": [
+          "solidity",
+          "^",
+          "0.8",
+          ".9"
+        ],
+        "nodeType": "PragmaDirective",
+        "src": "31:23:28"
+      },
+      {
+        "absolutePath": "/Users/jmf/.brownie/packages/OpenZeppelin/openzeppelin-contracts@4.5.0/contracts/token/ERC20/ERC20.sol",
+        "file": "@openzeppelin/contracts/token/ERC20/ERC20.sol",
+        "id": 10951,
+        "nameLocation": "-1:-1:-1",
+        "nodeType": "ImportDirective",
+        "scope": 11024,
+        "sourceUnit": 12297,
+        "src": "113:55:28",
+        "symbolAliases": [],
+        "unitAlias": ""
+      },
+      {
+        "abstract": false,
+        "baseContracts": [],
+        "canonicalName": "StakingTest",
+        "contractDependencies": [],
+        "contractKind": "contract",
+        "fullyImplemented": true,
+        "id": 11023,
+        "linearizedBaseContracts": [
+          11023
+        ],
+        "name": "StakingTest",
+        "nameLocation": "179:11:28",
+        "nodeType": "ContractDefinition",
+        "nodes": [
+          {
+            "constant": false,
+            "functionSelector": "fc0c546a",
+            "id": 10954,
+            "mutability": "mutable",
+            "name": "token",
+            "nameLocation": "210:5:28",
+            "nodeType": "VariableDeclaration",
+            "scope": 11023,
+            "src": "197:18:28",
+            "stateVariable": true,
+            "storageLocation": "default",
+            "typeDescriptions": {
+              "typeIdentifier": "t_contract$_ERC20_$12296",
+              "typeString": "contract ERC20"
+            },
+            "typeName": {
+              "id": 10953,
+              "nodeType": "UserDefinedTypeName",
+              "pathNode": {
+                "id": 10952,
+                "name": "ERC20",
+                "nodeType": "IdentifierPath",
+                "referencedDeclaration": 12296,
+                "src": "197:5:28"
+              },
+              "referencedDeclaration": 12296,
+              "src": "197:5:28",
+              "typeDescriptions": {
+                "typeIdentifier": "t_contract$_ERC20_$12296",
+                "typeString": "contract ERC20"
+              }
+            },
+            "visibility": "public"
+          },
+          {
+            "canonicalName": "StakingTest.UserStaking",
+            "id": 10973,
+            "members": [
+              {
+                "constant": false,
+                "id": 10956,
+                "mutability": "mutable",
+                "name": "shares",
+                "nameLocation": "258:6:28",
+                "nodeType": "VariableDeclaration",
+                "scope": 10973,
+                "src": "250:14:28",
+                "stateVariable": false,
+                "storageLocation": "default",
+                "typeDescriptions": {
+                  "typeIdentifier": "t_uint256",
+                  "typeString": "uint256"
+                },
+                "typeName": {
+                  "id": 10955,
+                  "name": "uint256",
+                  "nodeType": "ElementaryTypeName",
+                  "src": "250:7:28",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  }
+                },
+                "visibility": "internal"
+              },
+              {
+                "constant": false,
+                "id": 10958,
+                "mutability": "mutable",
+                "name": "stakedAmount",
+                "nameLocation": "282:12:28",
+                "nodeType": "VariableDeclaration",
+                "scope": 10973,
+                "src": "274:20:28",
+                "stateVariable": false,
+                "storageLocation": "default",
+                "typeDescriptions": {
+                  "typeIdentifier": "t_uint256",
+                  "typeString": "uint256"
+                },
+                "typeName": {
+                  "id": 10957,
+                  "name": "uint256",
+                  "nodeType": "ElementaryTypeName",
+                  "src": "274:7:28",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  }
+                },
+                "visibility": "internal"
+              },
+              {
+                "constant": false,
+                "id": 10960,
+                "mutability": "mutable",
+                "name": "claimedAmount",
+                "nameLocation": "312:13:28",
+                "nodeType": "VariableDeclaration",
+                "scope": 10973,
+                "src": "304:21:28",
+                "stateVariable": false,
+                "storageLocation": "default",
+                "typeDescriptions": {
+                  "typeIdentifier": "t_uint256",
+                  "typeString": "uint256"
+                },
+                "typeName": {
+                  "id": 10959,
+                  "name": "uint256",
+                  "nodeType": "ElementaryTypeName",
+                  "src": "304:7:28",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  }
+                },
+                "visibility": "internal"
+              },
+              {
+                "constant": false,
+                "id": 10962,
+                "mutability": "mutable",
+                "name": "lastBlockCompounded",
+                "nameLocation": "343:19:28",
+                "nodeType": "VariableDeclaration",
+                "scope": 10973,
+                "src": "335:27:28",
+                "stateVariable": false,
+                "storageLocation": "default",
+                "typeDescriptions": {
+                  "typeIdentifier": "t_uint256",
+                  "typeString": "uint256"
+                },
+                "typeName": {
+                  "id": 10961,
+                  "name": "uint256",
+                  "nodeType": "ElementaryTypeName",
+                  "src": "335:7:28",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  }
+                },
+                "visibility": "internal"
+              },
+              {
+                "constant": false,
+                "id": 10964,
+                "mutability": "mutable",
+                "name": "lastBlockStaked",
+                "nameLocation": "380:15:28",
+                "nodeType": "VariableDeclaration",
+                "scope": 10973,
+                "src": "372:23:28",
+                "stateVariable": false,
+                "storageLocation": "default",
+                "typeDescriptions": {
+                  "typeIdentifier": "t_uint256",
+                  "typeString": "uint256"
+                },
+                "typeName": {
+                  "id": 10963,
+                  "name": "uint256",
+                  "nodeType": "ElementaryTypeName",
+                  "src": "372:7:28",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  }
+                },
+                "visibility": "internal"
+              },
+              {
+                "constant": false,
+                "id": 10966,
+                "mutability": "mutable",
+                "name": "index",
+                "nameLocation": "413:5:28",
+                "nodeType": "VariableDeclaration",
+                "scope": 10973,
+                "src": "405:13:28",
+                "stateVariable": false,
+                "storageLocation": "default",
+                "typeDescriptions": {
+                  "typeIdentifier": "t_uint256",
+                  "typeString": "uint256"
+                },
+                "typeName": {
+                  "id": 10965,
+                  "name": "uint256",
+                  "nodeType": "ElementaryTypeName",
+                  "src": "405:7:28",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  }
+                },
+                "visibility": "internal"
+              },
+              {
+                "constant": false,
+                "id": 10968,
+                "mutability": "mutable",
+                "name": "lastFrozenWithdraw",
+                "nameLocation": "436:18:28",
+                "nodeType": "VariableDeclaration",
+                "scope": 10973,
+                "src": "428:26:28",
+                "stateVariable": false,
+                "storageLocation": "default",
+                "typeDescriptions": {
+                  "typeIdentifier": "t_uint256",
+                  "typeString": "uint256"
+                },
+                "typeName": {
+                  "id": 10967,
+                  "name": "uint256",
+                  "nodeType": "ElementaryTypeName",
+                  "src": "428:7:28",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  }
+                },
+                "visibility": "internal"
+              },
+              {
+                "constant": false,
+                "id": 10970,
+                "mutability": "mutable",
+                "name": "apyBaseline",
+                "nameLocation": "472:11:28",
+                "nodeType": "VariableDeclaration",
+                "scope": 10973,
+                "src": "464:19:28",
+                "stateVariable": false,
+                "storageLocation": "default",
+                "typeDescriptions": {
+                  "typeIdentifier": "t_uint256",
+                  "typeString": "uint256"
+                },
+                "typeName": {
+                  "id": 10969,
+                  "name": "uint256",
+                  "nodeType": "ElementaryTypeName",
+                  "src": "464:7:28",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  }
+                },
+                "visibility": "internal"
+              },
+              {
+                "constant": false,
+                "id": 10972,
+                "mutability": "mutable",
+                "name": "profitBaseline",
+                "nameLocation": "501:14:28",
+                "nodeType": "VariableDeclaration",
+                "scope": 10973,
+                "src": "493:22:28",
+                "stateVariable": false,
+                "storageLocation": "default",
+                "typeDescriptions": {
+                  "typeIdentifier": "t_uint256",
+                  "typeString": "uint256"
+                },
+                "typeName": {
+                  "id": 10971,
+                  "name": "uint256",
+                  "nodeType": "ElementaryTypeName",
+                  "src": "493:7:28",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  }
+                },
+                "visibility": "internal"
+              }
+            ],
+            "name": "UserStaking",
+            "nameLocation": "228:11:28",
+            "nodeType": "StructDefinition",
+            "scope": 11023,
+            "src": "221:301:28",
+            "visibility": "public"
+          },
+          {
+            "constant": false,
+            "functionSelector": "dc6e13e1",
+            "id": 10978,
+            "mutability": "mutable",
+            "name": "stakings",
+            "nameLocation": "567:8:28",
+            "nodeType": "VariableDeclaration",
+            "scope": 11023,
+            "src": "528:47:28",
+            "stateVariable": true,
+            "storageLocation": "default",
+            "typeDescriptions": {
+              "typeIdentifier": "t_mapping$_t_address_$_t_struct$_UserStaking_$10973_storage_$",
+              "typeString": "mapping(address => struct StakingTest.UserStaking)"
+            },
+            "typeName": {
+              "id": 10977,
+              "keyType": {
+                "id": 10974,
+                "name": "address",
+                "nodeType": "ElementaryTypeName",
+                "src": "536:7:28",
+                "typeDescriptions": {
+                  "typeIdentifier": "t_address",
+                  "typeString": "address"
+                }
+              },
+              "nodeType": "Mapping",
+              "src": "528:31:28",
+              "typeDescriptions": {
+                "typeIdentifier": "t_mapping$_t_address_$_t_struct$_UserStaking_$10973_storage_$",
+                "typeString": "mapping(address => struct StakingTest.UserStaking)"
+              },
+              "valueType": {
+                "id": 10976,
+                "nodeType": "UserDefinedTypeName",
+                "pathNode": {
+                  "id": 10975,
+                  "name": "UserStaking",
+                  "nodeType": "IdentifierPath",
+                  "referencedDeclaration": 10973,
+                  "src": "547:11:28"
+                },
+                "referencedDeclaration": 10973,
+                "src": "547:11:28",
+                "typeDescriptions": {
+                  "typeIdentifier": "t_struct$_UserStaking_$10973_storage_ptr",
+                  "typeString": "struct StakingTest.UserStaking"
+                }
+              }
+            },
+            "visibility": "public"
+          },
+          {
+            "body": {
+              "id": 10989,
+              "nodeType": "Block",
+              "src": "617:45:28",
+              "statements": [
+                {
+                  "expression": {
+                    "id": 10987,
+                    "isConstant": false,
+                    "isLValue": false,
+                    "isPure": false,
+                    "lValueRequested": false,
+                    "leftHandSide": {
+                      "id": 10983,
+                      "name": "token",
+                      "nodeType": "Identifier",
+                      "overloadedDeclarations": [],
+                      "referencedDeclaration": 10954,
+                      "src": "627:5:28",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_contract$_ERC20_$12296",
+                        "typeString": "contract ERC20"
+                      }
+                    },
+                    "nodeType": "Assignment",
+                    "operator": "=",
+                    "rightHandSide": {
+                      "arguments": [
+                        {
+                          "id": 10985,
+                          "name": "_tokenAddress",
+                          "nodeType": "Identifier",
+                          "overloadedDeclarations": [],
+                          "referencedDeclaration": 10980,
+                          "src": "641:13:28",
+                          "typeDescriptions": {
+                            "typeIdentifier": "t_address",
+                            "typeString": "address"
+                          }
+                        }
+                      ],
+                      "expression": {
+                        "argumentTypes": [
+                          {
+                            "typeIdentifier": "t_address",
+                            "typeString": "address"
+                          }
+                        ],
+                        "id": 10984,
+                        "name": "ERC20",
+                        "nodeType": "Identifier",
+                        "overloadedDeclarations": [],
+                        "referencedDeclaration": 12296,
+                        "src": "635:5:28",
+                        "typeDescriptions": {
+                          "typeIdentifier": "t_type$_t_contract$_ERC20_$12296_$",
+                          "typeString": "type(contract ERC20)"
+                        }
+                      },
+                      "id": 10986,
+                      "isConstant": false,
+                      "isLValue": false,
+                      "isPure": false,
+                      "kind": "typeConversion",
+                      "lValueRequested": false,
+                      "names": [],
+                      "nodeType": "FunctionCall",
+                      "src": "635:20:28",
+                      "tryCall": false,
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_contract$_ERC20_$12296",
+                        "typeString": "contract ERC20"
+                      }
+                    },
+                    "src": "627:28:28",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_contract$_ERC20_$12296",
+                      "typeString": "contract ERC20"
+                    }
+                  },
+                  "id": 10988,
+                  "nodeType": "ExpressionStatement",
+                  "src": "627:28:28"
+                }
+              ]
+            },
+            "id": 10990,
+            "implemented": true,
+            "kind": "constructor",
+            "modifiers": [],
+            "name": "",
+            "nameLocation": "-1:-1:-1",
+            "nodeType": "FunctionDefinition",
+            "parameters": {
+              "id": 10981,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 10980,
+                  "mutability": "mutable",
+                  "name": "_tokenAddress",
+                  "nameLocation": "602:13:28",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 10990,
+                  "src": "594:21:28",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_address",
+                    "typeString": "address"
+                  },
+                  "typeName": {
+                    "id": 10979,
+                    "name": "address",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "594:7:28",
+                    "stateMutability": "nonpayable",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  },
+                  "visibility": "internal"
+                }
+              ],
+              "src": "593:23:28"
+            },
+            "returnParameters": {
+              "id": 10982,
+              "nodeType": "ParameterList",
+              "parameters": [],
+              "src": "617:0:28"
+            },
+            "scope": 11023,
+            "src": "582:80:28",
+            "stateMutability": "nonpayable",
+            "virtual": false,
+            "visibility": "public"
+          },
+          {
+            "body": {
+              "id": 11021,
+              "nodeType": "Block",
+              "src": "712:184:28",
+              "statements": [
+                {
+                  "expression": {
+                    "arguments": [
+                      {
+                        "expression": {
+                          "id": 10998,
+                          "name": "msg",
+                          "nodeType": "Identifier",
+                          "overloadedDeclarations": [],
+                          "referencedDeclaration": -15,
+                          "src": "741:3:28",
+                          "typeDescriptions": {
+                            "typeIdentifier": "t_magic_message",
+                            "typeString": "msg"
+                          }
+                        },
+                        "id": 10999,
+                        "isConstant": false,
+                        "isLValue": false,
+                        "isPure": false,
+                        "lValueRequested": false,
+                        "memberName": "sender",
+                        "nodeType": "MemberAccess",
+                        "src": "741:10:28",
+                        "typeDescriptions": {
+                          "typeIdentifier": "t_address",
+                          "typeString": "address"
+                        }
+                      },
+                      {
+                        "arguments": [
+                          {
+                            "id": 11002,
+                            "name": "this",
+                            "nodeType": "Identifier",
+                            "overloadedDeclarations": [],
+                            "referencedDeclaration": -28,
+                            "src": "761:4:28",
+                            "typeDescriptions": {
+                              "typeIdentifier": "t_contract$_StakingTest_$11023",
+                              "typeString": "contract StakingTest"
+                            }
+                          }
+                        ],
+                        "expression": {
+                          "argumentTypes": [
+                            {
+                              "typeIdentifier": "t_contract$_StakingTest_$11023",
+                              "typeString": "contract StakingTest"
+                            }
+                          ],
+                          "id": 11001,
+                          "isConstant": false,
+                          "isLValue": false,
+                          "isPure": true,
+                          "lValueRequested": false,
+                          "nodeType": "ElementaryTypeNameExpression",
+                          "src": "753:7:28",
+                          "typeDescriptions": {
+                            "typeIdentifier": "t_type$_t_address_$",
+                            "typeString": "type(address)"
+                          },
+                          "typeName": {
+                            "id": 11000,
+                            "name": "address",
+                            "nodeType": "ElementaryTypeName",
+                            "src": "753:7:28",
+                            "typeDescriptions": {}
+                          }
+                        },
+                        "id": 11003,
+                        "isConstant": false,
+                        "isLValue": false,
+                        "isPure": false,
+                        "kind": "typeConversion",
+                        "lValueRequested": false,
+                        "names": [],
+                        "nodeType": "FunctionCall",
+                        "src": "753:13:28",
+                        "tryCall": false,
+                        "typeDescriptions": {
+                          "typeIdentifier": "t_address",
+                          "typeString": "address"
+                        }
+                      },
+                      {
+                        "id": 11004,
+                        "name": "_amount",
+                        "nodeType": "Identifier",
+                        "overloadedDeclarations": [],
+                        "referencedDeclaration": 10992,
+                        "src": "768:7:28",
+                        "typeDescriptions": {
+                          "typeIdentifier": "t_uint256",
+                          "typeString": "uint256"
+                        }
+                      }
+                    ],
+                    "expression": {
+                      "argumentTypes": [
+                        {
+                          "typeIdentifier": "t_address",
+                          "typeString": "address"
+                        },
+                        {
+                          "typeIdentifier": "t_address",
+                          "typeString": "address"
+                        },
+                        {
+                          "typeIdentifier": "t_uint256",
+                          "typeString": "uint256"
+                        }
+                      ],
+                      "expression": {
+                        "id": 10995,
+                        "name": "token",
+                        "nodeType": "Identifier",
+                        "overloadedDeclarations": [],
+                        "referencedDeclaration": 10954,
+                        "src": "722:5:28",
+                        "typeDescriptions": {
+                          "typeIdentifier": "t_contract$_ERC20_$12296",
+                          "typeString": "contract ERC20"
+                        }
+                      },
+                      "id": 10997,
+                      "isConstant": false,
+                      "isLValue": false,
+                      "isPure": false,
+                      "lValueRequested": false,
+                      "memberName": "transferFrom",
+                      "nodeType": "MemberAccess",
+                      "referencedDeclaration": 11908,
+                      "src": "722:18:28",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_function_external_nonpayable$_t_address_$_t_address_$_t_uint256_$returns$_t_bool_$",
+                        "typeString": "function (address,address,uint256) external returns (bool)"
+                      }
+                    },
+                    "id": 11005,
+                    "isConstant": false,
+                    "isLValue": false,
+                    "isPure": false,
+                    "kind": "functionCall",
+                    "lValueRequested": false,
+                    "names": [],
+                    "nodeType": "FunctionCall",
+                    "src": "722:54:28",
+                    "tryCall": false,
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_bool",
+                      "typeString": "bool"
+                    }
+                  },
+                  "id": 11006,
+                  "nodeType": "ExpressionStatement",
+                  "src": "722:54:28"
+                },
+                {
+                  "expression": {
+                    "id": 11019,
+                    "isConstant": false,
+                    "isLValue": false,
+                    "isPure": false,
+                    "lValueRequested": false,
+                    "leftHandSide": {
+                      "expression": {
+                        "baseExpression": {
+                          "id": 11007,
+                          "name": "stakings",
+                          "nodeType": "Identifier",
+                          "overloadedDeclarations": [],
+                          "referencedDeclaration": 10978,
+                          "src": "786:8:28",
+                          "typeDescriptions": {
+                            "typeIdentifier": "t_mapping$_t_address_$_t_struct$_UserStaking_$10973_storage_$",
+                            "typeString": "mapping(address => struct StakingTest.UserStaking storage ref)"
+                          }
+                        },
+                        "id": 11010,
+                        "indexExpression": {
+                          "expression": {
+                            "id": 11008,
+                            "name": "msg",
+                            "nodeType": "Identifier",
+                            "overloadedDeclarations": [],
+                            "referencedDeclaration": -15,
+                            "src": "795:3:28",
+                            "typeDescriptions": {
+                              "typeIdentifier": "t_magic_message",
+                              "typeString": "msg"
+                            }
+                          },
+                          "id": 11009,
+                          "isConstant": false,
+                          "isLValue": false,
+                          "isPure": false,
+                          "lValueRequested": false,
+                          "memberName": "sender",
+                          "nodeType": "MemberAccess",
+                          "src": "795:10:28",
+                          "typeDescriptions": {
+                            "typeIdentifier": "t_address",
+                            "typeString": "address"
+                          }
+                        },
+                        "isConstant": false,
+                        "isLValue": true,
+                        "isPure": false,
+                        "lValueRequested": false,
+                        "nodeType": "IndexAccess",
+                        "src": "786:20:28",
+                        "typeDescriptions": {
+                          "typeIdentifier": "t_struct$_UserStaking_$10973_storage",
+                          "typeString": "struct StakingTest.UserStaking storage ref"
+                        }
+                      },
+                      "id": 11011,
+                      "isConstant": false,
+                      "isLValue": true,
+                      "isPure": false,
+                      "lValueRequested": true,
+                      "memberName": "stakedAmount",
+                      "nodeType": "MemberAccess",
+                      "referencedDeclaration": 10958,
+                      "src": "786:33:28",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_uint256",
+                        "typeString": "uint256"
+                      }
+                    },
+                    "nodeType": "Assignment",
+                    "operator": "=",
+                    "rightHandSide": {
+                      "commonType": {
+                        "typeIdentifier": "t_uint256",
+                        "typeString": "uint256"
+                      },
+                      "id": 11018,
+                      "isConstant": false,
+                      "isLValue": false,
+                      "isPure": false,
+                      "lValueRequested": false,
+                      "leftExpression": {
+                        "expression": {
+                          "baseExpression": {
+                            "id": 11012,
+                            "name": "stakings",
+                            "nodeType": "Identifier",
+                            "overloadedDeclarations": [],
+                            "referencedDeclaration": 10978,
+                            "src": "834:8:28",
+                            "typeDescriptions": {
+                              "typeIdentifier": "t_mapping$_t_address_$_t_struct$_UserStaking_$10973_storage_$",
+                              "typeString": "mapping(address => struct StakingTest.UserStaking storage ref)"
+                            }
+                          },
+                          "id": 11015,
+                          "indexExpression": {
+                            "expression": {
+                              "id": 11013,
+                              "name": "msg",
+                              "nodeType": "Identifier",
+                              "overloadedDeclarations": [],
+                              "referencedDeclaration": -15,
+                              "src": "843:3:28",
+                              "typeDescriptions": {
+                                "typeIdentifier": "t_magic_message",
+                                "typeString": "msg"
+                              }
+                            },
+                            "id": 11014,
+                            "isConstant": false,
+                            "isLValue": false,
+                            "isPure": false,
+                            "lValueRequested": false,
+                            "memberName": "sender",
+                            "nodeType": "MemberAccess",
+                            "src": "843:10:28",
+                            "typeDescriptions": {
+                              "typeIdentifier": "t_address",
+                              "typeString": "address"
+                            }
+                          },
+                          "isConstant": false,
+                          "isLValue": true,
+                          "isPure": false,
+                          "lValueRequested": false,
+                          "nodeType": "IndexAccess",
+                          "src": "834:20:28",
+                          "typeDescriptions": {
+                            "typeIdentifier": "t_struct$_UserStaking_$10973_storage",
+                            "typeString": "struct StakingTest.UserStaking storage ref"
+                          }
+                        },
+                        "id": 11016,
+                        "isConstant": false,
+                        "isLValue": true,
+                        "isPure": false,
+                        "lValueRequested": false,
+                        "memberName": "stakedAmount",
+                        "nodeType": "MemberAccess",
+                        "referencedDeclaration": 10958,
+                        "src": "834:33:28",
+                        "typeDescriptions": {
+                          "typeIdentifier": "t_uint256",
+                          "typeString": "uint256"
+                        }
+                      },
+                      "nodeType": "BinaryOperation",
+                      "operator": "+",
+                      "rightExpression": {
+                        "id": 11017,
+                        "name": "_amount",
+                        "nodeType": "Identifier",
+                        "overloadedDeclarations": [],
+                        "referencedDeclaration": 10992,
+                        "src": "882:7:28",
+                        "typeDescriptions": {
+                          "typeIdentifier": "t_uint256",
+                          "typeString": "uint256"
+                        }
+                      },
+                      "src": "834:55:28",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_uint256",
+                        "typeString": "uint256"
+                      }
+                    },
+                    "src": "786:103:28",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "id": 11020,
+                  "nodeType": "ExpressionStatement",
+                  "src": "786:103:28"
+                }
+              ]
+            },
+            "functionSelector": "be999705",
+            "id": 11022,
+            "implemented": true,
+            "kind": "function",
+            "modifiers": [],
+            "name": "addFunds",
+            "nameLocation": "677:8:28",
+            "nodeType": "FunctionDefinition",
+            "parameters": {
+              "id": 10993,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 10992,
+                  "mutability": "mutable",
+                  "name": "_amount",
+                  "nameLocation": "694:7:28",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 11022,
+                  "src": "686:15:28",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  },
+                  "typeName": {
+                    "id": 10991,
+                    "name": "uint256",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "686:7:28",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "visibility": "internal"
+                }
+              ],
+              "src": "685:17:28"
+            },
+            "returnParameters": {
+              "id": 10994,
+              "nodeType": "ParameterList",
+              "parameters": [],
+              "src": "712:0:28"
+            },
+            "scope": 11023,
+            "src": "668:228:28",
+            "stateMutability": "nonpayable",
+            "virtual": false,
+            "visibility": "external"
+          }
+        ],
+        "scope": 11024,
+        "src": "170:728:28",
+        "usedErrors": []
+      }
+    ],
+    "src": "31:868:28"
+  },
+  "bytecode": "608060405234801561001057600080fd5b5060405161033738038061033783398101604081905261002f91610054565b600080546001600160a01b0319166001600160a01b0392909216919091179055610084565b60006020828403121561006657600080fd5b81516001600160a01b038116811461007d57600080fd5b9392505050565b6102a4806100936000396000f3fe608060405234801561001057600080fd5b50600436106100415760003560e01c8063be99970514610046578063dc6e13e11461005b578063fc0c546a14610100575b600080fd5b6100596100543660046101dd565b61012b565b005b6100b76100693660046101f6565b60016020528060005260406000206000915090508060000154908060010154908060020154908060030154908060040154908060050154908060060154908060070154908060080154905089565b60408051998a5260208a0198909852968801959095526060870193909352608086019190915260a085015260c084015260e0830152610100820152610120015b60405180910390f35b600054610113906001600160a01b031681565b6040516001600160a01b0390911681526020016100f7565b6000546040516323b872dd60e01b8152336004820152306024820152604481018390526001600160a01b03909116906323b872dd906064016020604051808303816000875af1158015610182573d6000803e3d6000fd5b505050506040513d601f19601f820116820180604052508101906101a69190610226565b5033600090815260016020819052604090912001546101c6908290610248565b336000908152600160208190526040909120015550565b6000602082840312156101ef57600080fd5b5035919050565b60006020828403121561020857600080fd5b81356001600160a01b038116811461021f57600080fd5b9392505050565b60006020828403121561023857600080fd5b8151801515811461021f57600080fd5b6000821982111561026957634e487b7160e01b600052601160045260246000fd5b50019056fea2646970667358221220cc0a2312530016cb7e316e0f0518c73b13b6cead9a8029401391caf2b082b36d64736f6c634300080c0033",
+  "bytecodeSha1": "d5e9d3a2f871ee783919d39067b564deaf9ac2ab",
+  "compiler": {
+    "evm_version": "istanbul",
+    "optimizer": {
+      "enabled": true,
+      "runs": 200
+    },
+    "version": "0.8.12+commit.f00d7308"
+  },
+  "contractName": "StakingTest",
+  "coverageMap": {
+    "branches": {
+      "12": {},
+      "2": {},
+      "28": {},
+      "3": {},
+      "5": {}
+    },
+    "statements": {
+      "12": {},
+      "2": {},
+      "28": {
+        "StakingTest.addFunds": {
+          "0": [
+            722,
+            776
+          ],
+          "1": [
+            786,
+            889
+          ]
+        }
+      },
+      "3": {},
+      "5": {}
+    }
+  },
+  "dependencies": [
+    "OpenZeppelin/openzeppelin-contracts@4.5.0/Context",
+    "OpenZeppelin/openzeppelin-contracts@4.5.0/ERC20",
+    "OpenZeppelin/openzeppelin-contracts@4.5.0/IERC20",
+    "OpenZeppelin/openzeppelin-contracts@4.5.0/IERC20Metadata"
+  ],
+  "deployedBytecode": "608060405234801561001057600080fd5b50600436106100415760003560e01c8063be99970514610046578063dc6e13e11461005b578063fc0c546a14610100575b600080fd5b6100596100543660046101dd565b61012b565b005b6100b76100693660046101f6565b60016020528060005260406000206000915090508060000154908060010154908060020154908060030154908060040154908060050154908060060154908060070154908060080154905089565b60408051998a5260208a0198909852968801959095526060870193909352608086019190915260a085015260c084015260e0830152610100820152610120015b60405180910390f35b600054610113906001600160a01b031681565b6040516001600160a01b0390911681526020016100f7565b6000546040516323b872dd60e01b8152336004820152306024820152604481018390526001600160a01b03909116906323b872dd906064016020604051808303816000875af1158015610182573d6000803e3d6000fd5b505050506040513d601f19601f820116820180604052508101906101a69190610226565b5033600090815260016020819052604090912001546101c6908290610248565b336000908152600160208190526040909120015550565b6000602082840312156101ef57600080fd5b5035919050565b60006020828403121561020857600080fd5b81356001600160a01b038116811461021f57600080fd5b9392505050565b60006020828403121561023857600080fd5b8151801515811461021f57600080fd5b6000821982111561026957634e487b7160e01b600052601160045260246000fd5b50019056fea2646970667358221220cc0a2312530016cb7e316e0f0518c73b13b6cead9a8029401391caf2b082b36d64736f6c634300080c0033",
+  "deployedSourceMap": "170:728:28:-:0;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;668:228;;;;;;:::i;:::-;;:::i;:::-;;528:47;;;;;;:::i;:::-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;861:25:33;;;917:2;902:18;;895:34;;;;945:18;;;938:34;;;;1003:2;988:18;;981:34;;;;1046:3;1031:19;;1024:35;;;;1090:3;1075:19;;1068:35;1134:3;1119:19;;1112:35;1178:3;1163:19;;1156:35;1222:3;1207:19;;1200:35;848:3;833:19;528:47:28;;;;;;;;197:18;;;;;-1:-1:-1;;;;;197:18:28;;;;;;-1:-1:-1;;;;;1425:32:33;;;1407:51;;1395:2;1380:18;197::28;1246:218:33;668:228:28;722:5;;:54;;-1:-1:-1;;;722:54:28;;741:10;722:54;;;1709:34:33;761:4:28;1759:18:33;;;1752:43;1811:18;;;1804:34;;;-1:-1:-1;;;;;722:5:28;;;;:18;;1644::33;;722:54:28;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;:::i;:::-;-1:-1:-1;843:10:28;834:20;;;;:8;:20;;;;;;;;:33;;:55;;882:7;;834:55;:::i;:::-;795:10;786:20;;;;:8;:20;;;;;;;;:33;:103;-1:-1:-1;668:228:28:o;14:180:33:-;73:6;126:2;114:9;105:7;101:23;97:32;94:52;;;142:1;139;132:12;94:52;-1:-1:-1;165:23:33;;14:180;-1:-1:-1;14:180:33:o;199:286::-;258:6;311:2;299:9;290:7;286:23;282:32;279:52;;;327:1;324;317:12;279:52;353:23;;-1:-1:-1;;;;;405:31:33;;395:42;;385:70;;451:1;448;441:12;385:70;474:5;199:286;-1:-1:-1;;;199:286:33:o;1849:277::-;1916:6;1969:2;1957:9;1948:7;1944:23;1940:32;1937:52;;;1985:1;1982;1975:12;1937:52;2017:9;2011:16;2070:5;2063:13;2056:21;2049:5;2046:32;2036:60;;2092:1;2089;2082:12;2131:225;2171:3;2202:1;2198:6;2195:1;2192:13;2189:136;;;2247:10;2242:3;2238:20;2235:1;2228:31;2282:4;2279:1;2272:15;2310:4;2307:1;2300:15;2189:136;-1:-1:-1;2341:9:33;;2131:225::o",
+  "language": "Solidity",
+  "natspec": {
+    "kind": "dev",
+    "methods": {},
+    "version": 1
+  },
+  "offset": [
+    170,
+    898
+  ],
+  "opcodes": "PUSH1 0x80 PUSH1 0x40 MSTORE CALLVALUE DUP1 ISZERO PUSH2 0x10 JUMPI PUSH1 0x0 DUP1 REVERT JUMPDEST POP PUSH1 0x4 CALLDATASIZE LT PUSH2 0x41 JUMPI PUSH1 0x0 CALLDATALOAD PUSH1 0xE0 SHR DUP1 PUSH4 0xBE999705 EQ PUSH2 0x46 JUMPI DUP1 PUSH4 0xDC6E13E1 EQ PUSH2 0x5B JUMPI DUP1 PUSH4 0xFC0C546A EQ PUSH2 0x100 JUMPI JUMPDEST PUSH1 0x0 DUP1 REVERT JUMPDEST PUSH2 0x59 PUSH2 0x54 CALLDATASIZE PUSH1 0x4 PUSH2 0x1DD JUMP JUMPDEST PUSH2 0x12B JUMP JUMPDEST STOP JUMPDEST PUSH2 0xB7 PUSH2 0x69 CALLDATASIZE PUSH1 0x4 PUSH2 0x1F6 JUMP JUMPDEST PUSH1 0x1 PUSH1 0x20 MSTORE DUP1 PUSH1 0x0 MSTORE PUSH1 0x40 PUSH1 0x0 KECCAK256 PUSH1 0x0 SWAP2 POP SWAP1 POP DUP1 PUSH1 0x0 ADD SLOAD SWAP1 DUP1 PUSH1 0x1 ADD SLOAD SWAP1 DUP1 PUSH1 0x2 ADD SLOAD SWAP1 DUP1 PUSH1 0x3 ADD SLOAD SWAP1 DUP1 PUSH1 0x4 ADD SLOAD SWAP1 DUP1 PUSH1 0x5 ADD SLOAD SWAP1 DUP1 PUSH1 0x6 ADD SLOAD SWAP1 DUP1 PUSH1 0x7 ADD SLOAD SWAP1 DUP1 PUSH1 0x8 ADD SLOAD SWAP1 POP DUP10 JUMP JUMPDEST PUSH1 0x40 DUP1 MLOAD SWAP10 DUP11 MSTORE PUSH1 0x20 DUP11 ADD SWAP9 SWAP1 SWAP9 MSTORE SWAP7 DUP9 ADD SWAP6 SWAP1 SWAP6 MSTORE PUSH1 0x60 DUP8 ADD SWAP4 SWAP1 SWAP4 MSTORE PUSH1 0x80 DUP7 ADD SWAP2 SWAP1 SWAP2 MSTORE PUSH1 0xA0 DUP6 ADD MSTORE PUSH1 0xC0 DUP5 ADD MSTORE PUSH1 0xE0 DUP4 ADD MSTORE PUSH2 0x100 DUP3 ADD MSTORE PUSH2 0x120 ADD JUMPDEST PUSH1 0x40 MLOAD DUP1 SWAP2 SUB SWAP1 RETURN JUMPDEST PUSH1 0x0 SLOAD PUSH2 0x113 SWAP1 PUSH1 0x1 PUSH1 0x1 PUSH1 0xA0 SHL SUB AND DUP2 JUMP JUMPDEST PUSH1 0x40 MLOAD PUSH1 0x1 PUSH1 0x1 PUSH1 0xA0 SHL SUB SWAP1 SWAP2 AND DUP2 MSTORE PUSH1 0x20 ADD PUSH2 0xF7 JUMP JUMPDEST PUSH1 0x0 SLOAD PUSH1 0x40 MLOAD PUSH4 0x23B872DD PUSH1 0xE0 SHL DUP2 MSTORE CALLER PUSH1 0x4 DUP3 ADD MSTORE ADDRESS PUSH1 0x24 DUP3 ADD MSTORE PUSH1 0x44 DUP2 ADD DUP4 SWAP1 MSTORE PUSH1 0x1 PUSH1 0x1 PUSH1 0xA0 SHL SUB SWAP1 SWAP2 AND SWAP1 PUSH4 0x23B872DD SWAP1 PUSH1 0x64 ADD PUSH1 0x20 PUSH1 0x40 MLOAD DUP1 DUP4 SUB DUP2 PUSH1 0x0 DUP8 GAS CALL ISZERO DUP1 ISZERO PUSH2 0x182 JUMPI RETURNDATASIZE PUSH1 0x0 DUP1 RETURNDATACOPY RETURNDATASIZE PUSH1 0x0 REVERT JUMPDEST POP POP POP POP PUSH1 0x40 MLOAD RETURNDATASIZE PUSH1 0x1F NOT PUSH1 0x1F DUP3 ADD AND DUP3 ADD DUP1 PUSH1 0x40 MSTORE POP DUP2 ADD SWAP1 PUSH2 0x1A6 SWAP2 SWAP1 PUSH2 0x226 JUMP JUMPDEST POP CALLER PUSH1 0x0 SWAP1 DUP2 MSTORE PUSH1 0x1 PUSH1 0x20 DUP2 SWAP1 MSTORE PUSH1 0x40 SWAP1 SWAP2 KECCAK256 ADD SLOAD PUSH2 0x1C6 SWAP1 DUP3 SWAP1 PUSH2 0x248 JUMP JUMPDEST CALLER PUSH1 0x0 SWAP1 DUP2 MSTORE PUSH1 0x1 PUSH1 0x20 DUP2 SWAP1 MSTORE PUSH1 0x40 SWAP1 SWAP2 KECCAK256 ADD SSTORE POP JUMP JUMPDEST PUSH1 0x0 PUSH1 0x20 DUP3 DUP5 SUB SLT ISZERO PUSH2 0x1EF JUMPI PUSH1 0x0 DUP1 REVERT JUMPDEST POP CALLDATALOAD SWAP2 SWAP1 POP JUMP JUMPDEST PUSH1 0x0 PUSH1 0x20 DUP3 DUP5 SUB SLT ISZERO PUSH2 0x208 JUMPI PUSH1 0x0 DUP1 REVERT JUMPDEST DUP2 CALLDATALOAD PUSH1 0x1 PUSH1 0x1 PUSH1 0xA0 SHL SUB DUP2 AND DUP2 EQ PUSH2 0x21F JUMPI PUSH1 0x0 DUP1 REVERT JUMPDEST SWAP4 SWAP3 POP POP POP JUMP JUMPDEST PUSH1 0x0 PUSH1 0x20 DUP3 DUP5 SUB SLT ISZERO PUSH2 0x238 JUMPI PUSH1 0x0 DUP1 REVERT JUMPDEST DUP2 MLOAD DUP1 ISZERO ISZERO DUP2 EQ PUSH2 0x21F JUMPI PUSH1 0x0 DUP1 REVERT JUMPDEST PUSH1 0x0 DUP3 NOT DUP3 GT ISZERO PUSH2 0x269 JUMPI PUSH4 0x4E487B71 PUSH1 0xE0 SHL PUSH1 0x0 MSTORE PUSH1 0x11 PUSH1 0x4 MSTORE PUSH1 0x24 PUSH1 0x0 REVERT JUMPDEST POP ADD SWAP1 JUMP INVALID LOG2 PUSH5 0x6970667358 0x22 SLT KECCAK256 0xCC EXP 0x23 SLT MSTORE8 STOP AND 0xCB PUSH31 0x316E0F0518C73B13B6CEAD9A8029401391CAF2B082B36D64736F6C63430008 0xC STOP CALLER ",
+  "pcMap": {
+    "0": {
+      "offset": [
+        170,
+        898
+      ],
+      "op": "PUSH1",
+      "path": "28",
+      "value": "0x80"
+    },
+    "2": {
+      "fn": null,
+      "offset": [
+        170,
+        898
+      ],
+      "op": "PUSH1",
+      "path": "28",
+      "value": "0x40"
+    },
+    "4": {
+      "fn": null,
+      "offset": [
+        170,
+        898
+      ],
+      "op": "MSTORE",
+      "path": "28"
+    },
+    "5": {
+      "fn": null,
+      "offset": [
+        170,
+        898
+      ],
+      "op": "CALLVALUE",
+      "path": "28"
+    },
+    "6": {
+      "fn": null,
+      "offset": [
+        170,
+        898
+      ],
+      "op": "DUP1",
+      "path": "28"
+    },
+    "7": {
+      "fn": null,
+      "offset": [
+        170,
+        898
+      ],
+      "op": "ISZERO",
+      "path": "28"
+    },
+    "8": {
+      "fn": null,
+      "offset": [
+        170,
+        898
+      ],
+      "op": "PUSH2",
+      "path": "28",
+      "value": "0x10"
+    },
+    "11": {
+      "fn": null,
+      "offset": [
+        170,
+        898
+      ],
+      "op": "JUMPI",
+      "path": "28"
+    },
+    "12": {
+      "fn": null,
+      "offset": [
+        170,
+        898
+      ],
+      "op": "PUSH1",
+      "path": "28",
+      "value": "0x0"
+    },
+    "14": {
+      "fn": null,
+      "offset": [
+        170,
+        898
+      ],
+      "op": "DUP1",
+      "path": "28"
+    },
+    "15": {
+      "dev": "Cannot send ether to nonpayable function",
+      "fn": null,
+      "offset": [
+        170,
+        898
+      ],
+      "op": "REVERT",
+      "path": "28"
+    },
+    "16": {
+      "fn": null,
+      "offset": [
+        170,
+        898
+      ],
+      "op": "JUMPDEST",
+      "path": "28"
+    },
+    "17": {
+      "fn": null,
+      "offset": [
+        170,
+        898
+      ],
+      "op": "POP",
+      "path": "28"
+    },
+    "18": {
+      "fn": null,
+      "offset": [
+        170,
+        898
+      ],
+      "op": "PUSH1",
+      "path": "28",
+      "value": "0x4"
+    },
+    "20": {
+      "fn": null,
+      "offset": [
+        170,
+        898
+      ],
+      "op": "CALLDATASIZE",
+      "path": "28"
+    },
+    "21": {
+      "fn": null,
+      "offset": [
+        170,
+        898
+      ],
+      "op": "LT",
+      "path": "28"
+    },
+    "22": {
+      "fn": null,
+      "offset": [
+        170,
+        898
+      ],
+      "op": "PUSH2",
+      "path": "28",
+      "value": "0x41"
+    },
+    "25": {
+      "fn": null,
+      "offset": [
+        170,
+        898
+      ],
+      "op": "JUMPI",
+      "path": "28"
+    },
+    "26": {
+      "fn": null,
+      "offset": [
+        170,
+        898
+      ],
+      "op": "PUSH1",
+      "path": "28",
+      "value": "0x0"
+    },
+    "28": {
+      "fn": null,
+      "offset": [
+        170,
+        898
+      ],
+      "op": "CALLDATALOAD",
+      "path": "28"
+    },
+    "29": {
+      "fn": null,
+      "offset": [
+        170,
+        898
+      ],
+      "op": "PUSH1",
+      "path": "28",
+      "value": "0xE0"
+    },
+    "31": {
+      "fn": null,
+      "offset": [
+        170,
+        898
+      ],
+      "op": "SHR",
+      "path": "28"
+    },
+    "32": {
+      "fn": null,
+      "offset": [
+        170,
+        898
+      ],
+      "op": "DUP1",
+      "path": "28"
+    },
+    "33": {
+      "fn": null,
+      "offset": [
+        170,
+        898
+      ],
+      "op": "PUSH4",
+      "path": "28",
+      "value": "0xBE999705"
+    },
+    "38": {
+      "fn": null,
+      "offset": [
+        170,
+        898
+      ],
+      "op": "EQ",
+      "path": "28"
+    },
+    "39": {
+      "fn": null,
+      "offset": [
+        170,
+        898
+      ],
+      "op": "PUSH2",
+      "path": "28",
+      "value": "0x46"
+    },
+    "42": {
+      "fn": null,
+      "offset": [
+        170,
+        898
+      ],
+      "op": "JUMPI",
+      "path": "28"
+    },
+    "43": {
+      "fn": null,
+      "offset": [
+        170,
+        898
+      ],
+      "op": "DUP1",
+      "path": "28"
+    },
+    "44": {
+      "fn": null,
+      "offset": [
+        170,
+        898
+      ],
+      "op": "PUSH4",
+      "path": "28",
+      "value": "0xDC6E13E1"
+    },
+    "49": {
+      "fn": null,
+      "offset": [
+        170,
+        898
+      ],
+      "op": "EQ",
+      "path": "28"
+    },
+    "50": {
+      "fn": null,
+      "offset": [
+        170,
+        898
+      ],
+      "op": "PUSH2",
+      "path": "28",
+      "value": "0x5B"
+    },
+    "53": {
+      "fn": null,
+      "offset": [
+        170,
+        898
+      ],
+      "op": "JUMPI",
+      "path": "28"
+    },
+    "54": {
+      "fn": null,
+      "offset": [
+        170,
+        898
+      ],
+      "op": "DUP1",
+      "path": "28"
+    },
+    "55": {
+      "fn": null,
+      "offset": [
+        170,
+        898
+      ],
+      "op": "PUSH4",
+      "path": "28",
+      "value": "0xFC0C546A"
+    },
+    "60": {
+      "fn": null,
+      "offset": [
+        170,
+        898
+      ],
+      "op": "EQ",
+      "path": "28"
+    },
+    "61": {
+      "fn": null,
+      "offset": [
+        170,
+        898
+      ],
+      "op": "PUSH2",
+      "path": "28",
+      "value": "0x100"
+    },
+    "64": {
+      "fn": null,
+      "offset": [
+        170,
+        898
+      ],
+      "op": "JUMPI",
+      "path": "28"
+    },
+    "65": {
+      "fn": null,
+      "offset": [
+        170,
+        898
+      ],
+      "op": "JUMPDEST",
+      "path": "28"
+    },
+    "66": {
+      "fn": null,
+      "offset": [
+        170,
+        898
+      ],
+      "op": "PUSH1",
+      "path": "28",
+      "value": "0x0"
+    },
+    "68": {
+      "fn": null,
+      "offset": [
+        170,
+        898
+      ],
+      "op": "DUP1",
+      "path": "28"
+    },
+    "69": {
+      "first_revert": true,
+      "fn": null,
+      "offset": [
+        170,
+        898
+      ],
+      "op": "REVERT",
+      "path": "28"
+    },
+    "70": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        668,
+        896
+      ],
+      "op": "JUMPDEST",
+      "path": "28"
+    },
+    "71": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        668,
+        896
+      ],
+      "op": "PUSH2",
+      "path": "28",
+      "value": "0x59"
+    },
+    "74": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        668,
+        896
+      ],
+      "op": "PUSH2",
+      "path": "28",
+      "value": "0x54"
+    },
+    "77": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        668,
+        896
+      ],
+      "op": "CALLDATASIZE",
+      "path": "28"
+    },
+    "78": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        668,
+        896
+      ],
+      "op": "PUSH1",
+      "path": "28",
+      "value": "0x4"
+    },
+    "80": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        668,
+        896
+      ],
+      "op": "PUSH2",
+      "path": "28",
+      "value": "0x1DD"
+    },
+    "83": {
+      "fn": "StakingTest.addFunds",
+      "jump": "i",
+      "offset": [
+        668,
+        896
+      ],
+      "op": "JUMP",
+      "path": "28"
+    },
+    "84": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        668,
+        896
+      ],
+      "op": "JUMPDEST",
+      "path": "28"
+    },
+    "85": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        668,
+        896
+      ],
+      "op": "PUSH2",
+      "path": "28",
+      "value": "0x12B"
+    },
+    "88": {
+      "fn": "StakingTest.addFunds",
+      "jump": "i",
+      "offset": [
+        668,
+        896
+      ],
+      "op": "JUMP",
+      "path": "28"
+    },
+    "89": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        668,
+        896
+      ],
+      "op": "JUMPDEST",
+      "path": "28"
+    },
+    "90": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        668,
+        896
+      ],
+      "op": "STOP",
+      "path": "28"
+    },
+    "91": {
+      "offset": [
+        528,
+        575
+      ],
+      "op": "JUMPDEST",
+      "path": "28"
+    },
+    "92": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        528,
+        575
+      ],
+      "op": "PUSH2",
+      "path": "28",
+      "value": "0xB7"
+    },
+    "95": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        528,
+        575
+      ],
+      "op": "PUSH2",
+      "path": "28",
+      "value": "0x69"
+    },
+    "98": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        528,
+        575
+      ],
+      "op": "CALLDATASIZE",
+      "path": "28"
+    },
+    "99": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        528,
+        575
+      ],
+      "op": "PUSH1",
+      "path": "28",
+      "value": "0x4"
+    },
+    "101": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        528,
+        575
+      ],
+      "op": "PUSH2",
+      "path": "28",
+      "value": "0x1F6"
+    },
+    "104": {
+      "fn": "StakingTest.addFunds",
+      "jump": "i",
+      "offset": [
+        528,
+        575
+      ],
+      "op": "JUMP",
+      "path": "28"
+    },
+    "105": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        528,
+        575
+      ],
+      "op": "JUMPDEST",
+      "path": "28"
+    },
+    "106": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        528,
+        575
+      ],
+      "op": "PUSH1",
+      "path": "28",
+      "value": "0x1"
+    },
+    "108": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        528,
+        575
+      ],
+      "op": "PUSH1",
+      "path": "28",
+      "value": "0x20"
+    },
+    "110": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        528,
+        575
+      ],
+      "op": "MSTORE",
+      "path": "28"
+    },
+    "111": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        528,
+        575
+      ],
+      "op": "DUP1",
+      "path": "28"
+    },
+    "112": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        528,
+        575
+      ],
+      "op": "PUSH1",
+      "path": "28",
+      "value": "0x0"
+    },
+    "114": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        528,
+        575
+      ],
+      "op": "MSTORE",
+      "path": "28"
+    },
+    "115": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        528,
+        575
+      ],
+      "op": "PUSH1",
+      "path": "28",
+      "value": "0x40"
+    },
+    "117": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        528,
+        575
+      ],
+      "op": "PUSH1",
+      "path": "28",
+      "value": "0x0"
+    },
+    "119": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        528,
+        575
+      ],
+      "op": "KECCAK256",
+      "path": "28"
+    },
+    "120": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        528,
+        575
+      ],
+      "op": "PUSH1",
+      "path": "28",
+      "value": "0x0"
+    },
+    "122": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        528,
+        575
+      ],
+      "op": "SWAP2",
+      "path": "28"
+    },
+    "123": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        528,
+        575
+      ],
+      "op": "POP",
+      "path": "28"
+    },
+    "124": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        528,
+        575
+      ],
+      "op": "SWAP1",
+      "path": "28"
+    },
+    "125": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        528,
+        575
+      ],
+      "op": "POP",
+      "path": "28"
+    },
+    "126": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        528,
+        575
+      ],
+      "op": "DUP1",
+      "path": "28"
+    },
+    "127": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        528,
+        575
+      ],
+      "op": "PUSH1",
+      "path": "28",
+      "value": "0x0"
+    },
+    "129": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        528,
+        575
+      ],
+      "op": "ADD",
+      "path": "28"
+    },
+    "130": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        528,
+        575
+      ],
+      "op": "SLOAD",
+      "path": "28"
+    },
+    "131": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        528,
+        575
+      ],
+      "op": "SWAP1",
+      "path": "28"
+    },
+    "132": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        528,
+        575
+      ],
+      "op": "DUP1",
+      "path": "28"
+    },
+    "133": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        528,
+        575
+      ],
+      "op": "PUSH1",
+      "path": "28",
+      "value": "0x1"
+    },
+    "135": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        528,
+        575
+      ],
+      "op": "ADD",
+      "path": "28"
+    },
+    "136": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        528,
+        575
+      ],
+      "op": "SLOAD",
+      "path": "28"
+    },
+    "137": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        528,
+        575
+      ],
+      "op": "SWAP1",
+      "path": "28"
+    },
+    "138": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        528,
+        575
+      ],
+      "op": "DUP1",
+      "path": "28"
+    },
+    "139": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        528,
+        575
+      ],
+      "op": "PUSH1",
+      "path": "28",
+      "value": "0x2"
+    },
+    "141": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        528,
+        575
+      ],
+      "op": "ADD",
+      "path": "28"
+    },
+    "142": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        528,
+        575
+      ],
+      "op": "SLOAD",
+      "path": "28"
+    },
+    "143": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        528,
+        575
+      ],
+      "op": "SWAP1",
+      "path": "28"
+    },
+    "144": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        528,
+        575
+      ],
+      "op": "DUP1",
+      "path": "28"
+    },
+    "145": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        528,
+        575
+      ],
+      "op": "PUSH1",
+      "path": "28",
+      "value": "0x3"
+    },
+    "147": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        528,
+        575
+      ],
+      "op": "ADD",
+      "path": "28"
+    },
+    "148": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        528,
+        575
+      ],
+      "op": "SLOAD",
+      "path": "28"
+    },
+    "149": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        528,
+        575
+      ],
+      "op": "SWAP1",
+      "path": "28"
+    },
+    "150": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        528,
+        575
+      ],
+      "op": "DUP1",
+      "path": "28"
+    },
+    "151": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        528,
+        575
+      ],
+      "op": "PUSH1",
+      "path": "28",
+      "value": "0x4"
+    },
+    "153": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        528,
+        575
+      ],
+      "op": "ADD",
+      "path": "28"
+    },
+    "154": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        528,
+        575
+      ],
+      "op": "SLOAD",
+      "path": "28"
+    },
+    "155": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        528,
+        575
+      ],
+      "op": "SWAP1",
+      "path": "28"
+    },
+    "156": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        528,
+        575
+      ],
+      "op": "DUP1",
+      "path": "28"
+    },
+    "157": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        528,
+        575
+      ],
+      "op": "PUSH1",
+      "path": "28",
+      "value": "0x5"
+    },
+    "159": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        528,
+        575
+      ],
+      "op": "ADD",
+      "path": "28"
+    },
+    "160": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        528,
+        575
+      ],
+      "op": "SLOAD",
+      "path": "28"
+    },
+    "161": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        528,
+        575
+      ],
+      "op": "SWAP1",
+      "path": "28"
+    },
+    "162": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        528,
+        575
+      ],
+      "op": "DUP1",
+      "path": "28"
+    },
+    "163": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        528,
+        575
+      ],
+      "op": "PUSH1",
+      "path": "28",
+      "value": "0x6"
+    },
+    "165": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        528,
+        575
+      ],
+      "op": "ADD",
+      "path": "28"
+    },
+    "166": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        528,
+        575
+      ],
+      "op": "SLOAD",
+      "path": "28"
+    },
+    "167": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        528,
+        575
+      ],
+      "op": "SWAP1",
+      "path": "28"
+    },
+    "168": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        528,
+        575
+      ],
+      "op": "DUP1",
+      "path": "28"
+    },
+    "169": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        528,
+        575
+      ],
+      "op": "PUSH1",
+      "path": "28",
+      "value": "0x7"
+    },
+    "171": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        528,
+        575
+      ],
+      "op": "ADD",
+      "path": "28"
+    },
+    "172": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        528,
+        575
+      ],
+      "op": "SLOAD",
+      "path": "28"
+    },
+    "173": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        528,
+        575
+      ],
+      "op": "SWAP1",
+      "path": "28"
+    },
+    "174": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        528,
+        575
+      ],
+      "op": "DUP1",
+      "path": "28"
+    },
+    "175": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        528,
+        575
+      ],
+      "op": "PUSH1",
+      "path": "28",
+      "value": "0x8"
+    },
+    "177": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        528,
+        575
+      ],
+      "op": "ADD",
+      "path": "28"
+    },
+    "178": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        528,
+        575
+      ],
+      "op": "SLOAD",
+      "path": "28"
+    },
+    "179": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        528,
+        575
+      ],
+      "op": "SWAP1",
+      "path": "28"
+    },
+    "180": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        528,
+        575
+      ],
+      "op": "POP",
+      "path": "28"
+    },
+    "181": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        528,
+        575
+      ],
+      "op": "DUP10",
+      "path": "28"
+    },
+    "182": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        528,
+        575
+      ],
+      "op": "JUMP",
+      "path": "28"
+    },
+    "183": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        528,
+        575
+      ],
+      "op": "JUMPDEST",
+      "path": "28"
+    },
+    "184": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        528,
+        575
+      ],
+      "op": "PUSH1",
+      "path": "28",
+      "value": "0x40"
+    },
+    "186": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        528,
+        575
+      ],
+      "op": "DUP1",
+      "path": "28"
+    },
+    "187": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        528,
+        575
+      ],
+      "op": "MLOAD",
+      "path": "28"
+    },
+    "188": {
+      "op": "SWAP10"
+    },
+    "189": {
+      "op": "DUP11"
+    },
+    "190": {
+      "op": "MSTORE"
+    },
+    "191": {
+      "op": "PUSH1",
+      "value": "0x20"
+    },
+    "193": {
+      "op": "DUP11"
+    },
+    "194": {
+      "op": "ADD"
+    },
+    "195": {
+      "op": "SWAP9"
+    },
+    "196": {
+      "op": "SWAP1"
+    },
+    "197": {
+      "op": "SWAP9"
+    },
+    "198": {
+      "op": "MSTORE"
+    },
+    "199": {
+      "op": "SWAP7"
+    },
+    "200": {
+      "op": "DUP9"
+    },
+    "201": {
+      "op": "ADD"
+    },
+    "202": {
+      "op": "SWAP6"
+    },
+    "203": {
+      "op": "SWAP1"
+    },
+    "204": {
+      "op": "SWAP6"
+    },
+    "205": {
+      "op": "MSTORE"
+    },
+    "206": {
+      "op": "PUSH1",
+      "value": "0x60"
+    },
+    "208": {
+      "op": "DUP8"
+    },
+    "209": {
+      "op": "ADD"
+    },
+    "210": {
+      "op": "SWAP4"
+    },
+    "211": {
+      "op": "SWAP1"
+    },
+    "212": {
+      "op": "SWAP4"
+    },
+    "213": {
+      "op": "MSTORE"
+    },
+    "214": {
+      "op": "PUSH1",
+      "value": "0x80"
+    },
+    "216": {
+      "op": "DUP7"
+    },
+    "217": {
+      "op": "ADD"
+    },
+    "218": {
+      "op": "SWAP2"
+    },
+    "219": {
+      "op": "SWAP1"
+    },
+    "220": {
+      "op": "SWAP2"
+    },
+    "221": {
+      "op": "MSTORE"
+    },
+    "222": {
+      "op": "PUSH1",
+      "value": "0xA0"
+    },
+    "224": {
+      "op": "DUP6"
+    },
+    "225": {
+      "op": "ADD"
+    },
+    "226": {
+      "op": "MSTORE"
+    },
+    "227": {
+      "op": "PUSH1",
+      "value": "0xC0"
+    },
+    "229": {
+      "op": "DUP5"
+    },
+    "230": {
+      "op": "ADD"
+    },
+    "231": {
+      "op": "MSTORE"
+    },
+    "232": {
+      "op": "PUSH1",
+      "value": "0xE0"
+    },
+    "234": {
+      "op": "DUP4"
+    },
+    "235": {
+      "op": "ADD"
+    },
+    "236": {
+      "op": "MSTORE"
+    },
+    "237": {
+      "op": "PUSH2",
+      "value": "0x100"
+    },
+    "240": {
+      "op": "DUP3"
+    },
+    "241": {
+      "op": "ADD"
+    },
+    "242": {
+      "op": "MSTORE"
+    },
+    "243": {
+      "op": "PUSH2",
+      "value": "0x120"
+    },
+    "246": {
+      "op": "ADD"
+    },
+    "247": {
+      "offset": [
+        528,
+        575
+      ],
+      "op": "JUMPDEST",
+      "path": "28"
+    },
+    "248": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        528,
+        575
+      ],
+      "op": "PUSH1",
+      "path": "28",
+      "value": "0x40"
+    },
+    "250": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        528,
+        575
+      ],
+      "op": "MLOAD",
+      "path": "28"
+    },
+    "251": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        528,
+        575
+      ],
+      "op": "DUP1",
+      "path": "28"
+    },
+    "252": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        528,
+        575
+      ],
+      "op": "SWAP2",
+      "path": "28"
+    },
+    "253": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        528,
+        575
+      ],
+      "op": "SUB",
+      "path": "28"
+    },
+    "254": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        528,
+        575
+      ],
+      "op": "SWAP1",
+      "path": "28"
+    },
+    "255": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        528,
+        575
+      ],
+      "op": "RETURN",
+      "path": "28"
+    },
+    "256": {
+      "offset": [
+        197,
+        215
+      ],
+      "op": "JUMPDEST",
+      "path": "28"
+    },
+    "257": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        197,
+        215
+      ],
+      "op": "PUSH1",
+      "path": "28",
+      "value": "0x0"
+    },
+    "259": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        197,
+        215
+      ],
+      "op": "SLOAD",
+      "path": "28"
+    },
+    "260": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        197,
+        215
+      ],
+      "op": "PUSH2",
+      "path": "28",
+      "value": "0x113"
+    },
+    "263": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        197,
+        215
+      ],
+      "op": "SWAP1",
+      "path": "28"
+    },
+    "264": {
+      "op": "PUSH1",
+      "value": "0x1"
+    },
+    "266": {
+      "op": "PUSH1",
+      "value": "0x1"
+    },
+    "268": {
+      "op": "PUSH1",
+      "value": "0xA0"
+    },
+    "270": {
+      "op": "SHL"
+    },
+    "271": {
+      "op": "SUB"
+    },
+    "272": {
+      "offset": [
+        197,
+        215
+      ],
+      "op": "AND",
+      "path": "28"
+    },
+    "273": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        197,
+        215
+      ],
+      "op": "DUP2",
+      "path": "28"
+    },
+    "274": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        197,
+        215
+      ],
+      "op": "JUMP",
+      "path": "28"
+    },
+    "275": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        197,
+        215
+      ],
+      "op": "JUMPDEST",
+      "path": "28"
+    },
+    "276": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        197,
+        215
+      ],
+      "op": "PUSH1",
+      "path": "28",
+      "value": "0x40"
+    },
+    "278": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        197,
+        215
+      ],
+      "op": "MLOAD",
+      "path": "28"
+    },
+    "279": {
+      "op": "PUSH1",
+      "value": "0x1"
+    },
+    "281": {
+      "op": "PUSH1",
+      "value": "0x1"
+    },
+    "283": {
+      "op": "PUSH1",
+      "value": "0xA0"
+    },
+    "285": {
+      "op": "SHL"
+    },
+    "286": {
+      "op": "SUB"
+    },
+    "287": {
+      "op": "SWAP1"
+    },
+    "288": {
+      "op": "SWAP2"
+    },
+    "289": {
+      "op": "AND"
+    },
+    "290": {
+      "op": "DUP2"
+    },
+    "291": {
+      "op": "MSTORE"
+    },
+    "292": {
+      "op": "PUSH1",
+      "value": "0x20"
+    },
+    "294": {
+      "op": "ADD"
+    },
+    "295": {
+      "offset": [
+        197,
+        215
+      ],
+      "op": "PUSH2",
+      "path": "28",
+      "value": "0xF7"
+    },
+    "298": {
+      "op": "JUMP"
+    },
+    "299": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        668,
+        896
+      ],
+      "op": "JUMPDEST",
+      "path": "28"
+    },
+    "300": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        722,
+        727
+      ],
+      "op": "PUSH1",
+      "path": "28",
+      "statement": 0,
+      "value": "0x0"
+    },
+    "302": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        722,
+        727
+      ],
+      "op": "SLOAD",
+      "path": "28"
+    },
+    "303": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        722,
+        776
+      ],
+      "op": "PUSH1",
+      "path": "28",
+      "value": "0x40"
+    },
+    "305": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        722,
+        776
+      ],
+      "op": "MLOAD",
+      "path": "28"
+    },
+    "306": {
+      "op": "PUSH4",
+      "value": "0x23B872DD"
+    },
+    "311": {
+      "op": "PUSH1",
+      "value": "0xE0"
+    },
+    "313": {
+      "op": "SHL"
+    },
+    "314": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        722,
+        776
+      ],
+      "op": "DUP2",
+      "path": "28"
+    },
+    "315": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        722,
+        776
+      ],
+      "op": "MSTORE",
+      "path": "28"
+    },
+    "316": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        741,
+        751
+      ],
+      "op": "CALLER",
+      "path": "28"
+    },
+    "317": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        722,
+        776
+      ],
+      "op": "PUSH1",
+      "path": "28",
+      "value": "0x4"
+    },
+    "319": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        722,
+        776
+      ],
+      "op": "DUP3",
+      "path": "28"
+    },
+    "320": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        722,
+        776
+      ],
+      "op": "ADD",
+      "path": "28"
+    },
+    "321": {
+      "op": "MSTORE"
+    },
+    "322": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        761,
+        765
+      ],
+      "op": "ADDRESS",
+      "path": "28"
+    },
+    "323": {
+      "op": "PUSH1",
+      "value": "0x24"
+    },
+    "325": {
+      "op": "DUP3"
+    },
+    "326": {
+      "op": "ADD"
+    },
+    "327": {
+      "op": "MSTORE"
+    },
+    "328": {
+      "op": "PUSH1",
+      "value": "0x44"
+    },
+    "330": {
+      "op": "DUP2"
+    },
+    "331": {
+      "op": "ADD"
+    },
+    "332": {
+      "op": "DUP4"
+    },
+    "333": {
+      "op": "SWAP1"
+    },
+    "334": {
+      "op": "MSTORE"
+    },
+    "335": {
+      "op": "PUSH1",
+      "value": "0x1"
+    },
+    "337": {
+      "op": "PUSH1",
+      "value": "0x1"
+    },
+    "339": {
+      "op": "PUSH1",
+      "value": "0xA0"
+    },
+    "341": {
+      "op": "SHL"
+    },
+    "342": {
+      "op": "SUB"
+    },
+    "343": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        722,
+        727
+      ],
+      "op": "SWAP1",
+      "path": "28"
+    },
+    "344": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        722,
+        727
+      ],
+      "op": "SWAP2",
+      "path": "28"
+    },
+    "345": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        722,
+        727
+      ],
+      "op": "AND",
+      "path": "28"
+    },
+    "346": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        722,
+        727
+      ],
+      "op": "SWAP1",
+      "path": "28"
+    },
+    "347": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        722,
+        740
+      ],
+      "op": "PUSH4",
+      "path": "28",
+      "value": "0x23B872DD"
+    },
+    "352": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        722,
+        740
+      ],
+      "op": "SWAP1",
+      "path": "28"
+    },
+    "353": {
+      "op": "PUSH1",
+      "value": "0x64"
+    },
+    "355": {
+      "op": "ADD"
+    },
+    "356": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        722,
+        776
+      ],
+      "op": "PUSH1",
+      "path": "28",
+      "value": "0x20"
+    },
+    "358": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        722,
+        776
+      ],
+      "op": "PUSH1",
+      "path": "28",
+      "value": "0x40"
+    },
+    "360": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        722,
+        776
+      ],
+      "op": "MLOAD",
+      "path": "28"
+    },
+    "361": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        722,
+        776
+      ],
+      "op": "DUP1",
+      "path": "28"
+    },
+    "362": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        722,
+        776
+      ],
+      "op": "DUP4",
+      "path": "28"
+    },
+    "363": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        722,
+        776
+      ],
+      "op": "SUB",
+      "path": "28"
+    },
+    "364": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        722,
+        776
+      ],
+      "op": "DUP2",
+      "path": "28"
+    },
+    "365": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        722,
+        776
+      ],
+      "op": "PUSH1",
+      "path": "28",
+      "value": "0x0"
+    },
+    "367": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        722,
+        776
+      ],
+      "op": "DUP8",
+      "path": "28"
+    },
+    "368": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        722,
+        776
+      ],
+      "op": "GAS",
+      "path": "28"
+    },
+    "369": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        722,
+        776
+      ],
+      "op": "CALL",
+      "path": "28"
+    },
+    "370": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        722,
+        776
+      ],
+      "op": "ISZERO",
+      "path": "28"
+    },
+    "371": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        722,
+        776
+      ],
+      "op": "DUP1",
+      "path": "28"
+    },
+    "372": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        722,
+        776
+      ],
+      "op": "ISZERO",
+      "path": "28"
+    },
+    "373": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        722,
+        776
+      ],
+      "op": "PUSH2",
+      "path": "28",
+      "value": "0x182"
+    },
+    "376": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        722,
+        776
+      ],
+      "op": "JUMPI",
+      "path": "28"
+    },
+    "377": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        722,
+        776
+      ],
+      "op": "RETURNDATASIZE",
+      "path": "28"
+    },
+    "378": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        722,
+        776
+      ],
+      "op": "PUSH1",
+      "path": "28",
+      "value": "0x0"
+    },
+    "380": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        722,
+        776
+      ],
+      "op": "DUP1",
+      "path": "28"
+    },
+    "381": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        722,
+        776
+      ],
+      "op": "RETURNDATACOPY",
+      "path": "28"
+    },
+    "382": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        722,
+        776
+      ],
+      "op": "RETURNDATASIZE",
+      "path": "28"
+    },
+    "383": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        722,
+        776
+      ],
+      "op": "PUSH1",
+      "path": "28",
+      "value": "0x0"
+    },
+    "385": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        722,
+        776
+      ],
+      "op": "REVERT",
+      "path": "28"
+    },
+    "386": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        722,
+        776
+      ],
+      "op": "JUMPDEST",
+      "path": "28"
+    },
+    "387": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        722,
+        776
+      ],
+      "op": "POP",
+      "path": "28"
+    },
+    "388": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        722,
+        776
+      ],
+      "op": "POP",
+      "path": "28"
+    },
+    "389": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        722,
+        776
+      ],
+      "op": "POP",
+      "path": "28"
+    },
+    "390": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        722,
+        776
+      ],
+      "op": "POP",
+      "path": "28"
+    },
+    "391": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        722,
+        776
+      ],
+      "op": "PUSH1",
+      "path": "28",
+      "value": "0x40"
+    },
+    "393": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        722,
+        776
+      ],
+      "op": "MLOAD",
+      "path": "28"
+    },
+    "394": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        722,
+        776
+      ],
+      "op": "RETURNDATASIZE",
+      "path": "28"
+    },
+    "395": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        722,
+        776
+      ],
+      "op": "PUSH1",
+      "path": "28",
+      "value": "0x1F"
+    },
+    "397": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        722,
+        776
+      ],
+      "op": "NOT",
+      "path": "28"
+    },
+    "398": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        722,
+        776
+      ],
+      "op": "PUSH1",
+      "path": "28",
+      "value": "0x1F"
+    },
+    "400": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        722,
+        776
+      ],
+      "op": "DUP3",
+      "path": "28"
+    },
+    "401": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        722,
+        776
+      ],
+      "op": "ADD",
+      "path": "28"
+    },
+    "402": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        722,
+        776
+      ],
+      "op": "AND",
+      "path": "28"
+    },
+    "403": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        722,
+        776
+      ],
+      "op": "DUP3",
+      "path": "28"
+    },
+    "404": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        722,
+        776
+      ],
+      "op": "ADD",
+      "path": "28"
+    },
+    "405": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        722,
+        776
+      ],
+      "op": "DUP1",
+      "path": "28"
+    },
+    "406": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        722,
+        776
+      ],
+      "op": "PUSH1",
+      "path": "28",
+      "value": "0x40"
+    },
+    "408": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        722,
+        776
+      ],
+      "op": "MSTORE",
+      "path": "28"
+    },
+    "409": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        722,
+        776
+      ],
+      "op": "POP",
+      "path": "28"
+    },
+    "410": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        722,
+        776
+      ],
+      "op": "DUP2",
+      "path": "28"
+    },
+    "411": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        722,
+        776
+      ],
+      "op": "ADD",
+      "path": "28"
+    },
+    "412": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        722,
+        776
+      ],
+      "op": "SWAP1",
+      "path": "28"
+    },
+    "413": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        722,
+        776
+      ],
+      "op": "PUSH2",
+      "path": "28",
+      "value": "0x1A6"
+    },
+    "416": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        722,
+        776
+      ],
+      "op": "SWAP2",
+      "path": "28"
+    },
+    "417": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        722,
+        776
+      ],
+      "op": "SWAP1",
+      "path": "28"
+    },
+    "418": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        722,
+        776
+      ],
+      "op": "PUSH2",
+      "path": "28",
+      "value": "0x226"
+    },
+    "421": {
+      "fn": "StakingTest.addFunds",
+      "jump": "i",
+      "offset": [
+        722,
+        776
+      ],
+      "op": "JUMP",
+      "path": "28"
+    },
+    "422": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        722,
+        776
+      ],
+      "op": "JUMPDEST",
+      "path": "28"
+    },
+    "423": {
+      "op": "POP"
+    },
+    "424": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        843,
+        853
+      ],
+      "op": "CALLER",
+      "path": "28",
+      "statement": 1
+    },
+    "425": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        834,
+        854
+      ],
+      "op": "PUSH1",
+      "path": "28",
+      "value": "0x0"
+    },
+    "427": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        834,
+        854
+      ],
+      "op": "SWAP1",
+      "path": "28"
+    },
+    "428": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        834,
+        854
+      ],
+      "op": "DUP2",
+      "path": "28"
+    },
+    "429": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        834,
+        854
+      ],
+      "op": "MSTORE",
+      "path": "28"
+    },
+    "430": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        834,
+        842
+      ],
+      "op": "PUSH1",
+      "path": "28",
+      "value": "0x1"
+    },
+    "432": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        834,
+        854
+      ],
+      "op": "PUSH1",
+      "path": "28",
+      "value": "0x20"
+    },
+    "434": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        834,
+        854
+      ],
+      "op": "DUP2",
+      "path": "28"
+    },
+    "435": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        834,
+        854
+      ],
+      "op": "SWAP1",
+      "path": "28"
+    },
+    "436": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        834,
+        854
+      ],
+      "op": "MSTORE",
+      "path": "28"
+    },
+    "437": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        834,
+        854
+      ],
+      "op": "PUSH1",
+      "path": "28",
+      "value": "0x40"
+    },
+    "439": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        834,
+        854
+      ],
+      "op": "SWAP1",
+      "path": "28"
+    },
+    "440": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        834,
+        854
+      ],
+      "op": "SWAP2",
+      "path": "28"
+    },
+    "441": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        834,
+        854
+      ],
+      "op": "KECCAK256",
+      "path": "28"
+    },
+    "442": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        834,
+        867
+      ],
+      "op": "ADD",
+      "path": "28"
+    },
+    "443": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        834,
+        867
+      ],
+      "op": "SLOAD",
+      "path": "28"
+    },
+    "444": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        834,
+        889
+      ],
+      "op": "PUSH2",
+      "path": "28",
+      "value": "0x1C6"
+    },
+    "447": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        834,
+        889
+      ],
+      "op": "SWAP1",
+      "path": "28"
+    },
+    "448": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        882,
+        889
+      ],
+      "op": "DUP3",
+      "path": "28"
+    },
+    "449": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        882,
+        889
+      ],
+      "op": "SWAP1",
+      "path": "28"
+    },
+    "450": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        834,
+        889
+      ],
+      "op": "PUSH2",
+      "path": "28",
+      "value": "0x248"
+    },
+    "453": {
+      "fn": "StakingTest.addFunds",
+      "jump": "i",
+      "offset": [
+        834,
+        889
+      ],
+      "op": "JUMP",
+      "path": "28"
+    },
+    "454": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        834,
+        889
+      ],
+      "op": "JUMPDEST",
+      "path": "28"
+    },
+    "455": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        795,
+        805
+      ],
+      "op": "CALLER",
+      "path": "28"
+    },
+    "456": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        786,
+        806
+      ],
+      "op": "PUSH1",
+      "path": "28",
+      "value": "0x0"
+    },
+    "458": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        786,
+        806
+      ],
+      "op": "SWAP1",
+      "path": "28"
+    },
+    "459": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        786,
+        806
+      ],
+      "op": "DUP2",
+      "path": "28"
+    },
+    "460": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        786,
+        806
+      ],
+      "op": "MSTORE",
+      "path": "28"
+    },
+    "461": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        786,
+        794
+      ],
+      "op": "PUSH1",
+      "path": "28",
+      "value": "0x1"
+    },
+    "463": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        786,
+        806
+      ],
+      "op": "PUSH1",
+      "path": "28",
+      "value": "0x20"
+    },
+    "465": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        786,
+        806
+      ],
+      "op": "DUP2",
+      "path": "28"
+    },
+    "466": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        786,
+        806
+      ],
+      "op": "SWAP1",
+      "path": "28"
+    },
+    "467": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        786,
+        806
+      ],
+      "op": "MSTORE",
+      "path": "28"
+    },
+    "468": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        786,
+        806
+      ],
+      "op": "PUSH1",
+      "path": "28",
+      "value": "0x40"
+    },
+    "470": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        786,
+        806
+      ],
+      "op": "SWAP1",
+      "path": "28"
+    },
+    "471": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        786,
+        806
+      ],
+      "op": "SWAP2",
+      "path": "28"
+    },
+    "472": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        786,
+        806
+      ],
+      "op": "KECCAK256",
+      "path": "28"
+    },
+    "473": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        786,
+        819
+      ],
+      "op": "ADD",
+      "path": "28"
+    },
+    "474": {
+      "fn": "StakingTest.addFunds",
+      "offset": [
+        786,
+        889
+      ],
+      "op": "SSTORE",
+      "path": "28"
+    },
+    "475": {
+      "op": "POP"
+    },
+    "476": {
+      "fn": "StakingTest.addFunds",
+      "jump": "o",
+      "offset": [
+        668,
+        896
+      ],
+      "op": "JUMP",
+      "path": "28"
+    },
+    "477": {
+      "op": "JUMPDEST"
+    },
+    "478": {
+      "op": "PUSH1",
+      "value": "0x0"
+    },
+    "480": {
+      "op": "PUSH1",
+      "value": "0x20"
+    },
+    "482": {
+      "op": "DUP3"
+    },
+    "483": {
+      "op": "DUP5"
+    },
+    "484": {
+      "op": "SUB"
+    },
+    "485": {
+      "op": "SLT"
+    },
+    "486": {
+      "op": "ISZERO"
+    },
+    "487": {
+      "op": "PUSH2",
+      "value": "0x1EF"
+    },
+    "490": {
+      "op": "JUMPI"
+    },
+    "491": {
+      "op": "PUSH1",
+      "value": "0x0"
+    },
+    "493": {
+      "op": "DUP1"
+    },
+    "494": {
+      "op": "REVERT"
+    },
+    "495": {
+      "op": "JUMPDEST"
+    },
+    "496": {
+      "op": "POP"
+    },
+    "497": {
+      "op": "CALLDATALOAD"
+    },
+    "498": {
+      "op": "SWAP2"
+    },
+    "499": {
+      "op": "SWAP1"
+    },
+    "500": {
+      "op": "POP"
+    },
+    "501": {
+      "jump": "o",
+      "op": "JUMP"
+    },
+    "502": {
+      "op": "JUMPDEST"
+    },
+    "503": {
+      "op": "PUSH1",
+      "value": "0x0"
+    },
+    "505": {
+      "op": "PUSH1",
+      "value": "0x20"
+    },
+    "507": {
+      "op": "DUP3"
+    },
+    "508": {
+      "op": "DUP5"
+    },
+    "509": {
+      "op": "SUB"
+    },
+    "510": {
+      "op": "SLT"
+    },
+    "511": {
+      "op": "ISZERO"
+    },
+    "512": {
+      "op": "PUSH2",
+      "value": "0x208"
+    },
+    "515": {
+      "op": "JUMPI"
+    },
+    "516": {
+      "op": "PUSH1",
+      "value": "0x0"
+    },
+    "518": {
+      "op": "DUP1"
+    },
+    "519": {
+      "op": "REVERT"
+    },
+    "520": {
+      "op": "JUMPDEST"
+    },
+    "521": {
+      "op": "DUP2"
+    },
+    "522": {
+      "op": "CALLDATALOAD"
+    },
+    "523": {
+      "op": "PUSH1",
+      "value": "0x1"
+    },
+    "525": {
+      "op": "PUSH1",
+      "value": "0x1"
+    },
+    "527": {
+      "op": "PUSH1",
+      "value": "0xA0"
+    },
+    "529": {
+      "op": "SHL"
+    },
+    "530": {
+      "op": "SUB"
+    },
+    "531": {
+      "op": "DUP2"
+    },
+    "532": {
+      "op": "AND"
+    },
+    "533": {
+      "op": "DUP2"
+    },
+    "534": {
+      "op": "EQ"
+    },
+    "535": {
+      "op": "PUSH2",
+      "value": "0x21F"
+    },
+    "538": {
+      "op": "JUMPI"
+    },
+    "539": {
+      "op": "PUSH1",
+      "value": "0x0"
+    },
+    "541": {
+      "op": "DUP1"
+    },
+    "542": {
+      "op": "REVERT"
+    },
+    "543": {
+      "op": "JUMPDEST"
+    },
+    "544": {
+      "op": "SWAP4"
+    },
+    "545": {
+      "op": "SWAP3"
+    },
+    "546": {
+      "op": "POP"
+    },
+    "547": {
+      "op": "POP"
+    },
+    "548": {
+      "op": "POP"
+    },
+    "549": {
+      "jump": "o",
+      "op": "JUMP"
+    },
+    "550": {
+      "op": "JUMPDEST"
+    },
+    "551": {
+      "op": "PUSH1",
+      "value": "0x0"
+    },
+    "553": {
+      "op": "PUSH1",
+      "value": "0x20"
+    },
+    "555": {
+      "op": "DUP3"
+    },
+    "556": {
+      "op": "DUP5"
+    },
+    "557": {
+      "op": "SUB"
+    },
+    "558": {
+      "op": "SLT"
+    },
+    "559": {
+      "op": "ISZERO"
+    },
+    "560": {
+      "op": "PUSH2",
+      "value": "0x238"
+    },
+    "563": {
+      "op": "JUMPI"
+    },
+    "564": {
+      "op": "PUSH1",
+      "value": "0x0"
+    },
+    "566": {
+      "op": "DUP1"
+    },
+    "567": {
+      "op": "REVERT"
+    },
+    "568": {
+      "op": "JUMPDEST"
+    },
+    "569": {
+      "op": "DUP2"
+    },
+    "570": {
+      "op": "MLOAD"
+    },
+    "571": {
+      "op": "DUP1"
+    },
+    "572": {
+      "op": "ISZERO"
+    },
+    "573": {
+      "op": "ISZERO"
+    },
+    "574": {
+      "op": "DUP2"
+    },
+    "575": {
+      "op": "EQ"
+    },
+    "576": {
+      "op": "PUSH2",
+      "value": "0x21F"
+    },
+    "579": {
+      "op": "JUMPI"
+    },
+    "580": {
+      "op": "PUSH1",
+      "value": "0x0"
+    },
+    "582": {
+      "op": "DUP1"
+    },
+    "583": {
+      "op": "REVERT"
+    },
+    "584": {
+      "op": "JUMPDEST"
+    },
+    "585": {
+      "op": "PUSH1",
+      "value": "0x0"
+    },
+    "587": {
+      "op": "DUP3"
+    },
+    "588": {
+      "op": "NOT"
+    },
+    "589": {
+      "op": "DUP3"
+    },
+    "590": {
+      "op": "GT"
+    },
+    "591": {
+      "op": "ISZERO"
+    },
+    "592": {
+      "op": "PUSH2",
+      "value": "0x269"
+    },
+    "595": {
+      "op": "JUMPI"
+    },
+    "596": {
+      "op": "PUSH4",
+      "value": "0x4E487B71"
+    },
+    "601": {
+      "op": "PUSH1",
+      "value": "0xE0"
+    },
+    "603": {
+      "op": "SHL"
+    },
+    "604": {
+      "op": "PUSH1",
+      "value": "0x0"
+    },
+    "606": {
+      "op": "MSTORE"
+    },
+    "607": {
+      "op": "PUSH1",
+      "value": "0x11"
+    },
+    "609": {
+      "op": "PUSH1",
+      "value": "0x4"
+    },
+    "611": {
+      "op": "MSTORE"
+    },
+    "612": {
+      "op": "PUSH1",
+      "value": "0x24"
+    },
+    "614": {
+      "op": "PUSH1",
+      "value": "0x0"
+    },
+    "616": {
+      "op": "REVERT"
+    },
+    "617": {
+      "op": "JUMPDEST"
+    },
+    "618": {
+      "op": "POP"
+    },
+    "619": {
+      "op": "ADD"
+    },
+    "620": {
+      "op": "SWAP1"
+    },
+    "621": {
+      "jump": "o",
+      "op": "JUMP"
+    }
+  },
+  "sha1": "4e5d84745d00660e9175d3f123b46ef0d18cbd49",
+  "source": "//SPDX-License-Identifier: MIT\npragma solidity ^0.8.9;\n\n//BSC Address 0x87F8e8f9616689808176d3a97a506c8cEeD32674\nimport \"@openzeppelin/contracts/token/ERC20/ERC20.sol\";\n\ncontract StakingTest {\n    ERC20 public token;\n    struct UserStaking {\n        uint256 shares;\n        uint256 stakedAmount;\n        uint256 claimedAmount;\n        uint256 lastBlockCompounded;\n        uint256 lastBlockStaked;\n        uint256 index;\n        uint256 lastFrozenWithdraw;\n        uint256 apyBaseline;\n        uint256 profitBaseline;\n    }\n\n    mapping(address => UserStaking) public stakings;\n\n    constructor(address _tokenAddress) {\n        token = ERC20(_tokenAddress);\n    }\n\n    function addFunds(uint256 _amount) external {\n        token.transferFrom(msg.sender, address(this), _amount);\n        stakings[msg.sender].stakedAmount =\n            stakings[msg.sender].stakedAmount +\n            _amount;\n    }\n}\n",
+  "sourceMap": "170:728:28:-:0;;;582:80;;;;;;;;;;;;;;;;;;;;;;;;;;;;:::i;:::-;627:5;:28;;-1:-1:-1;;;;;;627:28:28;-1:-1:-1;;;;;627:28:28;;;;;;;;;;170:728;;14:290:33;84:6;137:2;125:9;116:7;112:23;108:32;105:52;;;153:1;150;143:12;105:52;179:16;;-1:-1:-1;;;;;224:31:33;;214:42;;204:70;;270:1;267;260:12;204:70;293:5;14:290;-1:-1:-1;;;14:290:33:o;:::-;170:728:28;;;;;;",
+  "sourcePath": "contracts/TestStaking2.sol",
+  "type": "contract"
+}
