@@ -1,5 +1,4 @@
 .secret
-build/
 node_modules/
 env.json
 .DS_Store
