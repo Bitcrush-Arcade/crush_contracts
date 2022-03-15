@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidty 0.8.12;
+pragma solidity ^0.8.9;
 
 interface IPrevSale {
     /// @notice qualify only checks quantity

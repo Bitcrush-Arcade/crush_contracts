@@ -12,7 +12,7 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-
+//bitcrush
 import "../interfaces/IBankroll.sol";
 import "../interfaces/ILottery.sol";
 
@@ -32,8 +32,7 @@ contract BitcrushLottery is
     VRFConsumerBase,
     Ownable,
     ReentrancyGuard,
-    IBitcrushLottery,
-    IBitcrushBankroll
+    IBitcrushLottery
 {
     // Libraries
     using SafeMath for uint256;
@@ -42,7 +41,8 @@ contract BitcrushLottery is
 
     // Contracts
     ERC20Burnable public immutable crush;
-    Bankroll public immutable bankAddress;
+    //Bankroll public immutable bankAddress;
+    IBitcrushBankroll public immutable bankAddress;
     address public devAddress; //Address to send Ticket cut to.
 
     // Data Structures
@@ -218,7 +218,8 @@ contract BitcrushLottery is
         crush = ERC20Burnable(_crush);
         devAddress = msg.sender;
         operators[msg.sender] = true;
-        bankAddress = Bankroll(_bankAddress);
+        //bankAddress = Bankroll(_bankAddress);
+        bankAddress = IBitcrushBankroll(_bankAddress);
         bonusAddresses.push(_crush);
         bonusTokenIndex[_crush] = 0;
     }

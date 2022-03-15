@@ -5,7 +5,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "../interfaces/IStaking.sol";
-import "../interfaces/IBitcrushNiceStaking";
+import "../interfaces/INiceStaking.sol";
 import "./GalacticChef.sol";
 import "./NICEToken.sol";
 

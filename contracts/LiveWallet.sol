@@ -3,7 +3,7 @@ pragma solidity >=0.6.5;
 
 //BSC address: 0x5326C45a31DEEBa15EDC68055bF69b2682c9B215
 //openzeppelin
-//import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 //bitcrush

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidty 0.8.12;
+pragma solidity >=0.6.2;
 
 interface ISingleAssetStaking {
     /// Adds the provided amount to the totalPool

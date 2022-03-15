@@ -1,5 +1,8 @@
 // SPDX-License-Identifier: MIT
-pragma solidty 0.8.12;
+pragma solidity >=0.6.5;
+
+import "../contracts/Bankroll.sol";
+import "../contracts/LiveWallet.sol";
 
 interface IBitcrushStaking {
     /// Store `_bankroll`.

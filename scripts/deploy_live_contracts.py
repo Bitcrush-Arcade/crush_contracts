@@ -13,7 +13,8 @@ from scripts.helpful_scripts import isDevNetwork
 from web3 import Web3
 
 
-# def deploy_libraries():
+def deploy_libraries():
+    LotteryStructs = ILottery.LotteryStructs.deploy({"from": accounts[0]})
 
 
 def deployBankroll():

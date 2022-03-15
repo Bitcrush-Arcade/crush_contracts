@@ -20,12 +20,6 @@ interface IFeeDistributor {
     /// @dev 
     function checkPrice() external view returns (bool _aboveIDO);
 
-    function swapForWrap(
-        uint256 inputAmount,
-        address[] storage path,
-        FeeData storage feeInfo
-    ) internal returns (uint256 amountLeft, uint256 wBnbReturned);
-
     function setBaseRouter(address _newRouter) external;
 
     function setBaseRouting(

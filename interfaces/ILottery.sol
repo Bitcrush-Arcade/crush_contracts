@@ -1,5 +1,22 @@
 // SPDX-License-Identifier: MIT
-pragma solidty 0.8.12;
+pragma solidity ^0.8.9;
+
+library LotteryStructs {
+    struct ClaimRounds {
+        uint256 roundId;
+        uint256 nonWinners;
+        uint256 winners;
+    }
+    struct NewTicket {
+        uint32 ticketNumber;
+        uint256 round;
+    }
+    struct TicketView {
+        uint256 id;
+        uint256 round;
+        uint256 ticketNumber;
+    }
+}
 
 interface IBitcrushLottery {
     // External functions
@@ -96,7 +113,7 @@ interface IBitcrushLottery {
     /// @param _matches array of match per ticket Id
     /// @dev _ticketIds and _matches have to be same length since they are matched 1-to-1
     function claimAllPendingTickets(
-        ClaimRounds[] calldata _rounds,
+        LotteryStructs.ClaimRounds[] calldata _rounds,
         uint256[] calldata _ticketIds,
         uint256[] calldata _matches
     ) external;
@@ -107,7 +124,7 @@ interface IBitcrushLottery {
     function getRoundTickets(uint256 _round)
         external
         view
-        returns (NewTicket[] memory);
+        returns (LotteryStructs.NewTicket[] memory);
 
     /// @notice Get a specific round's distribution percentages
     /// @param _round the round to check
@@ -120,7 +137,10 @@ interface IBitcrushLottery {
     /// @notice Get all Claimable Tickets
     /// @return TicketView array
     /// @dev this is specific to UI, returns ID and ROUND number in order to make the necessary calculations.
-    function ticketsToClaim() external view returns (TicketView[] memory);
+    function ticketsToClaim()
+        external
+        view
+        returns (LotteryStructs.TicketView[] memory);
 
     /// @notice Check if number is the winning number
     /// @param _round Round the requested ticket belongs to

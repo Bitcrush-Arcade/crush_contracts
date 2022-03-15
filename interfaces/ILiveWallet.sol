@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: MIT
-pragma solidty 0.8.12;
+pragma solidity >=0.6.5;
+
+import "../contracts/BankStaking.sol";
 
 interface IBitcrushLiveWallet {
     /// add funds to the senders live wallet

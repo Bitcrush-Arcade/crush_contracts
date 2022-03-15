@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidty 0.8.12;
+pragma solidity ^0.8.0;
 
 interface INICEToken {
     //BEP 20 Functions
