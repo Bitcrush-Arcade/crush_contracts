@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.6.5;
 
+import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
+import "../contracts/BankStaking.sol";
+
 interface IBitcrushBankroll {
     /// authorize address to register wins and losses
     /// @param _address the address to be authorized
@@ -66,6 +69,51 @@ interface IBitcrushBankroll {
     /// @param _admin the new address to store
     /// @dev changes the address which is used by the adminOnly modifier
     function setAdmin(address _admin) external;
+
+    // GETTER FUNCTIONS
+
+    function totalBankroll() external returns (uint256);
+
+    function poolDepleted() external returns (bool);
+
+    function negativeBankroll() external returns (uint256);
+
+    //address of the crush token
+    function crush() external returns (ERC20Burnable);
+
+    //stakingPool address
+    function stakingPool() external returns (BitcrushStaking);
+
+    function reserve() external returns (address);
+
+    function lottery() external returns (address);
+
+    function DIVISOR() external returns (uint256);
+
+    function BURN_RATE() external returns (uint256);
+
+    function profitThreshold() external returns (uint256);
+
+    //consistent 1% burn
+    function profitShare() external returns (uint256);
+
+    function houseBankrollShare() external returns (uint256);
+
+    function lotteryShare() external returns (uint256);
+
+    function reserveShare() external returns (uint256);
+
+    //profit tracking
+    function brSinceCompound() external returns (uint256);
+
+    function negativeBrSinceCompound() external returns (uint256);
+
+    //tracking historical winnings and profits
+    function totalWinnings() external returns (uint256);
+
+    function totalProfit() external returns (uint256);
+
+    function admin() external returns (uint256);
 
     // EVENTS
 
