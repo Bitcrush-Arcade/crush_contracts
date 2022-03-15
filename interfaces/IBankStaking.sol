@@ -104,4 +104,12 @@ interface IBitcrushStaking {
     /// emergency withdraw funds of users
     /// @dev transfer all available funds of users to users wallet
     function emergencyWithdraw() external;
+
+    //EVENTS
+
+    /// Emitted when adding to reward pool, leaveStaking, or emergencyWithdraw
+    event RewardPoolUpdated(uint256 indexed _totalPool);
+
+    /// Currently unused
+    event StakeUpdated(address indexed recipeint, uint256 indexed _amount);
 }

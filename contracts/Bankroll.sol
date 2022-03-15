@@ -9,10 +9,11 @@ import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
 //bitcrush
 import "./BankStaking.sol";
-import "../interfaces/IBankroll.sol";
+//import "../interfaces/IBankroll.sol";
+///@dev use interface IBitcrushBankroll
 import "./LiveWallet.sol";
 
-contract BitcrushBankroll is Ownable, IBitcrushBankroll {
+contract BitcrushBankroll is Ownable {
     using SafeMath for uint256;
     using SafeERC20 for ERC20Burnable;
     uint256 public totalBankroll;
@@ -87,19 +88,19 @@ contract BitcrushBankroll is Ownable, IBitcrushBankroll {
     /// authorize address to register wins and losses
     /// @param _address the address to be authorized
     /// @dev updates the authorizedAddresses mapping to true for given address
-    function authorizeAddress(address _address) public override onlyOwner {
+    function authorizeAddress(address _address) public onlyOwner {
         authorizedAddresses[_address] = true;
     }
 
     /// remove authorization of an address from register wins and losses
     /// @param _address the address to be removed
     /// @dev updates the authorizedAddresses mapping by deleting entry for given address
-    function removeAuthorization(address _address) public override onlyOwner {
+    function removeAuthorization(address _address) public onlyOwner {
         delete authorizedAddresses[_address];
     }
 
     /// DESCRIPTION PENDING
-    function addToBankroll(uint256 _amount) public override adminOnly {
+    function addToBankroll(uint256 _amount) public adminOnly {
         if (poolDepleted == true) {
             if (_amount >= negativeBankroll) {
                 uint256 remainder = _amount.sub(negativeBankroll);
@@ -131,7 +132,7 @@ contract BitcrushBankroll is Ownable, IBitcrushBankroll {
     /// Add users loss to the bankroll
     /// @param _amount the amount to add
     /// @dev adds funds to the bankroll if bankroll is in positive, otherwise its transfered to the staking pool to recover frozen funds
-    function addUserLoss(uint256 _amount) public override {
+    function addUserLoss(uint256 _amount) public {
         require(
             authorizedAddresses[msg.sender] == true,
             "Caller must be authorized"
@@ -173,7 +174,7 @@ contract BitcrushBankroll is Ownable, IBitcrushBankroll {
     /// Deduct users win from the bankroll
     /// @param _amount the amount to deduct
     /// @dev deducts funds from the bankroll if bankroll is in positive, otherwise theyre pulled from staking pool and bankroll marked as negative
-    function recoverBankroll(uint256 _amount) public override {
+    function recoverBankroll(uint256 _amount) public {
         require(
             msg.sender == address(stakingPool),
             "Caller must be staking pool"
@@ -192,10 +193,7 @@ contract BitcrushBankroll is Ownable, IBitcrushBankroll {
     /// Deduct users win from the bankroll
     /// @param _amount the amount to deduct
     /// @dev deducts funds from the bankroll if bankroll is in positive, otherwise theyre pulled from staking pool and bankroll marked as negative
-    function payOutUserWinning(uint256 _amount, address _winner)
-        public
-        override
-    {
+    function payOutUserWinning(uint256 _amount, address _winner) public {
         require(
             authorizedAddresses[msg.sender] == true,
             "Caller must be authorized"
@@ -272,7 +270,7 @@ contract BitcrushBankroll is Ownable, IBitcrushBankroll {
 
     /// transfer profits to staking pool to be ditributed to stakers.
     /// @dev transfer profits since last compound to the staking pool while taking out necessary fees.
-    function transferProfit() public override returns (uint256) {
+    function transferProfit() public returns (uint256) {
         require(
             msg.sender == address(stakingPool),
             "Caller must be staking pool"
@@ -323,7 +321,7 @@ contract BitcrushBankroll is Ownable, IBitcrushBankroll {
     /// Store `_threshold`.
     /// @param _threshold the new value to store
     /// @dev stores the _threshold address in the state variable `profitThreshold`
-    function setProfitThreshold(uint256 _threshold) public override adminOnly {
+    function setProfitThreshold(uint256 _threshold) public adminOnly {
         require(
             _threshold < 100000000000000000000000,
             "Max profit threshold cant be greater than 100k Crush"
@@ -342,7 +340,7 @@ contract BitcrushBankroll is Ownable, IBitcrushBankroll {
         uint256 _profitShare,
         uint256 _lotteryShare,
         uint256 _reserveShare
-    ) public override onlyOwner {
+    ) public onlyOwner {
         require(
             _houseBankrollShare
                 .add(_profitShare)
@@ -366,21 +364,21 @@ contract BitcrushBankroll is Ownable, IBitcrushBankroll {
     ///store new address in reserve address
     /// @param _reserve the new address to store
     /// @dev changes the address which recieves reserve fees
-    function setReserveAddress(address _reserve) public override onlyOwner {
+    function setReserveAddress(address _reserve) public onlyOwner {
         reserve = _reserve;
     }
 
     ///store new address in lottery address
     /// @param _lottery the new address to store
     /// @dev changes the address which recieves lottery fees
-    function setLotteryAddress(address _lottery) public override onlyOwner {
+    function setLotteryAddress(address _lottery) public onlyOwner {
         lottery = _lottery;
     }
 
     ///store new address in admin address
     /// @param _admin the new address to store
     /// @dev changes the address which is used by the adminOnly modifier
-    function setAdmin(address _admin) public override onlyOwner {
+    function setAdmin(address _admin) public onlyOwner {
         admin = _admin;
     }
 }

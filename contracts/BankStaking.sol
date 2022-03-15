@@ -10,10 +10,11 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 //bitcrush
 import "./CrushToken.sol";
 import "./Bankroll.sol";
-import "../interfaces/IBankStaking.sol";
+//import "../interfaces/IBankStaking.sol";
+///@dev use inteface IBitcrushStaking
 import "./LiveWallet.sol";
 
-contract BitcrushStaking is Ownable, IBitcrushStaking {
+contract BitcrushStaking is Ownable {
     using SafeMath for uint256;
     using SafeERC20 for CRUSHToken;
     uint256 public constant MAX_CRUSH_PER_BLOCK = 10000000000000000000;
@@ -95,7 +96,7 @@ contract BitcrushStaking is Ownable, IBitcrushStaking {
     /// Store `_bankroll`.
     /// @param _bankroll the new value to store
     /// @dev stores the _bankroll address in the state variable `bankroll`
-    function setBankroll(BitcrushBankroll _bankroll) public override onlyOwner {
+    function setBankroll(BitcrushBankroll _bankroll) public onlyOwner {
         require(
             address(bankroll) == address(0),
             "Bankroll address already set"
@@ -106,11 +107,7 @@ contract BitcrushStaking is Ownable, IBitcrushStaking {
     /// Store `_liveWallet`.
     /// @param _liveWallet the new value to store
     /// @dev stores the _liveWallet address in the state variable `liveWallet`
-    function setLiveWallet(BitcrushLiveWallet _liveWallet)
-        public
-        override
-        onlyOwner
-    {
+    function setLiveWallet(BitcrushLiveWallet _liveWallet) public onlyOwner {
         require(
             address(liveWallet) == address(0),
             "Live Wallet address already set"
@@ -121,7 +118,7 @@ contract BitcrushStaking is Ownable, IBitcrushStaking {
     /// Adds the provided amount to the totalPool
     /// @param _amount the amount to add
     /// @dev adds the provided amount to `totalPool` state variable
-    function addRewardToPool(uint256 _amount) public override {
+    function addRewardToPool(uint256 _amount) public {
         require(
             crush.balanceOf(msg.sender) >= _amount,
             "Insufficient Crush tokens for transfer"
@@ -134,7 +131,7 @@ contract BitcrushStaking is Ownable, IBitcrushStaking {
     /// @notice updates accRewardPerShare based on the last block calculated and totalShares
     /// @dev accRewardPerShare is accumulative, meaning it always holds the total historic
     /// rewardPerShare making apyBaseline necessary to keep rewards fair
-    function updateDistribution() public override {
+    function updateDistribution() public {
         if (block.number <= lastRewardBlock) return;
         if (totalStaked == 0) {
             lastRewardBlock = block.number;
@@ -156,7 +153,7 @@ contract BitcrushStaking is Ownable, IBitcrushStaking {
 
     /// @notice updates accProfitPerShare based on current Profit available and totalShares
     /// @dev this allows for consistent profit reporting and no change on profits to distribute
-    function updateProfits() public override {
+    function updateProfits() public {
         if (totalShares == 0) return;
         uint256 requestedProfits = bankroll.transferProfit();
         if (requestedProfits == 0) return;
@@ -165,7 +162,7 @@ contract BitcrushStaking is Ownable, IBitcrushStaking {
         accProfitPerShare = accProfitPerShare.add(profitCalc);
     }
 
-    function setCrushPerBlock(uint256 _amount) public override onlyOwner {
+    function setCrushPerBlock(uint256 _amount) public onlyOwner {
         require(_amount >= 0, "Crush per Block can not be negative");
         require(
             _amount <= MAX_CRUSH_PER_BLOCK,
@@ -177,7 +174,7 @@ contract BitcrushStaking is Ownable, IBitcrushStaking {
     /// Stake the provided amount
     /// @param _amount the amount to stake
     /// @dev stakes the provided amount
-    function enterStaking(uint256 _amount) public override {
+    function enterStaking(uint256 _amount) public {
         require(
             crush.balanceOf(msg.sender) >= _amount,
             "Insufficient Crush tokens for transfer"
@@ -236,7 +233,7 @@ contract BitcrushStaking is Ownable, IBitcrushStaking {
     /// Leaves staking for a user by the specified amount and transfering staked amount and reward to users address
     /// @param _amount the amount to unstake
     /// @dev leaves staking and deducts total pool by the users reward. early withdrawal fee applied if withdraw is made before earlyWithdrawFeeTime
-    function leaveStaking(uint256 _amount, bool _liveWallet) external override {
+    function leaveStaking(uint256 _amount, bool _liveWallet) external {
         updateDistribution();
         updateProfits();
         UserStaking storage user = stakings[msg.sender];
@@ -357,12 +354,7 @@ contract BitcrushStaking is Ownable, IBitcrushStaking {
     /// Get pending Profits to Claim
     /// @param _address the user's wallet address to calculate profits
     /// @return pending Profits to be claimed by this user
-    function pendingProfits(address _address)
-        public
-        view
-        override
-        returns (uint256)
-    {
+    function pendingProfits(address _address) public view returns (uint256) {
         UserStaking storage user = stakings[_address];
         return
             user.shares.mul(accProfitPerShare).div(1e12).sub(
@@ -372,7 +364,7 @@ contract BitcrushStaking is Ownable, IBitcrushStaking {
 
     /// compounds the rewards of all users in the pool
     /// @dev compounds the rewards of all users in the pool add adds it into their staked amount while deducting fees
-    function compoundAll() public override {
+    function compoundAll() public {
         require(
             lastAutoCompoundBlock <= block.number,
             "Compound All not yet applicable."
@@ -466,7 +458,7 @@ contract BitcrushStaking is Ownable, IBitcrushStaking {
         uint256 _amount,
         address _recipient,
         address _lwAddress
-    ) public override {
+    ) public {
         require(msg.sender == address(bankroll), "Callet must be bankroll");
         //divide amount over users
         //update user mapping to reflect frozen amount
@@ -484,7 +476,7 @@ contract BitcrushStaking is Ownable, IBitcrushStaking {
 
     /// unfreeze previously frozen funds from the staking pool
     /// @dev deducts the provided amount from the total frozen variablle
-    function unfreezeStaking(uint256 _amount) public override {
+    function unfreezeStaking(uint256 _amount) public {
         require(msg.sender == address(bankroll), "Caller must be bankroll");
         require(
             _amount <= totalFrozen,
@@ -497,23 +489,14 @@ contract BitcrushStaking is Ownable, IBitcrushStaking {
 
     /// returns the total count of users in the staking pool.
     /// @dev returns the total stakers in the staking pool by reading length of addressIndexes array
-    function indexesLength()
-        external
-        view
-        override
-        returns (uint256 _addressesLength)
-    {
+    function indexesLength() external view returns (uint256 _addressesLength) {
         _addressesLength = addressIndexes.length;
     }
 
     /// Store `_fee`.
     /// @param _fee the new value to store
     /// @dev stores the fee in the state variable `performanceFeeCompounder`
-    function setPerformanceFeeCompounder(uint256 _fee)
-        public
-        override
-        onlyOwner
-    {
+    function setPerformanceFeeCompounder(uint256 _fee) public onlyOwner {
         require(_fee > 0, "Fee must be greater than 0");
         require(_fee < MAX_FEE, "Fee must be less than 10%");
         performanceFeeCompounder = _fee;
@@ -522,7 +505,7 @@ contract BitcrushStaking is Ownable, IBitcrushStaking {
     /// Store `_fee`.
     /// @param _fee the new value to store
     /// @dev stores the fee in the state variable `performanceFeeBurn`
-    function setPerformanceFeeBurn(uint256 _fee) public override onlyOwner {
+    function setPerformanceFeeBurn(uint256 _fee) public onlyOwner {
         require(_fee > 0, "Fee must be greater than 0");
         require(_fee < MAX_FEE, "Fee must be less than 10%");
         performanceFeeBurn = _fee;
@@ -531,7 +514,7 @@ contract BitcrushStaking is Ownable, IBitcrushStaking {
     /// Store `_fee`.
     /// @param _fee the new value to store
     /// @dev stores the fee in the state variable `earlyWithdrawFee`
-    function setEarlyWithdrawFee(uint256 _fee) public override onlyOwner {
+    function setEarlyWithdrawFee(uint256 _fee) public onlyOwner {
         require(_fee > 0, "Fee must be greater than 0");
         require(_fee < MAX_FEE, "Fee must be less than 10%");
         earlyWithdrawFee = _fee;
@@ -540,7 +523,7 @@ contract BitcrushStaking is Ownable, IBitcrushStaking {
     /// Store `_fee`.
     /// @param _fee the new value to store
     /// @dev stores the fee in the state variable `performanceFeeReserve`
-    function setPerformanceFeeReserve(uint256 _fee) public override onlyOwner {
+    function setPerformanceFeeReserve(uint256 _fee) public onlyOwner {
         require(_fee > 0, "Fee must be greater than 0");
         require(_fee <= MAX_FEE, "Fee must be less than 10%");
         performanceFeeReserve = _fee;
@@ -549,7 +532,7 @@ contract BitcrushStaking is Ownable, IBitcrushStaking {
     /// Store `_time`.
     /// @param _time the new value to store
     /// @dev stores the time in the state variable `earlyWithdrawFeeTime`
-    function setEarlyWithdrawFeeTime(uint256 _time) public override onlyOwner {
+    function setEarlyWithdrawFeeTime(uint256 _time) public onlyOwner {
         require(_time > 0, "Time must be greater than 0");
         earlyWithdrawFeeTime = _time;
     }
@@ -557,7 +540,7 @@ contract BitcrushStaking is Ownable, IBitcrushStaking {
     /// Store `_limit`.
     /// @param _limit the new value to store
     /// @dev stores the limit in the state variable `autoCompoundLimit`
-    function setAutoCompoundLimit(uint256 _limit) public override onlyOwner {
+    function setAutoCompoundLimit(uint256 _limit) public onlyOwner {
         require(_limit > 0, "Limit can not be 0");
         require(_limit < 30, "Max autocompound limit cannot be greater 30");
         autoCompoundLimit = _limit;
@@ -565,7 +548,7 @@ contract BitcrushStaking is Ownable, IBitcrushStaking {
 
     /// emergency withdraw funds of users
     /// @dev transfer all available funds of users to users wallet
-    function emergencyWithdraw() public override {
+    function emergencyWithdraw() public {
         updateDistribution();
 
         UserStaking storage user = stakings[msg.sender];

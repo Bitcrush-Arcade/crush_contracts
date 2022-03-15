@@ -1,19 +1,16 @@
 //SPDX-License-Identifier: MIT
 pragma solidity 0.8.12;
 
-import "./IStaking.sol";
-import "./IGalacticChef.sol";
-
 interface IBitcrushNiceStaking {
     /// Store `_staking`.
     /// @param _staking the new value to store
     /// @dev stores the _staking address in the state variable `staking`
-    function setStakingPool(IStaking _staking) external;
+    function setStakingPool(address _staking) external;
 
     /// Store `_galacticChef`.
     /// @param _galacticChef the new value to store
     /// @dev stores the _galacticChef address in the state variable `galacticChef`
-    function setGalacticChef(IGalacticChef _galacticChef) external;
+    function setGalacticChef(address _galacticChef) external;
 
     /// Store `_poolId`.
     /// @param _poolId the new value to store

@@ -29,4 +29,27 @@ interface IFeeDistributor {
     ) external;
 
     function setTeamWallet(address _newTeamW) external;
+
+    //EVENTS
+
+    // Adding or editing fee
+    event AddPoolFee(uint256 indexed _pid);
+
+    // Unused
+    event EditFee(uint256 indexed _pid, uint256 bb, uint256 liq, uint256 team);
+
+    // Unused/duplicated
+    event UpdateRouter(uint256 indexed _pid, address router);
+
+    // Unused
+    event UpdatePath(uint256 indexed _pid, address router);
+
+    // Setting team wallet
+    event UpdateTeamWallet(address _teamW);
+
+    // Setting router address
+    event UpdateRouter(address _router);
+
+    // Setting base routing
+    event UpdateCore(bool isNice, address liquidity, uint256 pathSize);
 }

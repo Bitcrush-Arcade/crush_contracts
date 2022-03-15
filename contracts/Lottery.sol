@@ -14,11 +14,9 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 //bitcrush
 import "../interfaces/IBankroll.sol";
-import "../interfaces/ILottery.sol";
 
-// interface Bankroll {
-//     function addUserLoss(uint256 _amount) external;
-// }
+//import "../interfaces/ILottery.sol";
+///@dev use interface IBitcrushLottery
 
 /**
  * @title  Bitcrush's lottery game
@@ -28,12 +26,7 @@ import "../interfaces/ILottery.sol";
  *
  *
  */
-contract BitcrushLottery is
-    VRFConsumerBase,
-    Ownable,
-    ReentrancyGuard,
-    IBitcrushLottery
-{
+contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
     // Libraries
     using SafeMath for uint256;
     using SafeERC20 for ERC20;
@@ -230,7 +223,6 @@ contract BitcrushLottery is
     /// @param _partnerId the id of the partner to send the funds to if 0, no partner is checked.
     function buyTickets(uint32[] calldata _ticketNumbers, uint256 _partnerId)
         external
-        override
         nonReentrant
     {
         require(_ticketNumbers.length > 0, "Need 1");
@@ -285,7 +277,6 @@ contract BitcrushLottery is
     /// @dev their ID doesn't change, nor is it removed once partnership ends.
     function editPartner(address _partnerAddress, uint8 _split)
         external
-        override
         operatorOnly
     {
         require(_split <= 90, "No greedyness, thanks");
@@ -304,7 +295,6 @@ contract BitcrushLottery is
     function getProviderId(address _checkAddress)
         external
         view
-        override
         returns (uint256 _id)
     {
         Partner storage partner = partnerSplit[_checkAddress];
@@ -317,7 +307,6 @@ contract BitcrushLottery is
     /// @param ticketAmount number of tickets awarded
     function rewardTicket(address _rewardee, uint256 ticketAmount)
         external
-        override
         operatorOnly
     {
         exchangeableTickets[_rewardee] += ticketAmount;
@@ -326,10 +315,7 @@ contract BitcrushLottery is
 
     /// @notice Exchange awarded tickets for the current round
     /// @param _ticketNumbers array of numbers to add to the caller as tickets
-    function exchangeForTicket(uint32[] calldata _ticketNumbers)
-        external
-        override
-    {
+    function exchangeForTicket(uint32[] calldata _ticketNumbers) external {
         require(currentIsActive, "round is not active");
         require(
             _ticketNumbers.length <= exchangeableTickets[msg.sender],
@@ -354,7 +340,7 @@ contract BitcrushLottery is
     }
 
     /// @notice Start of new Round. This function is only needed for the first round, next rounds will be automatically started once the winner number is received
-    function firstStart() external override operatorOnly {
+    function firstStart() external operatorOnly {
         require(currentRound == 0, "First Round only");
         calcNextHour();
         startRound();
@@ -376,7 +362,7 @@ contract BitcrushLottery is
 
     /// @notice Ends current round
     /// @dev WIP - the end of the round will always happen at set intervals
-    function endRound() external override {
+    function endRound() external {
         require(
             LINK.balanceOf(address(this)) >= feeVRF,
             "Not enough LINK - please contact mod to fund to contract"
@@ -395,7 +381,7 @@ contract BitcrushLottery is
 
     /// @notice Add or remove operator
     /// @param _operator address to add / remove operator
-    function toggleOperator(address _operator) external override operatorOnly {
+    function toggleOperator(address _operator) external operatorOnly {
         bool operatorIsActive = operators[_operator];
         if (operatorIsActive) {
             operators[_operator] = false;
@@ -409,7 +395,7 @@ contract BitcrushLottery is
     /// @notice Change the claimer's fee
     /// @param _fee the value of the new fee
     /// @dev Fee cannot be greater than noMatch percentage ( since noMatch percentage is the amount given out to nonWinners )
-    function setClaimerFee(uint256 _fee) external override onlyOwner {
+    function setClaimerFee(uint256 _fee) external onlyOwner {
         require(_fee.mul(ONE100PERCENT) < noMatch, "Invalid fee amount");
         claimFee = _fee.mul(ONE100PERCENT);
         emit PercentagesChanged(
@@ -427,7 +413,7 @@ contract BitcrushLottery is
         uint256 _amount,
         uint256 _round,
         uint256 _roundAmount
-    ) external override operatorOnly {
+    ) external operatorOnly {
         require(_roundAmount > 0, "Need at least 1");
         require(_round > currentRound, "No past rounds");
         require(
@@ -465,7 +451,7 @@ contract BitcrushLottery is
     /// @notice Set the ticket value
     /// @param _newValue the new value of the ticket
     /// @dev Ticket value MUST BE IN WEI format, minimum is left as greater than 1 due to the deflationary nature of CRUSH
-    function setTicketValue(uint256 _newValue) external override onlyOwner {
+    function setTicketValue(uint256 _newValue) external onlyOwner {
         require(_newValue < 100 * 10**18 && _newValue > 1, "exceeds MAX");
         ticketValue = _newValue;
         emit UpdateTicketValue(block.timestamp, _newValue);
@@ -474,11 +460,7 @@ contract BitcrushLottery is
     /// @notice Edit the times array
     /// @param _newTimes Array of hours when Lottery will end
     /// @dev adding a sorting algorithm would be nice but honestly we have too much going on to add that in. So help us out and add your times sorted
-    function setEndHours(uint8[] calldata _newTimes)
-        external
-        override
-        operatorOnly
-    {
+    function setEndHours(uint8[] calldata _newTimes) external operatorOnly {
         require(_newTimes.length > 0, "need time");
         for (uint256 i = 0; i < _newTimes.length; i++) {
             require(_newTimes[i] < 24, "wrong time");
@@ -491,14 +473,14 @@ contract BitcrushLottery is
     /// @notice Setup the burn threshold
     /// @param _threshold new threshold in percent amount
     /// @dev setting the minimum threshold as 0 will always burn, setting max as 50
-    function setBurnThreshold(uint256 _threshold) external override onlyOwner {
+    function setBurnThreshold(uint256 _threshold) external onlyOwner {
         require(_threshold <= 50, "Out of range");
         burnThreshold = _threshold * ONE__PERCENT;
     }
 
     /// @notice toggle pause state of lottery
     /// @dev if the round is over and the lottery is unpaused then the round is started
-    function togglePauseStatus() external override onlyOwner {
+    function togglePauseStatus() external onlyOwner {
         pause = !pause;
         if (currentIsActive == false && !pause) {
             startRound();
@@ -508,7 +490,7 @@ contract BitcrushLottery is
 
     /// @notice Destroy contract and retrieve funds
     /// @dev This function is meant to retrieve funds in case of non usage and/or upgrading in the future.
-    function crushTheContract() external override onlyOwner {
+    function crushTheContract() external onlyOwner {
         require(pause, "not paused");
         require(block.timestamp > roundEnd.add(2629743), "Wait no activity");
         // Transfer Held CRUSH
@@ -537,7 +519,6 @@ contract BitcrushLottery is
     /// @dev expected order [ jackpot, match5, match4, match3, match2, match1, noMatch, burn]
     function setDistributionPercentages(uint256[] calldata _newDistribution)
         external
-        override
         onlyOwner
     {
         require(
@@ -582,7 +563,7 @@ contract BitcrushLottery is
         ClaimRounds[] calldata _rounds,
         uint256[] calldata _ticketIds,
         uint256[] calldata _matches
-    ) external override {
+    ) external {
         require(
             _ticketIds.length == _matches.length,
             "Arrays need to be the same"
@@ -716,7 +697,6 @@ contract BitcrushLottery is
     function getRoundTickets(uint256 _round)
         external
         view
-        override
         returns (NewTicket[] memory)
     {
         RoundTickets storage roundReview = userRoundTickets[msg.sender][_round];
@@ -734,7 +714,6 @@ contract BitcrushLottery is
     function getRoundDistribution(uint256 _round)
         external
         view
-        override
         returns (uint256[7] memory distribution)
     {
         distribution[0] = roundInfo[_round].distribution[0];
@@ -749,12 +728,7 @@ contract BitcrushLottery is
     /// @notice Get all Claimable Tickets
     /// @return TicketView array
     /// @dev this is specific to UI, returns ID and ROUND number in order to make the necessary calculations.
-    function ticketsToClaim()
-        external
-        view
-        override
-        returns (TicketView[] memory)
-    {
+    function ticketsToClaim() external view returns (TicketView[] memory) {
         uint256 claimableTickets = userTotalTickets[msg.sender].sub(
             userLastTicketClaimed[msg.sender]
         );
@@ -781,7 +755,6 @@ contract BitcrushLottery is
     function isNumberWinner(uint256 _round, uint32 luckyTicket)
         public
         view
-        override
         returns (uint8 _match)
     {
         uint256 roundWinner = roundInfo[_round].winnerNumber;
@@ -799,7 +772,7 @@ contract BitcrushLottery is
     /// @notice Add funds to pool directly, only applies funds to currentRound
     /// @param _amount the amount of CRUSH to transfer from current account to current Round
     /// @dev Approve needs to be run beforehand so the transfer can succeed.
-    function addToPool(uint256 _amount) public override {
+    function addToPool(uint256 _amount) public {
         uint256 userBalance = crush.balanceOf(msg.sender);
         require(userBalance >= _amount, "Insufficient Funds to Send to Pool");
         crush.safeTransferFrom(msg.sender, address(this), _amount);

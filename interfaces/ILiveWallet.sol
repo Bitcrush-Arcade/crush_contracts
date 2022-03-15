@@ -26,10 +26,6 @@ interface IBitcrushLiveWallet {
     function registerLoss(uint256[] memory _bets, address[] memory _users)
         external;
 
-    /// transfer funds from live wallet to the bankroll on user loss
-    /// @dev transfer funds to the bankroll contract when users lose in game
-    function transferToBankroll(uint256 _amount) internal;
-
     /// withdraw funds from live wallet of the senders address
     /// @dev withdraw amount from users wallet if betlock isnt enabled
     function withdrawBet(uint256 _amount) external;

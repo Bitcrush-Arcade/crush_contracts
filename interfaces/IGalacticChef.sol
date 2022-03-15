@@ -83,4 +83,36 @@ interface IGalacticChef {
 
     // DESCRIPTION PENDING
     function editFeeAddress(address _feeReceiver, bool _isContract) external;
+
+    event PoolAdded(
+        address token,
+        uint256 multiplier,
+        uint256 fee,
+        bool _type,
+        uint256 _pid
+    );
+
+    //EVENTS
+
+    /// NICE operations
+    event Deposit(address indexed user, uint256 indexed pid, uint256 amount);
+    event Withdraw(address indexed user, uint256 indexed pid, uint256 amount);
+    event EmergencyWithdraw(
+        address indexed user,
+        uint256 indexed pid,
+        uint256 amount
+    );
+
+    /// Pool operations
+    event UpdatePools(uint256[] pid, uint256[] mult);
+    event UpdatePool(uint256 indexed pid, uint256 mult, uint256 fee);
+
+    /// Emissions
+    event UpdateEmissions(uint256 amount);
+
+    /// Editing fee wallet address
+    event FeeAddressEdit(address _newAddress, bool _isContract);
+
+    ///
+    event LogEvent(uint256 number, string data);
 }

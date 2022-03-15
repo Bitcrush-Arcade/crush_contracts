@@ -6,10 +6,12 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "./NICEToken.sol";
-import "../interfaces/IFeeDistributor.sol";
-import "../interfaces/IGalacticChef.sol";
+import "./FeeDistributor.sol";
 
-contract GalacticChef is Ownable, ReentrancyGuard, IGalacticChef {
+//import "../interfaces/IGalacticChef.sol";
+///@dev use interface IGalacticChef
+
+contract GalacticChef is Ownable, ReentrancyGuard {
     using SafeERC20 for NICEToken;
     using SafeERC20 for IERC20;
 
@@ -63,7 +65,7 @@ contract GalacticChef is Ownable, ReentrancyGuard, IGalacticChef {
     NICEToken public NICE;
 
     // FEE distribution
-    IFeeDistributor public feeDistributor;
+    FeeDistributor public feeDistributor;
 
     mapping(uint256 => mapping(address => UserInfo)) public userInfo; // PID => USER_ADDRESS => userInfo
     mapping(uint256 => PoolInfo) public poolInfo; // PID => PoolInfo
@@ -120,7 +122,7 @@ contract GalacticChef is Ownable, ReentrancyGuard, IGalacticChef {
         bool _isLP,
         uint256[] calldata _pidEdit,
         uint256[] calldata _pidMulEdit
-    ) external override onlyOwner {
+    ) external onlyOwner {
         require(_pidEdit.length == _pidMulEdit.length, "add: wrong edits");
         require(_fee < 5001, "add: invalid fee");
         require(tokenPools[_token] == 0, "add: token repeated");
@@ -176,7 +178,6 @@ contract GalacticChef is Ownable, ReentrancyGuard, IGalacticChef {
     function pendingRewards(address _user, uint256 _pid)
         external
         view
-        override
         returns (uint256 _pendingRewards)
     {
         PoolInfo storage pool = poolInfo[_pid];
@@ -196,7 +197,7 @@ contract GalacticChef is Ownable, ReentrancyGuard, IGalacticChef {
 
     /// @notice Update the accRewardPerShare for a specific pool
     /// @param _pid Pool Id to update the accumulated rewards
-    function updatePool(uint256 _pid) public override {
+    function updatePool(uint256 _pid) public {
         PoolInfo storage pool = poolInfo[_pid];
         uint256 selfBal = pool.token.balanceOf(address(this));
         if (
@@ -221,7 +222,6 @@ contract GalacticChef is Ownable, ReentrancyGuard, IGalacticChef {
     function getCurrentEmissions(uint256 _pid)
         public
         view
-        override
         returns (uint256 _emissions)
     {
         PoolInfo storage pool = poolInfo[_pid];
@@ -281,7 +281,7 @@ contract GalacticChef is Ownable, ReentrancyGuard, IGalacticChef {
 
     /// @notice Update all pools accPerShare
     /// @dev this might be expensive to call...
-    function massUpdatePools() public override {
+    function massUpdatePools() public {
         for (uint256 id = 1; id <= poolCounter; id++) {
             emit LogEvent(id, "pool update");
             if (poolInfo[id].mult == 0) continue;
@@ -295,7 +295,6 @@ contract GalacticChef is Ownable, ReentrancyGuard, IGalacticChef {
     /// @return _rewardsGiven Amount of rewards minted to the third party pool
     function mintRewards(uint256 _pid)
         external
-        override
         nonReentrant
         returns (uint256 _rewardsGiven)
     {
@@ -318,11 +317,7 @@ contract GalacticChef is Ownable, ReentrancyGuard, IGalacticChef {
     /// @notice Allows user to deposit pool token to chef. Transfers rewards to user.
     /// @param _amount Amount of pool tokens to stake
     /// @param _pid Pool ID which indicates the type of token
-    function deposit(uint256 _amount, uint256 _pid)
-        external
-        override
-        nonReentrant
-    {
+    function deposit(uint256 _amount, uint256 _pid) external nonReentrant {
         PoolInfo storage pool = poolInfo[_pid];
         UserInfo storage user = userInfo[_pid][msg.sender];
         require(pool.mult > 0, "Deposit: Pool disabled");
@@ -374,11 +369,7 @@ contract GalacticChef is Ownable, ReentrancyGuard, IGalacticChef {
     /// @notice Withdraws pool token from chef. Transfers rewards to user.
     /// @param _amount Amount of pool tokens to withdraw.
     /// @param _pid Pool ID which indicates the type of token
-    function withdraw(uint256 _amount, uint256 _pid)
-        external
-        override
-        nonReentrant
-    {
+    function withdraw(uint256 _amount, uint256 _pid) external nonReentrant {
         PoolInfo storage pool = poolInfo[_pid];
         UserInfo storage user = userInfo[_pid][msg.sender];
         require(!pool.poolType, "Withdraw: Tp Pool");
@@ -400,7 +391,7 @@ contract GalacticChef is Ownable, ReentrancyGuard, IGalacticChef {
 
     /// @notice Emergency withdraws all the pool tokens from chef. In this case there's no reward.
     /// @param _pid Pool ID which indicates the type of token
-    function emergencyWithdraw(uint256 _pid) external override nonReentrant {
+    function emergencyWithdraw(uint256 _pid) external nonReentrant {
         PoolInfo storage pool = poolInfo[_pid];
         UserInfo storage user = userInfo[_pid][msg.sender];
         require(!pool.poolType, "withdraw: Tp Pool");
@@ -417,7 +408,7 @@ contract GalacticChef is Ownable, ReentrancyGuard, IGalacticChef {
     function editPoolMult(
         uint256[] calldata _pidEdit,
         uint256[] calldata _pidMulEdit
-    ) external override onlyOwner {
+    ) external onlyOwner {
         updateMultipliers(_pidEdit, _pidMulEdit);
         emit UpdatePools(_pidEdit, _pidMulEdit);
     }
@@ -425,11 +416,7 @@ contract GalacticChef is Ownable, ReentrancyGuard, IGalacticChef {
     /// @notice Edits pool fee and updates pools with new params
     /// @param _pid Pool Id
     /// @param _fee New pool fee
-    function editPoolFee(uint256 _pid, uint256 _fee)
-        external
-        override
-        onlyOwner
-    {
+    function editPoolFee(uint256 _pid, uint256 _fee) external onlyOwner {
         PoolInfo storage pool = poolInfo[_pid];
         require(address(pool.token) != address(0), "edit: invalid");
         require(_fee < 2501, "edit: high fee");
@@ -439,17 +426,16 @@ contract GalacticChef is Ownable, ReentrancyGuard, IGalacticChef {
 
     /// @notice Adds 1 to the amount of chains to which emissions are split
     /// This factor is used in the emissions calculation
-    function addChain() external override onlyOwner {
+    function addChain() external onlyOwner {
         massUpdatePools();
         chains = chains + 1;
     }
 
     function editFeeAddress(address _feeReceiver, bool _isContract)
         external
-        override
         onlyOwner
     {
-        if (_isContract) feeDistributor = IFeeDistributor(_feeReceiver);
+        if (_isContract) feeDistributor = FeeDistributor(_feeReceiver);
         else {
             require(_feeReceiver != address(0), "set receiver");
             feeAddress = _feeReceiver;

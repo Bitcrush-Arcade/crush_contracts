@@ -66,4 +66,14 @@ interface IBitcrushBankroll {
     /// @param _admin the new address to store
     /// @dev changes the address which is used by the adminOnly modifier
     function setAdmin(address _admin) external;
+
+    // EVENTS
+
+    /// Event for the SetShares Function
+    event SharesUpdated(
+        uint256 _houseBankrollShare,
+        uint256 _profitShare,
+        uint256 _lotteryShare,
+        uint256 _reserveShare
+    );
 }
