@@ -155,4 +155,43 @@ interface IBitcrushLottery {
     /// @param _amount the amount of CRUSH to transfer from current account to current Round
     /// @dev Approve needs to be run beforehand so the transfer can succeed.
     function addToPool(uint256 _amount) external;
+
+    // EVENTS
+    event FundedBonusCoins(
+        address indexed _partner,
+        uint256 _amount,
+        uint256 _startRound,
+        uint256 _numberOfRounds
+    );
+    event FundPool(uint256 indexed _round, uint256 _amount);
+    event OperatorChanged(address indexed operators, bool active_status);
+    event RoundStarted(
+        uint256 indexed _round,
+        address indexed _starter,
+        uint256 _timestamp
+    );
+    event TicketBought(
+        uint256 indexed _round,
+        address indexed _user,
+        uint256 _ticketAmounts
+    );
+    event SelectionStarted(
+        uint256 indexed _round,
+        address _caller,
+        bytes32 _requestId
+    );
+    event WinnerPicked(
+        uint256 indexed _round,
+        uint256 _winner,
+        bytes32 _requestId
+    );
+    event TicketsRewarded(address _rewardee, uint256 _ticketAmount);
+    event UpdateTicketValue(uint256 _timeOfUpdate, uint256 _newValue);
+    event PartnerUpdated(address indexed _partner);
+    event PercentagesChanged(
+        address indexed owner,
+        string percentName,
+        uint256 newPercent
+    );
+    event LogEvent(uint256 _data, string _annotation);
 }

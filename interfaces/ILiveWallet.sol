@@ -77,4 +77,14 @@ interface IBitcrushLiveWallet {
     /// @param _stakingPool the new value to store
     /// @dev stores the _stakingPool address in the state variable `stakingPool`
     function setStakingPool(BitcrushStaking _stakingPool) external;
+
+    // EVENTS
+
+    /// Funds functions
+    event Withdraw(address indexed _address, uint256 indexed _amount);
+    event Deposit(address indexed _address, uint256 indexed _amount);
+    event DepositWin(address indexed _address, uint256 indexed _amount);
+
+    /// Lock period
+    event LockPeriodUpdated(uint256 indexed _lockPeriod);
 }

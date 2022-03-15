@@ -42,4 +42,8 @@ interface IBitcrushNiceStaking {
     /// emergency withdraw funds of users
     /// @dev transfer all available funds of users to users wallet
     function emergencyWithdraw() external;
+
+    // EVENTS
+    event PerformanceFeeUpdated(uint256 newFee);
+    event PoolIdUpdated(uint256 poolId);
 }

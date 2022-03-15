@@ -13,7 +13,7 @@ import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 //bitcrush
-import "../interfaces/IBankroll.sol";
+import "./Bankroll.sol";
 
 //import "../interfaces/ILottery.sol";
 ///@dev use interface IBitcrushLottery
@@ -35,7 +35,7 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
     // Contracts
     ERC20Burnable public immutable crush;
     //Bankroll public immutable bankAddress;
-    IBitcrushBankroll public immutable bankAddress;
+    BitcrushBankroll public immutable bankAddress;
     address public devAddress; //Address to send Ticket cut to.
 
     // Data Structures
@@ -212,7 +212,7 @@ contract BitcrushLottery is VRFConsumerBase, Ownable, ReentrancyGuard {
         devAddress = msg.sender;
         operators[msg.sender] = true;
         //bankAddress = Bankroll(_bankAddress);
-        bankAddress = IBitcrushBankroll(_bankAddress);
+        bankAddress = BitcrushBankroll(_bankAddress);
         bonusAddresses.push(_crush);
         bonusTokenIndex[_crush] = 0;
     }

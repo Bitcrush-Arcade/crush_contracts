@@ -113,6 +113,6 @@ interface IGalacticChef {
     /// Editing fee wallet address
     event FeeAddressEdit(address _newAddress, bool _isContract);
 
-    ///
+    /// Type of event being executed
     event LogEvent(uint256 number, string data);
 }
