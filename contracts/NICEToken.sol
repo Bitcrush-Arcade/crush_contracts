@@ -7,7 +7,7 @@ import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 
 //bitcrush
-import "interfaces/INICEToken.sol";
+import "../interfaces/INICEToken.sol";
 
 contract NICEToken is Ownable, INICEToken {
     mapping(address => uint256) balances;

@@ -5,10 +5,11 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "../interfaces/IStaking.sol";
+import "../interfaces/IBitcrushNiceStaking";
 import "./GalacticChef.sol";
 import "./NICEToken.sol";
 
-contract BitcrushNiceStaking is Ownable {
+contract BitcrushNiceStaking is Ownable, IBitcrushNiceStaking {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
     uint256 public performanceFeeCompounder = 10; // 10/10000 * 100 = 0.1%
@@ -48,7 +49,7 @@ contract BitcrushNiceStaking is Ownable {
     /// Store `_staking`.
     /// @param _staking the new value to store
     /// @dev stores the _staking address in the state variable `staking`
-    function setStakingPool(IStaking _staking) public onlyOwner {
+    function setStakingPool(IStaking _staking) public override onlyOwner {
         require(
             address(stakingPool) == address(0x0),
             "staking pool address already set"
@@ -59,7 +60,11 @@ contract BitcrushNiceStaking is Ownable {
     /// Store `_galacticChef`.
     /// @param _galacticChef the new value to store
     /// @dev stores the _galacticChef address in the state variable `galacticChef`
-    function setGalacticChef(GalacticChef _galacticChef) public onlyOwner {
+    function setGalacticChef(GalacticChef _galacticChef)
+        public
+        override
+        onlyOwner
+    {
         require(
             address(galacticChef) == address(0x0),
             "staking pool address already set"
@@ -70,14 +75,14 @@ contract BitcrushNiceStaking is Ownable {
     /// Store `_poolId`.
     /// @param _poolId the new value to store
     /// @dev stores the _poolId address in the state variable `poolId`
-    function setPoolId(uint256 _poolId) public onlyOwner {
+    function setPoolId(uint256 _poolId) public override onlyOwner {
         poolId = _poolId;
         emit PoolIdUpdated(_poolId);
     }
 
     /// @notice updates accProfitPerShare based on current Profit available and totalShares
     /// @dev this allows for consistent profit reporting and no change on profits to distribute
-    function updateProfits() public {
+    function updateProfits() public override {
         if (stakingPool.totalShares() == 0) return;
         //Todo replace with galatic chef rewards
         uint256 requestedProfits = galacticChef.mintRewards(poolId);
@@ -92,7 +97,11 @@ contract BitcrushNiceStaking is Ownable {
     /// Get pending Profits to Claim
     /// @param _address the user's wallet address to calculate profits
     /// @return pending Profits to be claimed by this user
-    function pendingProfits(address _address) public returns (uint256) {
+    function pendingProfits(address _address)
+        public
+        override
+        returns (uint256)
+    {
         UserStaking memory user = stakings[_address];
         (user.shares, , , , , , , , ) = stakingPool.stakings(_address);
         return
@@ -103,7 +112,7 @@ contract BitcrushNiceStaking is Ownable {
 
     /// compounds the rewards of all users in the pool
     /// @dev compounds the rewards of all users in the pool while deducting fees
-    function compoundAll() public {
+    function compoundAll() public override {
         require(
             lastAutoCompoundBlock <= block.number,
             "Compound All not yet applicable."
@@ -160,7 +169,7 @@ contract BitcrushNiceStaking is Ownable {
 
     /// withdraw funds of users
     /// @dev transfer all available funds of users to users wallet
-    function withdrawNiceRewards() public {
+    function withdrawNiceRewards() public override {
         require(niceRewards[msg.sender] > 0, "No rewards available");
         uint256 amount = niceRewards[msg.sender];
         niceRewards[msg.sender] = 0;
@@ -170,7 +179,11 @@ contract BitcrushNiceStaking is Ownable {
     /// Store `_fee`.
     /// @param _fee the new value to store
     /// @dev stores the fee in the state variable `performanceFeeCompounder`
-    function setPerformanceFeeCompounder(uint256 _fee) public onlyOwner {
+    function setPerformanceFeeCompounder(uint256 _fee)
+        public
+        override
+        onlyOwner
+    {
         require(_fee > 0, "Fee must be greater than 0");
         require(_fee < MAX_FEE, "Fee must be less than 10%");
         performanceFeeCompounder = _fee;
@@ -179,7 +192,7 @@ contract BitcrushNiceStaking is Ownable {
 
     /// emergency withdraw funds of users
     /// @dev transfer all available funds of users to users wallet
-    function emergencyWithdraw() public {
+    function emergencyWithdraw() public override {
         uint256 amount = niceRewards[msg.sender];
         niceRewards[msg.sender] = 0;
         nice.safeTransfer(msg.sender, amount);

@@ -8,8 +8,9 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "./GalacticChef.sol";
 import "../interfaces/IPancakePair.sol";
 import "../interfaces/IPancakeRouter.sol";
+import "../interfaces/IFeeDistributor.sol";
 
-contract FeeDistributor is Ownable {
+contract FeeDistributor is Ownable, IFeeDistributor {
     using SafeERC20 for ERC20Burnable;
     using SafeERC20 for IERC20;
 
@@ -86,7 +87,7 @@ contract FeeDistributor is Ownable {
         address[] calldata _tokens,
         address[] calldata _token0Path,
         address[] calldata _token1Path
-    ) external onlyOwner {
+    ) external override onlyOwner {
         require(
             _fees[1] + _fees[2] + _fees[3] == DIVISOR,
             "Incorrect Fee distribution"
@@ -111,7 +112,11 @@ contract FeeDistributor is Ownable {
 
     /// @notice Function that distributes fees to the respective flows
     /// @dev This function requires funds to be sent beforehand to this contract
-    function receiveFees(uint256 _pid, uint256 _amount) external onlyChef {
+    function receiveFees(uint256 _pid, uint256 _amount)
+        external
+        override
+        onlyChef
+    {
         (, , , IERC20 token, , , bool isLP) = chef.poolInfo(_pid);
         token.safeTransferFrom(address(chef), address(this), _amount);
         // Check if token was received
@@ -304,7 +309,7 @@ contract FeeDistributor is Ownable {
 
     /// @notice Check that current Nice Price is above IDO
     /// @dev 
-    function checkPrice() public view returns (bool _aboveIDO) {
+    function checkPrice() public view override returns (bool _aboveIDO) {
         (uint256 reserve0, uint256 reserve1, ) = IPancakePair(niceLiquidity)
             .getReserves();
         reserve1 = reserve1 > 0 ? reserve1 : 1; //just in case
@@ -332,7 +337,7 @@ contract FeeDistributor is Ownable {
         wBnbReturned = swapAmounts[swapAmounts.length - 1];
     }
 
-    function setBaseRouter(address _newRouter) external onlyOwner {
+    function setBaseRouter(address _newRouter) external override onlyOwner {
         require(_newRouter != address(0), "No zero");
         tokenRouter = IPancakeRouter(_newRouter);
         emit UpdateRouter(_newRouter);
@@ -342,7 +347,7 @@ contract FeeDistributor is Ownable {
         bool _isNice,
         address _liquidity,
         address[] calldata _path
-    ) external onlyOwner {
+    ) external override onlyOwner {
         require(_liquidity != address(0), "No zero");
         require(_path.length > 1, "at least 2 tokens");
         if (_isNice) {
@@ -355,7 +360,7 @@ contract FeeDistributor is Ownable {
         emit UpdateCore(_isNice, _liquidity, _path.length);
     }
 
-    function setTeamWallet(address _newTeamW) external onlyOwner {
+    function setTeamWallet(address _newTeamW) external override onlyOwner {
         require(_newTeamW != address(0), "Cant pay 0");
         teamWallet = _newTeamW;
         emit UpdateTeamWallet(_newTeamW);

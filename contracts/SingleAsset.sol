@@ -8,7 +8,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 //bitcrush
 import "./CrushToken.sol";
-import "interfaces/ISingleAsset.sol";
+import "../interfaces/ISingleAsset.sol";
 
 contract singleAssetStaking is Ownable, ISingleAssetStaking {
     using SafeMath for uint256;

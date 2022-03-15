@@ -10,7 +10,7 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 //bitcrush
 import "./CrushToken.sol";
 import "./Bankroll.sol";
-import "interfaces/IBankStaking.sol";
+import "../interfaces/IBankStaking.sol";
 import "./LiveWallet.sol";
 
 contract BitcrushStaking is Ownable, IBitcrushStaking {

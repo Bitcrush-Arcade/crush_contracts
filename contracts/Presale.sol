@@ -15,7 +15,7 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "./NICEToken.sol";
 import "./TestStaking2.sol";
 import "./PrevSale.sol";
-import "interfaces/IPresale.sol";
+import "../interfaces/IPresale.sol";
 
 contract Presale is Ownable, ReentrancyGuard, IPresale {
     using SafeMath for uint256;

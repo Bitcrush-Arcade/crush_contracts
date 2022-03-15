@@ -13,8 +13,8 @@ import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
-import "interfaces/IBankroll.sol";
-import "interfaces/ILottery.sol";
+import "../interfaces/IBankroll.sol";
+import "../interfaces/ILottery.sol";
 
 // interface Bankroll {
 //     function addUserLoss(uint256 _amount) external;

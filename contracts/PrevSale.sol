@@ -11,7 +11,7 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 //bitcrush
 import "./NICEToken.sol";
-import "interfaces/IPrevSale.sol";
+import "../interfaces/IPrevSale.sol";
 // TEST
 import "./TestStaking2.sol";
 

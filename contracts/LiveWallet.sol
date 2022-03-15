@@ -10,7 +10,7 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "./Bankroll.sol";
 import "./BankStaking.sol";
 import "./CrushToken.sol";
-import "interfaces/ILiveWallet.sol";
+import "../interfaces/ILiveWallet.sol";
 
 contract BitcrushLiveWallet is Ownable, IBitcrushLiveWallet {
     using SafeMath for uint256;
