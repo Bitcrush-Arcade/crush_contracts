@@ -36,4 +36,11 @@ interface IPresale {
     /// @notice function that gets available tokens to the user.
     /// @dev transfers NICE to the user directly by minting straight to their wallets
     function claimTokens() external;
+
+    // EVENTS
+    event WhitelistStarted(bool status);
+    event SaleStarts(uint256 startBlock);
+    event NiceBought(address indexed buyer, uint256 busd, uint256 nice);
+    event NiceClaimed(address indexed buyer, uint256 amount);
+    event LogEvent(uint256 data1, string data2);
 }

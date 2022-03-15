@@ -77,4 +77,9 @@ interface ISingleAssetStaking {
     /// @param _time the new value to store
     /// @dev stores the time in the state variable `earlyWithdrawFeeTime`
     function setEarlyWithdrawFeeTime(uint256 _time) external;
+
+    // EVENTS
+    event RewardPoolUpdated(uint256 indexed _totalPool);
+    event CompoundAll(uint256 indexed _totalRewarded);
+    event StakeUpdated(address indexed recipeint, uint256 indexed _amount);
 }

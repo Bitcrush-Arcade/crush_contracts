@@ -144,4 +144,20 @@ interface INICEToken {
     /// @notice Allows owner to assign minter privileges to other addresses
     /// @param newMinter is the address of desired minter
     function toggleMinter(address newMinter) external;
+
+    // EVENTS
+
+    /// BEP20 events
+    event Approval(
+        address indexed owner,
+        address indexed spender,
+        uint256 value
+    );
+    event Transfer(address indexed from, address indexed to, uint256 value);
+
+    /// Editing minters map
+    event MintersEdit(address minterAddress, bool status);
+
+    /// Setting bridge for the contract
+    event SetBridge(address bridgeAddress);
 }

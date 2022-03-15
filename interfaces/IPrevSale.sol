@@ -30,4 +30,11 @@ interface IPrevSale {
     /// @return _avail percentage available to claim
     /// @dev this function checks if time has passed to set the max amount claimable
     function availableAmount() external view returns (uint256 _avail);
+
+    // EVENTS
+    event WhitelistStarted(bool status);
+    event SaleStarts(uint256 startBlock);
+    event NiceBought(address indexed buyer, uint256 busd, uint256 nice);
+    event NiceClaimed(address indexed buyer, uint256 amount);
+    event LogEvent(uint256 data1, string data2);
 }
