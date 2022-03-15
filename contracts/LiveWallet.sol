@@ -7,11 +7,12 @@ pragma solidity >=0.6.5;
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 //bitcrush
-import "./CrushToken.sol";
 import "./Bankroll.sol";
 import "./BankStaking.sol";
+import "./CrushToken.sol";
+import "interfaces/ILiveWallet.sol";
 
-contract BitcrushLiveWallet is Ownable {
+contract BitcrushLiveWallet is Ownable, IBitcrushLiveWallet {
     using SafeMath for uint256;
     using SafeERC20 for CRUSHToken;
     struct wallet {
@@ -51,7 +52,7 @@ contract BitcrushLiveWallet is Ownable {
 
     /// add funds to the senders live wallet
     /// @dev adds funds to the sender user's live wallets
-    function addbet(uint256 _amount) public {
+    function addbet(uint256 _amount) public override {
         require(_amount > 0, "Bet amount should be greater than 0");
         require(blacklistedUsers[msg.sender] == false, "User is black Listed");
         crush.safeTransferFrom(msg.sender, address(this), _amount);
@@ -64,7 +65,7 @@ contract BitcrushLiveWallet is Ownable {
 
     /// add funds to the provided users live wallet
     /// @dev adds funds to the specified users live wallets
-    function addbetWithAddress(uint256 _amount, address _user) public {
+    function addbetWithAddress(uint256 _amount, address _user) public override {
         require(_amount > 0, "Bet amount should be greater than 0");
         require(blacklistedUsers[_user] == false, "User is black Listed");
         crush.safeTransferFrom(msg.sender, address(this), _amount);
@@ -75,7 +76,7 @@ contract BitcrushLiveWallet is Ownable {
 
     /// return the current balance of user in the live wallet
     /// @dev return current the balance of provided user addrss in the live wallet
-    function balanceOf(address _user) public view returns (uint256) {
+    function balanceOf(address _user) public view override returns (uint256) {
         return betAmounts[_user].balance;
     }
 
@@ -83,6 +84,7 @@ contract BitcrushLiveWallet is Ownable {
     /// @dev register wins for users during gameplay. wins are reported in aggregated form from the game server.
     function registerWin(uint256[] memory _wins, address[] memory _users)
         public
+        override
         onlyOwner
     {
         require(
@@ -98,6 +100,7 @@ contract BitcrushLiveWallet is Ownable {
     /// @dev register loss for users during gameplay. loss is reported in aggregated form from the game server.
     function registerLoss(uint256[] memory _bets, address[] memory _users)
         public
+        override
         onlyOwner
     {
         require(
@@ -127,7 +130,7 @@ contract BitcrushLiveWallet is Ownable {
 
     /// withdraw funds from live wallet of the senders address
     /// @dev withdraw amount from users wallet if betlock isnt enabled
-    function withdrawBet(uint256 _amount) public {
+    function withdrawBet(uint256 _amount) public override {
         require(
             betAmounts[msg.sender].balance >= _amount,
             "bet less than amount withdraw"
@@ -149,6 +152,7 @@ contract BitcrushLiveWallet is Ownable {
     /// @dev withdraw preapproved amount from users wallet sidestepping the timelock on withdrawals
     function withdrawBetForUser(uint256 _amount, address _user)
         public
+        override
         onlyOwner
     {
         require(
@@ -165,7 +169,7 @@ contract BitcrushLiveWallet is Ownable {
 
     /// add funds to the users live wallet on wins by either the bankroll or the staking pool
     /// @dev add funds to the users live wallet as winnings
-    function addToUserWinnings(uint256 _amount, address _user) public {
+    function addToUserWinnings(uint256 _amount, address _user) public override {
         require(
             msg.sender == address(bankroll) ||
                 msg.sender == address(stakingPool),
@@ -176,7 +180,7 @@ contract BitcrushLiveWallet is Ownable {
 
     /// update the lockTimeStamp of provided users to current timestamp to prevent withdraws
     /// @dev update bet lock to prevent withdraws during gameplay
-    function updateBetLock(address[] memory _users) public onlyOwner {
+    function updateBetLock(address[] memory _users) public override onlyOwner {
         for (uint256 i = 0; i < _users.length; i++) {
             betAmounts[_users[i]].lockTimeStamp = block.timestamp;
         }
@@ -184,7 +188,7 @@ contract BitcrushLiveWallet is Ownable {
 
     /// update the lockTimeStamp of provided users to 0 to allow withdraws
     /// @dev update bet lock to allow withdraws after gameplay
-    function releaseBetLock(address[] memory _users) public onlyOwner {
+    function releaseBetLock(address[] memory _users) public override onlyOwner {
         for (uint256 i = 0; i < _users.length; i++) {
             betAmounts[_users[i]].lockTimeStamp = 0;
         }
@@ -192,26 +196,26 @@ contract BitcrushLiveWallet is Ownable {
 
     /// blacklist specified address from adding more funds to the pool
     /// @dev prevent specified address from adding funds to the live wallet
-    function blacklistUser(address _address) public onlyOwner {
+    function blacklistUser(address _address) public override onlyOwner {
         blacklistedUsers[_address] = true;
     }
 
     /// whitelist sender address from adding more funds to the pool
     /// @dev allow previously blacklisted sender address to add funds to the live wallet
-    function whitelistUser(address _address) public onlyOwner {
+    function whitelistUser(address _address) public override onlyOwner {
         delete blacklistedUsers[_address];
     }
 
     /// blacklist sender address from adding more funds to the pool
     /// @dev prevent sender address from adding funds to the live wallet
-    function blacklistSelf() public {
+    function blacklistSelf() public override {
         blacklistedUsers[msg.sender] = true;
     }
 
     /// Store `_lockPeriod`.
     /// @param _lockPeriod the new value to store
     /// @dev stores the _lockPeriod in the state variable `lockPeriod`
-    function setLockPeriod(uint256 _lockPeriod) public onlyOwner {
+    function setLockPeriod(uint256 _lockPeriod) public override onlyOwner {
         require(
             _lockPeriod <= 604800,
             "Lock period cannot be greater than 1 week"
@@ -223,14 +227,22 @@ contract BitcrushLiveWallet is Ownable {
     /// Store `_reserveAddress`.
     /// @param _reserveAddress the new value to store
     /// @dev stores the _reserveAddress in the state variable `reserveAddress`
-    function setReserveAddress(address _reserveAddress) public onlyOwner {
+    function setReserveAddress(address _reserveAddress)
+        public
+        override
+        onlyOwner
+    {
         reserveAddress = _reserveAddress;
     }
 
     /// Store `_earlyWithdrawFee`.
     /// @param _earlyWithdrawFee the new value to store
     /// @dev stores the _earlyWithdrawFee in the state variable `earlyWithdrawFee`
-    function setEarlyWithdrawFee(uint256 _earlyWithdrawFee) public onlyOwner {
+    function setEarlyWithdrawFee(uint256 _earlyWithdrawFee)
+        public
+        override
+        onlyOwner
+    {
         require(
             _earlyWithdrawFee < 4000,
             "Early withdraw fee must be less than 40%"
@@ -241,7 +253,11 @@ contract BitcrushLiveWallet is Ownable {
     /// Store `_stakingPool`.
     /// @param _stakingPool the new value to store
     /// @dev stores the _stakingPool address in the state variable `stakingPool`
-    function setStakingPool(BitcrushStaking _stakingPool) public onlyOwner {
+    function setStakingPool(BitcrushStaking _stakingPool)
+        public
+        override
+        onlyOwner
+    {
         require(
             address(stakingPool) == address(0),
             "staking pool address already set"

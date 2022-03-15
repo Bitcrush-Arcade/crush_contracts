@@ -1,11 +1,15 @@
 //SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
+//openzeppelin
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 
-contract NICEToken is Ownable {
+//bitcrush
+import "interfaces/INICEToken.sol";
+
+contract NICEToken is Ownable, INICEToken {
     mapping(address => uint256) balances;
 
     using SafeMath for uint256;
@@ -58,35 +62,35 @@ contract NICEToken is Ownable {
     /**
      * @dev Returns the token name.
      */
-    function name() public view returns (string memory) {
+    function name() public view override returns (string memory) {
         return _name;
     }
 
     /**
      * @dev Returns the token decimals.
      */
-    function decimals() public view returns (uint8) {
+    function decimals() public view override returns (uint8) {
         return _decimals;
     }
 
     /**
      * @dev Returns the token symbol.
      */
-    function symbol() public view returns (string memory) {
+    function symbol() public view override returns (string memory) {
         return _symbol;
     }
 
     /**
      * @dev See {BEP20-totalSupply}.
      */
-    function totalSupply() public view returns (uint256) {
+    function totalSupply() public view override returns (uint256) {
         return _totalSupply;
     }
 
     /**
      * @dev See {BEP20-balanceOf}.
      */
-    function balanceOf(address account) public view returns (uint256) {
+    function balanceOf(address account) public view override returns (uint256) {
         return _balances[account];
     }
 
@@ -98,7 +102,11 @@ contract NICEToken is Ownable {
      * - `recipient` cannot be the zero address.
      * - the caller must have a balance of at least `amount`.
      */
-    function transfer(address recipient, uint256 amount) public returns (bool) {
+    function transfer(address recipient, uint256 amount)
+        public
+        override
+        returns (bool)
+    {
         _transfer(_msgSender(), recipient, amount);
         return true;
     }
@@ -109,6 +117,7 @@ contract NICEToken is Ownable {
     function allowance(address owner, address spender)
         public
         view
+        override
         returns (uint256)
     {
         return _allowances[owner][spender];
@@ -121,7 +130,11 @@ contract NICEToken is Ownable {
      *
      * - `spender` cannot be the zero address.
      */
-    function approve(address spender, uint256 amount) public returns (bool) {
+    function approve(address spender, uint256 amount)
+        public
+        override
+        returns (bool)
+    {
         _approve(_msgSender(), spender, amount);
         return true;
     }
@@ -142,7 +155,7 @@ contract NICEToken is Ownable {
         address sender,
         address recipient,
         uint256 amount
-    ) public returns (bool) {
+    ) public override returns (bool) {
         _transfer(sender, recipient, amount);
         _approve(
             sender,
@@ -169,6 +182,7 @@ contract NICEToken is Ownable {
      */
     function increaseAllowance(address spender, uint256 addedValue)
         public
+        override
         returns (bool)
     {
         _approve(
@@ -195,6 +209,7 @@ contract NICEToken is Ownable {
      */
     function decreaseAllowance(address spender, uint256 subtractedValue)
         public
+        override
         returns (bool)
     {
         _approve(
@@ -210,7 +225,7 @@ contract NICEToken is Ownable {
 
     /// @notice burns from msg.sender's wallet, adds to totalBurned
     /// @param amount is the amount to mint
-    function burn(uint256 amount) external {
+    function burn(uint256 amount) external override {
         _burn(msg.sender, amount);
         totalBurned = totalBurned.add(amount);
     }
@@ -333,7 +348,7 @@ contract NICEToken is Ownable {
 
     /// @notice Sets Bridge when it's ready. This is the bridge that will be able to use onlyBridge functions.
     /// @param bridgeAddress is the address of the bridge on this chain
-    function setBridge(address bridgeAddress) public onlyOwner {
+    function setBridge(address bridgeAddress) public override onlyOwner {
         bridge = bridgeAddress;
         emit SetBridge(bridge);
     }
@@ -343,6 +358,7 @@ contract NICEToken is Ownable {
     /// @param amount is the amount to mint
     function mint(address account, uint256 amount)
         external
+        override
         onlyMinter
         returns (bool)
     {
@@ -355,6 +371,7 @@ contract NICEToken is Ownable {
     /// @param amount is the amount to burn from sender wallet
     function bridgeBurn(address account, uint256 amount)
         external
+        override
         onlyBridge
         returns (bool)
     {
@@ -367,6 +384,7 @@ contract NICEToken is Ownable {
     /// @param amount is the amount to burn from the user wallet. Must be <= than the amount approved by user.
     function bridgeBurnFrom(address account, uint256 amount)
         external
+        override
         onlyBridge
         returns (bool)
     {
@@ -384,7 +402,7 @@ contract NICEToken is Ownable {
 
     /// @notice Allows owner to assign minter privileges to other addresses
     /// @param newMinter is the address of desired minter
-    function toggleMinter(address newMinter) external onlyOwner {
+    function toggleMinter(address newMinter) external override onlyOwner {
         validMinters[newMinter] = !validMinters[newMinter];
         emit MintersEdit(newMinter, validMinters[newMinter]);
     }

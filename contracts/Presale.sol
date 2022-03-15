@@ -2,6 +2,8 @@
 pragma solidity ^0.8.9;
 
 //BSC Address: 0x87F8e8f9616689808176d3a97a506c8cEeD32674
+
+// openzeppelin
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
@@ -9,12 +11,13 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
-// TEST
+// bitcrush
 import "./NICEToken.sol";
 import "./TestStaking2.sol";
 import "./PrevSale.sol";
+import "interfaces/IPresale.sol";
 
-contract Presale is Ownable, ReentrancyGuard {
+contract Presale is Ownable, ReentrancyGuard, IPresale {
     using SafeMath for uint256;
     using SafeERC20 for ERC20;
 
@@ -65,7 +68,7 @@ contract Presale is Ownable, ReentrancyGuard {
 
     /// @notice qualify only checks quantity
     /// @dev qualify is an overlook of the amount of CrushGod NFTs held and tokens staked
-    function qualify() public view returns (bool _isQualified) {
+    function qualify() public view override returns (bool _isQualified) {
         (, uint256 staked, , , , , , , ) = staking.stakings(msg.sender);
         _isQualified = staked >= 10000 ether;
     }
@@ -76,7 +79,7 @@ contract Presale is Ownable, ReentrancyGuard {
     }
 
     /// @notice get the total Raised amount
-    function totalRaised() public view returns (uint256 _total) {
+    function totalRaised() public view override returns (uint256 _total) {
         _total = prevSale.totalRaised() + currentRaised;
     }
 
@@ -84,6 +87,7 @@ contract Presale is Ownable, ReentrancyGuard {
     function userData()
         public
         view
+        override
         returns (
             uint256 _totalBought,
             uint256 _totalOwed,
@@ -101,7 +105,7 @@ contract Presale is Ownable, ReentrancyGuard {
     /// @param _amount Amount of BUSD to lock NICE amount
     /// @dev minimum of $100 BUSD, max of $5K BUSD
     /// @dev if maxRaise is exceeded we will allocate just a portion of that amount.
-    function buyNice(uint256 _amount) external nonReentrant {
+    function buyNice(uint256 _amount) external override nonReentrant {
         require(!pause, "Presale Over");
         require(_amount.mod(1 ether) == 0, "Exact amounts only");
         require(_amount >= 100 ether, "Minimum not met");
@@ -136,14 +140,14 @@ contract Presale is Ownable, ReentrancyGuard {
     }
 
     ///
-    function claimRaised() external onlyOwner {
+    function claimRaised() external override onlyOwner {
         uint256 currentBalance = busd.balanceOf(address(this));
         busd.safeTransfer(devAddress, currentBalance);
     }
 
     /// @notice function that gets available tokens to the user.
     /// @dev transfers NICE to the user directly by minting straight to their wallets
-    function claimTokens() external nonReentrant {
+    function claimTokens() external override nonReentrant {
         require(pause, "Sale Running");
         require(address(niceToken) != address(0), "Token Not added");
         (, uint256 claimed, uint256 owed) = userData();

@@ -8,8 +8,9 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 //bitcrush
 import "./CrushToken.sol";
+import "interfaces/ISingleAsset.sol";
 
-contract singleAssetStaking is Ownable {
+contract singleAssetStaking is Ownable, ISingleAssetStaking {
     using SafeMath for uint256;
 
     uint256 constant MAX_CRUSH_PER_BLOCK = 10000000000000000000;
@@ -66,7 +67,7 @@ contract singleAssetStaking is Ownable {
     /// Adds the provided amount to the totalPool
     /// @param _amount the amount to add
     /// @dev adds the provided amount to `totalPool` state variable
-    function addRewardToPool(uint256 _amount) public {
+    function addRewardToPool(uint256 _amount) public override {
         require(
             crush.balanceOf(msg.sender) >= _amount,
             "Insufficient Crush tokens for transfer"
@@ -76,7 +77,8 @@ contract singleAssetStaking is Ownable {
         emit RewardPoolUpdated(totalPool);
     }
 
-    function setCrushPerBlock(uint256 _amount) public onlyOwner {
+    /// Description Pending
+    function setCrushPerBlock(uint256 _amount) public override onlyOwner {
         require(_amount >= 0, "Crush per Block can not be negative");
         require(
             _amount <= MAX_CRUSH_PER_BLOCK,
@@ -88,7 +90,7 @@ contract singleAssetStaking is Ownable {
     /// Stake the provided amount
     /// @param _amount the amount to stake
     /// @dev stakes the provided amount
-    function enterStaking(uint256 _amount) public {
+    function enterStaking(uint256 _amount) public override {
         require(
             crush.balanceOf(msg.sender) >= _amount,
             "Insufficient Crush tokens for transfer"
@@ -117,7 +119,7 @@ contract singleAssetStaking is Ownable {
     /// Leaves staking for a user by the specified amount and transfering staked amount and reward to users address
     /// @param _amount the amount to unstake
     /// @dev leaves staking and deducts total pool by the users reward. early withdrawal fee applied if withdraw is made before earlyWithdrawFeeTime
-    function leaveStaking(uint256 _amount) public {
+    function leaveStaking(uint256 _amount) public override {
         uint256 reward = getReward(msg.sender);
         stakings[msg.sender].lastBlockCompounded = block.number;
         totalPool = totalPool.sub(reward);
@@ -157,7 +159,7 @@ contract singleAssetStaking is Ownable {
 
     /// Leaves staking for a user while setting stakedAmount to 0 and transfering staked amount and reward to users address
     /// @dev leaves staking and deducts total pool by the users reward. early withdrawal fee applied if withdraw is made before earlyWithdrawFeeTime
-    function leaveStakingCompletely() public {
+    function leaveStakingCompletely() public override {
         uint256 reward = getReward(msg.sender);
         stakings[msg.sender].lastBlockCompounded = block.number;
         uint256 stakedAmount = stakings[msg.sender].stakedAmount;
@@ -216,7 +218,7 @@ contract singleAssetStaking is Ownable {
 
     /// Calculates total potential pending rewards
     /// @dev Calculates potential reward based on crush per block
-    function totalPendingRewards() public view returns (uint256) {
+    function totalPendingRewards() public view override returns (uint256) {
         if (block.number <= lastAutoCompoundBlock) {
             return 0;
         } else if (lastAutoCompoundBlock == 0) {
@@ -234,13 +236,18 @@ contract singleAssetStaking is Ownable {
     /// Get pending rewards of a user
     /// @param _address the address to calculate the reward for
     /// @dev calculates potential reward for the address provided based on crush per block
-    function pendingReward(address _address) public view returns (uint256) {
+    function pendingReward(address _address)
+        public
+        view
+        override
+        returns (uint256)
+    {
         return getReward(_address);
     }
 
     /// transfers the rewards of a user to their address
     /// @dev calculates users rewards and transfers it out while deducting reward from totalPool
-    function claim() public {
+    function claim() public override {
         uint256 reward = getReward(msg.sender);
         stakings[msg.sender].claimedAmount = stakings[msg.sender]
             .claimedAmount
@@ -253,7 +260,7 @@ contract singleAssetStaking is Ownable {
 
     /// compounds the rewards of the caller
     /// @dev compounds the rewards of the caller add adds it into their staked amount
-    function singleCompound() public {
+    function singleCompound() public override {
         require(
             stakings[msg.sender].stakedAmount > 0,
             "Please Stake Crush to compound"
@@ -274,7 +281,7 @@ contract singleAssetStaking is Ownable {
 
     /// compounds the rewards of all users in the pool
     /// @dev compounds the rewards of all users in the pool add adds it into their staked amount while deducting fees
-    function compoundAll() public {
+    function compoundAll() public override {
         require(
             lastAutoCompoundBlock <= block.number,
             "Compound All not yet applicable."
@@ -323,7 +330,7 @@ contract singleAssetStaking is Ownable {
 
     /// withdraws the staked amount of user in case of emergency.
     /// @dev drains the staked amount and sets the state variable `stakedAmount` of staking mapping to 0
-    function emergencyWithdraw() public {
+    function emergencyWithdraw() public override {
         crush.transfer(msg.sender, stakings[msg.sender].stakedAmount);
         stakings[msg.sender].stakedAmount = 0;
 
@@ -340,7 +347,7 @@ contract singleAssetStaking is Ownable {
 
     /// withdraws the total pool in case of emergency.
     /// @dev drains the total pool and sets the state variable `totalPool` to 0
-    function emergencyTotalPoolWithdraw() public onlyOwner {
+    function emergencyTotalPoolWithdraw() public override onlyOwner {
         require(totalPool > 0, "Total Pool need to be greater than 0");
         crush.transfer(msg.sender, totalPool);
         totalPool = 0;
@@ -349,7 +356,11 @@ contract singleAssetStaking is Ownable {
     /// Store `_fee`.
     /// @param _fee the new value to store
     /// @dev stores the fee in the state variable `performanceFeeCompounder`
-    function setPerformanceFeeCompounder(uint256 _fee) public onlyOwner {
+    function setPerformanceFeeCompounder(uint256 _fee)
+        public
+        override
+        onlyOwner
+    {
         require(_fee > 0, "Fee must be greater than 0");
         require(_fee < MAX_FEE, "Fee must be less than 10%");
         performanceFeeCompounder = _fee;
@@ -358,7 +369,7 @@ contract singleAssetStaking is Ownable {
     /// Store `_fee`.
     /// @param _fee the new value to store
     /// @dev stores the fee in the state variable `performanceFeeBurn`
-    function setPerformanceFeeBurn(uint256 _fee) public onlyOwner {
+    function setPerformanceFeeBurn(uint256 _fee) public override onlyOwner {
         require(_fee > 0, "Fee must be greater than 0");
         require(_fee < MAX_FEE, "Fee must be less than 10%");
         performanceFeeBurn = _fee;
@@ -367,7 +378,7 @@ contract singleAssetStaking is Ownable {
     /// Store `_fee`.
     /// @param _fee the new value to store
     /// @dev stores the fee in the state variable `earlyWithdrawFee`
-    function setEarlyWithdrawFee(uint256 _fee) public onlyOwner {
+    function setEarlyWithdrawFee(uint256 _fee) public override onlyOwner {
         require(_fee > 0, "Fee must be greater than 0");
         require(_fee < MAX_FEE, "Fee must be less than 10%");
         earlyWithdrawFee = _fee;
@@ -376,7 +387,7 @@ contract singleAssetStaking is Ownable {
     /// Store `_fee`.
     /// @param _fee the new value to store
     /// @dev stores the fee in the state variable `performanceFeeReserve`
-    function setPerformanceFeeReserve(uint256 _fee) public onlyOwner {
+    function setPerformanceFeeReserve(uint256 _fee) public override onlyOwner {
         require(_fee > 0, "Fee must be greater than 0");
         require(_fee <= MAX_FEE, "Fee must be less than 10%");
         performanceFeeReserve = _fee;
@@ -385,7 +396,7 @@ contract singleAssetStaking is Ownable {
     /// Store `_time`.
     /// @param _time the new value to store
     /// @dev stores the time in the state variable `earlyWithdrawFeeTime`
-    function setEarlyWithdrawFeeTime(uint256 _time) public onlyOwner {
+    function setEarlyWithdrawFeeTime(uint256 _time) public override onlyOwner {
         require(_time > 0, "Time must be greater than 0");
         earlyWithdrawFeeTime = _time;
     }
