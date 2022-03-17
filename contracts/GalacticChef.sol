@@ -74,6 +74,7 @@ contract GalacticChef is Ownable, ReentrancyGuard {
     uint256 public immutable initMax = 2000000000 ether; // 1st year will emmit 1.5B tokens since 500M have a purpose already
     uint256 public immutable initDiff = 500000000 ether;
     uint256 public poolCounter;
+    uint256 public nonDefiLastRewardTransfer;
 
     // Reward Token
     NICEToken public NICE;
@@ -124,6 +125,7 @@ contract GalacticChef is Ownable, ReentrancyGuard {
         chefStart = block.timestamp + 6 hours;
         treasury = _treasury;
         p2e = _p2e;
+        nonDefiLastRewardTransfer = chefStart;
     }
 
     function setTreasury(address _treasury) external onlyOwner {
@@ -236,6 +238,7 @@ contract GalacticChef is Ownable, ReentrancyGuard {
     /// @notice Update the accRewardPerShare for a specific pool
     /// @param _pid Pool Id to update the accumulated rewards
     function updatePool(uint256 _pid) public {
+        distributeNonDefi();
         PoolInfo storage pool = poolInfo[_pid];
         uint256 selfBal = pool.token.balanceOf(address(this));
         if (
@@ -279,19 +282,21 @@ contract GalacticChef is Ownable, ReentrancyGuard {
         uint256 poolYearDiff = (_pool.lastRewardTs - chefStart) / 365 days;
         if (poolYearDiff > 4) return 0;
         uint256 yearDiff = (block.timestamp - chefStart) / 365 days;
-        uint256 divPool = 2**poolYearDiff;
         // If a Year has passed since pool lastRewardTS
+        uint256 defiEmission;
+        (, defiEmission, ) = getAllEmissions(poolYearDiff);
         if (yearDiff > poolYearDiff) {
             uint256 baseYear = yearDiff * 365 days + chefStart;
             uint256 timeDiff = baseYear - _pool.lastRewardTs;
-            _emissions += (initMax * timeDiff * PERCENT) / (chains * divPool);
-            divPool = 2**yearDiff;
+            _emissions += (defiEmission * timeDiff * PERCENT) / chains;
+            //Calculate nextYear's
+            (, defiEmission, ) = getAllEmissions(yearDiff);
             timeDiff = block.timestamp - baseYear;
-            _emissions += (initMax * timeDiff * PERCENT) / (chains * divPool);
+            _emissions += (defiEmission * timeDiff * PERCENT) / chains;
         } else {
             _emissions =
                 (initMax * (block.timestamp - _pool.lastRewardTs) * PERCENT) /
-                (chains * divPool);
+                chains;
         }
     }
 
@@ -329,6 +334,36 @@ contract GalacticChef is Ownable, ReentrancyGuard {
         _defi = ((_defi - _treasury) * defiPercent) / FEE_DIV;
     }
 
+    function distributeNonDefi() public {
+        if (block.timestamp <= nonDefiLastRewardTransfer) return;
+        uint256 lastYearDiff = (nonDefiLastRewardTransfer - chefStart) /
+            365 days;
+        uint256 yearDiff = (block.timestamp - chefStart) / 365 days;
+        uint256 totalTreasury;
+        uint256 totalP2E;
+        uint256 timeDiff;
+        (uint256 _treasury, , uint256 _p2e) = getAllEmissions(lastYearDiff);
+        if (yearDiff > lastYearDiff) {
+            uint256 baseYear = yearDiff * 365 days + chefStart;
+            timeDiff = baseYear - nonDefiLastRewardTransfer;
+            totalTreasury = _treasury * timeDiff;
+            totalP2E = _p2e * timeDiff;
+            // Get for year change
+            (_treasury, , _p2e) = getAllEmissions(yearDiff);
+            timeDiff = block.timestamp - baseYear;
+            totalTreasury += _treasury * timeDiff;
+            totalP2E += _p2e * timeDiff;
+        } else {
+            timeDiff = block.timestamp - nonDefiLastRewardTransfer;
+            totalTreasury = _treasury * timeDiff;
+            totalP2E = _p2e * timeDiff;
+        }
+
+        nonDefiLastRewardTransfer = block.timestamp;
+        NICE.mint(treasury, totalTreasury);
+        NICE.mint(p2e, totalP2E);
+    }
+
     /// @notice Update all pools accPerShare
     /// @dev this might be expensive to call...
     function massUpdatePools() public {
@@ -357,6 +392,7 @@ contract GalacticChef is Ownable, ReentrancyGuard {
     /// @param _pid ID of the third party pool that requests minted rewards
     /// @return _minted Amount of rewards minted to the pool
     function _mintRewards(uint256 _pid) internal returns (uint256 _minted) {
+        distributeNonDefi();
         PoolInfo storage pool = poolInfo[_pid];
         if (block.timestamp <= pool.lastRewardTs) return 0;
         _minted = (getTimeEmissions(pool) * pool.mult) / (currentMax * PERCENT);
@@ -480,6 +516,7 @@ contract GalacticChef is Ownable, ReentrancyGuard {
     function editChains(bool _addOrSubstract) external onlyOwner {
         massUpdatePools();
         chains = _addOrSubstract ? chains + 1 : chains - 1;
+        require(chains > 0, "Cant be zero chains");
         emit ChainUpdate(chains);
     }
 
