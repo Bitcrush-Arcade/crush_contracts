@@ -6,9 +6,8 @@ def deploy_lock(owner):
     return TokenLock.deploy({"from": owner})
 
 
-def deploy_fee(owner, locker):
+def deploy_fee(owner, chef, locker):
     # Receive Chef Address
-    # Create Fees for PoolId
     pass
 
 
@@ -24,12 +23,14 @@ def deploy_chef(owner, token_address):
 def main():
     if isDevNetwork():
         owner = accounts[0]
+        nice = NICEToken.at("")
     else:
         owner = accounts.load("main_owner")
-    nice = NICEToken[-1]
+        nice = NICEToken[-1]
     chef = deploy_chef(owner, nice.address)
     # MAKE CHEF BE A MINTER
+    nice.toggleMinter(chef.address)
     # Create new pool
     locker = deploy_lock(owner)
-
-    pass
+    # deploy fee distributor
+    feeDistributor = deploy_fee(owner, chef, locker)
