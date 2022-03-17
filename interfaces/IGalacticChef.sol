@@ -84,6 +84,11 @@ interface IGalacticChef {
     // DESCRIPTION PENDING
     function editFeeAddress(address _feeReceiver, bool _isContract) external;
 
+    // GETTER FUNCTIONS
+    function chains() external returns (uint256);
+
+    //EVENTS
+
     event PoolAdded(
         address token,
         uint256 multiplier,
@@ -91,8 +96,6 @@ interface IGalacticChef {
         bool _type,
         uint256 _pid
     );
-
-    //EVENTS
 
     /// NICE operations
     event Deposit(address indexed user, uint256 indexed pid, uint256 amount);
