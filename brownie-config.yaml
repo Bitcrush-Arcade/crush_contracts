@@ -7,4 +7,4 @@ compiler:
     remappings:
       - '@openzeppelin=OpenZeppelin/openzeppelin-contracts@4.5.0'
       - '@smartcontractkit=smartcontractkit/chainlink@1.1.0'
-dotenv: .env
+# dotenv: .env
