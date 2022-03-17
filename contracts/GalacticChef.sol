@@ -6,7 +6,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "./NICEToken.sol";
-import "./FeeDistributor.sol";
+import "../interfaces/IFeeDistributor.sol";
 
 //import "../interfaces/IGalacticChef.sol";
 ///@dev use interface IGalacticChef
@@ -30,6 +30,7 @@ contract GalacticChef is Ownable, ReentrancyGuard {
         bool isLP;
     }
     /// Timestamp Specific
+    uint256 constant SECONDS_PER_YEAR = 365 * 24 * 60 * 60;
     uint256 constant SECONDS_PER_DAY = 24 * 60 * 60;
     uint256 constant SECONDS_PER_HOUR = 60 * 60;
     uint256 constant SECONDS_PER_MINUTE = 60;
@@ -41,6 +42,23 @@ contract GalacticChef is Ownable, ReentrancyGuard {
      ** REGULAR pools distribute the remaining reward amongst their allocation
      ** Third Party doesn't keep track of the user's info, but rather only keeps track of the rewards being given.
      */
+    /*
+     ** Reward Calculation:
+     ** Fixed Pool Rewards = Emission*allocation / PERCENT
+     ** Regular Pool Rewards = Emission*( 1e12 - fixedAlloc*1e12/PERCENT) * allocation/regularAlloc / 1e12
+     ** 1e12 is used to cover for fraction issues
+     */
+    /*
+     ** Emission Distrubution
+     ** Treasury: 5% of total YEARLY emissions
+     ** DeFi: All Pools and farms added here ->  30% of All emissions minus treasury
+     ** P2E: 70% of all Emissions minus treasury
+     ** Percentages will be able to be edited depending on needs
+     */
+    // These Values use FEE_DIV BASE as 100%
+    uint256 public defiPercent = 3000; //init 30%
+    uint256 public p2ePercent = 7000; // init 70%
+    uint256 public treasuryPercent = 50; // init 5%
 
     uint256 public constant PERCENT = 1e12; // Divisor for percentage calculations
     uint256 public constant FEE_DIV = 10000; // Divisor for fee percentage 100.00
@@ -53,20 +71,15 @@ contract GalacticChef is Ownable, ReentrancyGuard {
     // Time when Chef will start emitting Tokens
     uint256 public immutable chefStart;
     // Emissions per second. Since we'll have multiple Chefs across chains the emission set per second
-    uint256 public immutable initMax = 1500000000 ether; // 1st year will emmit 1.5B tokens
-    /*
-     ** Reward Calculation:
-     ** Fixed Pool Rewards = Emission*allocation / PERCENT
-     ** Regular Pool Rewards = Emission*( 1e12 - fixedAlloc*1e12/PERCENT) * allocation/regularAlloc / 1e12
-     ** 1e12 is used to cover for fraction issues
-     */
+    uint256 public immutable initMax = 2000000000 ether; // 1st year will emmit 1.5B tokens since 500M have a purpose already
+    uint256 public immutable initDiff = 500000000 ether;
     uint256 public poolCounter;
 
     // Reward Token
     NICEToken public NICE;
 
     // FEE distribution
-    FeeDistributor public feeDistributor;
+    IFeeDistributor public feeDistributor;
     address public treasury;
     address public p2e;
 
@@ -95,13 +108,15 @@ contract GalacticChef is Ownable, ReentrancyGuard {
     event FeeAddressEdit(address _newAddress, bool _isContract);
     event UpdateTreasury(address _newAddress);
     event UpdateP2E(address _newAddress);
+    event ChainUpdate(uint256 _chainAmount);
 
     event LogEvent(uint256 number, string data);
 
     constructor(
         address _niceToken,
         address _treasury,
-        address _p2e
+        address _p2e,
+        uint256 _chains
     ) {
         NICE = NICEToken(_niceToken);
         feeAddress = msg.sender;
@@ -280,6 +295,40 @@ contract GalacticChef is Ownable, ReentrancyGuard {
         }
     }
 
+    function getYearlyEmissions(uint256 _yearsPassed)
+        public
+        view
+        returns (uint256 _emission)
+    {
+        if (_yearsPassed > 4) return 0;
+        _emission =
+            (initMax - (_yearsPassed == 0 ? initDiff : 0)) /
+            (2**_yearsPassed);
+    }
+
+    function getSecondEmissions(uint256 _yearsPassed)
+        public
+        view
+        returns (uint256 _emission)
+    {
+        _emission = getYearlyEmissions(_yearsPassed) / SECONDS_PER_YEAR;
+    }
+
+    function getAllEmissions(uint256 _yearsPassed)
+        public
+        view
+        returns (
+            uint256 _treasury,
+            uint256 _defi,
+            uint256 _p2e
+        )
+    {
+        _defi = getSecondEmissions(_yearsPassed);
+        _treasury = (_defi * treasuryPercent) / FEE_DIV;
+        _p2e = ((_defi - _treasury) * p2ePercent) / FEE_DIV;
+        _defi = ((_defi - _treasury) * defiPercent) / FEE_DIV;
+    }
+
     /// @notice Update all pools accPerShare
     /// @dev this might be expensive to call...
     function massUpdatePools() public {
@@ -420,23 +469,29 @@ contract GalacticChef is Ownable, ReentrancyGuard {
     function editPoolFee(uint256 _pid, uint256 _fee) external onlyOwner {
         PoolInfo storage pool = poolInfo[_pid];
         require(address(pool.token) != address(0), "edit: invalid");
-        require(_fee < 2501, "edit: high fee");
+        require(_fee <= 2500, "edit: high fee");
         pool.fee = _fee;
         emit UpdatePool(_pid, pool.mult, _fee);
     }
 
-    /// @notice Adds 1 to the amount of chains to which emissions are split
+    /// @notice Edits the amount of chains to which emissions are split
     /// This factor is used in the emissions calculation
-    function addChain() external onlyOwner {
+    /// @param _addOrSubstract TRUE = ADD ; FALSE = SUBSTRACT
+    function editChains(bool _addOrSubstract) external onlyOwner {
         massUpdatePools();
-        chains = chains + 1;
+        chains = _addOrSubstract ? chains + 1 : chains - 1;
+        emit ChainUpdate(chains);
     }
 
+    /// @notice Edit the address used to Receive Fees
+    /// @param _feeReceiver the Address to use
+    /// @param _isContract if the address is a FeeDistributor Contract
+    /// @dev remove of contract is achievable by adding the Address 0 to it and setting _isContract to True
     function editFeeAddress(address _feeReceiver, bool _isContract)
         external
         onlyOwner
     {
-        if (_isContract) feeDistributor = FeeDistributor(_feeReceiver);
+        if (_isContract) feeDistributor = IFeeDistributor(_feeReceiver);
         else {
             require(_feeReceiver != address(0), "set receiver");
             feeAddress = _feeReceiver;
