@@ -29,7 +29,7 @@ contract TokenLock is Ownable {
         bool _chainChange
     ) external onlyOwner {
         require(chef.chains() > currentChains, "Liquidity locked");
-        ERC20 token = ERC20(_liqToken);
+        IERC20 token = IERC20(_liqToken);
         require(token.balanceOf(address(this)) > 0, "No funds");
         if (_chainChange) currentChains++;
         token.safeTransfer(msg.sender, amount);
