@@ -157,8 +157,8 @@ contract GalacticChef is Ownable, ReentrancyGuard {
     function addPool(
         address _token,
         uint256 _mult,
-        bool _type,
         uint256 _fee,
+        bool _type,
         bool _isLP,
         uint256[] calldata _pidEdit,
         uint256[] calldata _pidMulEdit
@@ -171,15 +171,26 @@ contract GalacticChef is Ownable, ReentrancyGuard {
         require(currentMax + _mult <= maxMult, "add: wrong multiplier");
         currentMax = currentMax + _mult;
         poolCounter++;
-        poolInfo[poolCounter] = PoolInfo(
-            _type,
-            _mult,
-            _fee,
-            IERC20(_token),
-            0,
-            block.timestamp,
-            _isLP
-        );
+        if (block.timestamp < chefStart)
+            poolInfo[poolCounter] = PoolInfo(
+                _type,
+                _mult,
+                _fee,
+                IERC20(_token),
+                0,
+                chefStart,
+                _isLP
+            );
+        else
+            poolInfo[poolCounter] = PoolInfo(
+                _type,
+                _mult,
+                _fee,
+                IERC20(_token),
+                0,
+                block.timestamp,
+                _isLP
+            );
         tokenPools[_token] = poolCounter;
         if (_type) tpPools[poolCounter] = _token;
         emit PoolAdded(_token, _mult, _fee, _type, poolCounter);
@@ -280,7 +291,7 @@ contract GalacticChef is Ownable, ReentrancyGuard {
         returns (uint256 _emissions)
     {
         uint256 poolYearDiff = (_pool.lastRewardTs - chefStart) / 365 days;
-        if (poolYearDiff > 4) return 0;
+        if (poolYearDiff > 4 || block.timestamp < chefStart) return 0;
         uint256 yearDiff = (block.timestamp - chefStart) / 365 days;
         // If a Year has passed since pool lastRewardTS
         uint256 defiEmission;
