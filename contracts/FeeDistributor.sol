@@ -17,22 +17,30 @@ contract FeeDistributor is Ownable {
     using SafeERC20 for IERC20;
 
     struct FeeData {
-        uint256 buyback;
-        uint256 liquidity;
-        uint256 team;
+        /**
+         * (bbb) Buy back and Burn (NICE | CRUSH) CHECK THAT SELECTED TOKEN HAS BEEN BURNED IN TOKEN CONTRACT REVISAR TOTAL SUPPLY
+         * (bbd) Buy back and DISTRIBUTE (CRUSH) SENDS CRUSH TO BANKSTAKING
+         * (bbl) Buy back and LOTTERY (CRUSH) SENDS CRUSH TO LOTTERY POOL
+         * (lqPermanent) PERMANENT LIQUIDITY (NICE | CRUSH)/BNB
+         * (lqLock) LOCKED LIQUIDITY (NICE | CRUSH)/BNB
+         * REST - MARKETING FUNDS -> BNB
+         **/
+        uint256 bbb;
+        uint256 bbd;
+        uint256 bbl;
+        uint256 lqPermanent;
+        uint256 lqLock;
         bool bbNice;
         bool liqNice;
         /**
-            if it's an LP token we can definitely burn it to get the contained tokens
-            else it's a Single asset token and have to swap it for base eth token 
+            if it's an LP token we need to remove that Liquidity
+            else it's a Single asset token and have to swap it for core ETH (BNB)
             before buying anything else.
-            bbNice token to buyback and burn
-            is it CRUSH (false) or NICE (true)
+            bbNice token to buyback and burn is it CRUSH (false) or NICE (true)
             liqNice token to get liquidity for
             is it CRUSH/BNB(false) or NICE/BNB (true)
         **/
         IPancakeRouter router; // main router for this token
-        uint256 slippage;
     }
     address public immutable baseToken; // wBNB || wETH || etc
     address[] public crushPath; // [0]wBNB to [1]CRUSH
@@ -41,7 +49,7 @@ contract FeeDistributor is Ownable {
     address public niceLiquidity; // for swapping / adding Liquidity
     address public immutable deadWallet =
         0x000000000000000000000000000000000000dEaD;
-    IPancakeRouter public tokenRouter;
+    IPancakeRouter public tokenRouter; //used for CRUSH and NICE
     uint256 public immutable idoPrice;
     address public teamWallet;
 
@@ -77,16 +85,19 @@ contract FeeDistributor is Ownable {
         );
         chef = GalacticChef(_chef);
         baseToken = _baseWrapped;
+        teamWallet = msg.sender;
         // _idoPrice must be NICE/BNB NOT BNB/NICE
         idoPrice = _idoPrice;
     }
 
     function addorEditFee(
-        uint256[5] calldata _fees, // 0 pid, 1 buyback, 2 liquidity, 3 team, 4 slippage
-        bool _bbNice,
-        bool _liqNice,
-        address router,
-        address[] calldata _tokens,
+        uint256[6] calldata _fees, // 0 pid, 1 buyback BURN, 2 buyback DISTRIBUTE, 3 buyback LOTTERY, 4 liquidity PERMANENT, 5 liquidity LOCK
+        bool _bbNice, //is the buyback for Nice|Crush?
+        bool _liqNice, //is the permanent liquidity for Nice|Crush pool?
+        address router, //swap router address
+        address[] calldata _tokens, //                                         _toke
+        // If is LP -> tokenAddresses that compose the pair CRUSH/BUSD -> [ CRUSH_ADDRESS, BUSD_ADDRESS]
+        // If ERC20 token [ CRUSH_ADDRESS, wBNB] -> Path to ETH
         address[] calldata _token0Path,
         address[] calldata _token1Path
     ) external onlyOwner {
@@ -115,11 +126,13 @@ contract FeeDistributor is Ownable {
     /// @notice Function that distributes fees to the respective flows
     /// @dev This function requires funds to be sent beforehand to this contract
     function receiveFees(uint256 _pid, uint256 _amount) external onlyChef {
+        FeeData storage feeInfo = feeData[_pid];
+
         (, , , IERC20 token, , , bool isLP) = chef.poolInfo(_pid);
         token.safeTransferFrom(address(chef), address(this), _amount);
         // Check if token was received
         require(token.balanceOf(address(this)) >= _amount, "send funds");
-        FeeData storage feeInfo = feeData[_pid];
+        // REQUIRE THAT FEES ARE NEEDED TO BE TAKEN, ELSE TRANSFER TO OWNER
         uint256 wBNBtoWorkWith;
         // IS LP TOKEN ?
         if (isLP) {
@@ -137,8 +150,8 @@ contract FeeDistributor is Ownable {
                     tokenPath[_pid][0],
                     tokenPath[_pid][1],
                     _amount,
-                    minAmounts[0], //A AMOUNT
-                    minAmounts[1], //B AMOUNT
+                    0, //A AMOUNT
+                    0, //B AMOUNT
                     address(this),
                     block.timestamp + 5 // recommended by arishali
                 );
@@ -362,5 +375,19 @@ contract FeeDistributor is Ownable {
         require(_newTeamW != address(0), "Cant pay 0");
         teamWallet = _newTeamW;
         emit UpdateTeamWallet(_newTeamW);
+    }
+
+    function getBuybackFee(FeeData storage feeInfo)
+        internal
+        returns (uint256 _bbFees)
+    {
+        return feeInfo.bbb + feeInfo.bbd + feeInfo.bbl;
+    }
+
+    function getLiquidityFee(FeeData storage feeInfo)
+        internal
+        returns (uint256 _bbFees)
+    {
+        return feeInfo.bbb + feeInfo.bbd + feeInfo.bbl;
     }
 }
