@@ -58,7 +58,7 @@ contract GalacticChef is Ownable, ReentrancyGuard {
     // These Values use FEE_DIV BASE as 100%
     uint256 public defiPercent = 3000; //init 30%
     uint256 public p2ePercent = 7000; // init 70%
-    uint256 public treasuryPercent = 50; // init 5%
+    uint256 public treasuryPercent = 500; // init 5%
 
     uint256 public constant PERCENT = 1e12; // Divisor for percentage calculations
     uint256 public constant FEE_DIV = 10000; // Divisor for fee percentage 100.00
@@ -314,20 +314,25 @@ contract GalacticChef is Ownable, ReentrancyGuard {
     function getYearlyEmissions(uint256 _yearsPassed)
         public
         view
-        returns (uint256 _emission)
+        returns (uint256 _emission, uint256 _treasuryEmission)
     {
-        if (_yearsPassed > 4) return 0;
+        if (_yearsPassed > 4) return (0, 0);
+        _treasuryEmission =
+            (initMax * treasuryPercent) /
+            (FEE_DIV * (2**_yearsPassed));
         _emission =
-            (initMax - (_yearsPassed == 0 ? initDiff : 0)) /
+            (initMax - _treasuryEmission - (_yearsPassed == 0 ? initDiff : 0)) /
             (2**_yearsPassed);
     }
 
     function getSecondEmissions(uint256 _yearsPassed)
         public
         view
-        returns (uint256 _emission)
+        returns (uint256 _emission, uint256 _tEmission)
     {
-        _emission = getYearlyEmissions(_yearsPassed) / SECONDS_PER_YEAR;
+        (uint256 others, uint256 _treasury) = getYearlyEmissions(_yearsPassed);
+        _emission = others / SECONDS_PER_YEAR;
+        _tEmission = _treasury / SECONDS_PER_YEAR;
     }
 
     function getAllEmissions(uint256 _yearsPassed)
@@ -339,10 +344,12 @@ contract GalacticChef is Ownable, ReentrancyGuard {
             uint256 _p2e
         )
     {
-        _defi = getSecondEmissions(_yearsPassed);
-        _treasury = (_defi * treasuryPercent) / FEE_DIV;
-        _p2e = ((_defi - _treasury) * p2ePercent) / FEE_DIV;
-        _defi = ((_defi - _treasury) * defiPercent) / FEE_DIV;
+        (uint256 _othersPerSec, uint256 _treasuryPerSec) = getSecondEmissions(
+            _yearsPassed
+        );
+        _treasury = _treasuryPerSec;
+        _p2e = (_othersPerSec * p2ePercent) / FEE_DIV;
+        _defi = (_othersPerSec * defiPercent) / FEE_DIV;
     }
 
     function distributeNonDefi() public {
