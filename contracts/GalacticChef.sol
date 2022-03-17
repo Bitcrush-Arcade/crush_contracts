@@ -50,9 +50,10 @@ contract GalacticChef is Ownable, ReentrancyGuard {
 
     // The number of chains where a GalacticChef exists. This helps have a consistent emission across all chains.
     uint256 public chains;
+    // Time when Chef will start emitting Tokens
+    uint256 public immutable chefStart;
     // Emissions per second. Since we'll have multiple Chefs across chains the emission set per second
-    uint256 public immutable initMax; // First year only
-    uint256 public immutable nextMax; // Subsequent Years
+    uint256 public immutable initMax; // Emissions spread out in a year
     /*
      ** Reward Calculation:
      ** Fixed Pool Rewards = Emission*allocation / PERCENT
@@ -96,14 +97,13 @@ contract GalacticChef is Ownable, ReentrancyGuard {
     constructor(
         address _niceToken,
         uint256 _maxEmission,
-        uint256 _nextEmission,
         uint256 _chains
     ) {
         NICE = NICEToken(_niceToken);
         feeAddress = msg.sender;
         initMax = _maxEmission; // 20
-        nextMax = _nextEmission; // 10
         chains = _chains;
+        chefStart = block.timestamp + 6 hours;
     }
 
     /// @notice Add Farm of a specific token
@@ -230,7 +230,7 @@ contract GalacticChef is Ownable, ReentrancyGuard {
     }
 
     /// @notice getCurrentEmissions calculates the current rewards between last reward emission and current emission timestamps
-    /// The function takes into account if that period is within the same year or it spans across two different years, since the emission rate changes yearly
+    /// The function takes into account if that period is within the same year since deployment or it spans across two different years, since the emission rate changes yearly
     /// @param _pool Pool Id  from which we need emissions calculated
     /// @return _emissions reward token emissions calculated between the last reward emission and the current emission
     function getTimeEmissions(PoolInfo storage _pool)
@@ -238,43 +238,21 @@ contract GalacticChef is Ownable, ReentrancyGuard {
         view
         returns (uint256 _emissions)
     {
-        (uint256 currentYear, , ) = timestampToDateTime(block.timestamp);
-        (uint256 poolYear, , ) = timestampToDateTime(_pool.lastRewardTs);
-        uint256 divPool;
-        uint256 yearDiff = currentYear - poolYear;
-        uint256 maxEmissions = poolYear > 2022 ? nextMax : initMax;
-        if (poolYear > 2026) return 0;
-
-        divPool = poolYear <= 2023 ? 1 : (2**(poolYear - 2023));
-
-        if (yearDiff > 0) {
-            //LAST YEAR EMISSIONS
-            uint256 timeDiff = timestampFromDateTime(
-                currentYear,
-                1,
-                1,
-                0,
-                0,
-                0
-            ) - _pool.lastRewardTs;
-            _emissions +=
-                (maxEmissions * timeDiff * PERCENT) /
-                (chains * divPool);
-            // NEW YEAR NEW EMISSIONS
-            if (maxEmissions != nextMax) maxEmissions = nextMax;
-            divPool = currentYear == 2023 ? 1 : (2**(currentYear - 2023));
-            timeDiff = currentYear > 2026
-                ? 0
-                : block.timestamp -
-                    timestampFromDateTime(currentYear, 1, 1, 0, 0, 0);
-            _emissions +=
-                (maxEmissions * timeDiff * PERCENT) /
-                (chains * divPool);
+        uint256 poolYearDiff = (_pool.lastRewardTs - chefStart) / 365 days;
+        if (poolYearDiff > 4) return 0;
+        uint256 yearDiff = (block.timestamp - chefStart) / 365 days;
+        uint256 divPool = 2**poolYearDiff;
+        // If a Year has passed since pool lastRewardTS
+        if (yearDiff > poolYearDiff) {
+            uint256 baseYear = yearDiff * 365 days + chefStart;
+            uint256 timeDiff = baseYear - _pool.lastRewardTs;
+            _emissions += (initMax * timeDiff * PERCENT) / (chains * divPool);
+            divPool = 2**yearDiff;
+            timeDiff = block.timestamp - baseYear;
+            _emissions += (initMax * timeDiff * PERCENT) / (chains * divPool);
         } else {
             _emissions =
-                (maxEmissions *
-                    (block.timestamp - _pool.lastRewardTs) *
-                    PERCENT) /
+                (initMax * (block.timestamp - _pool.lastRewardTs) * PERCENT) /
                 (chains * divPool);
         }
     }
