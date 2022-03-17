@@ -53,7 +53,7 @@ contract GalacticChef is Ownable, ReentrancyGuard {
     // Time when Chef will start emitting Tokens
     uint256 public immutable chefStart;
     // Emissions per second. Since we'll have multiple Chefs across chains the emission set per second
-    uint256 public immutable initMax; // Emissions spread out in a year
+    uint256 public immutable initMax = 1500000000 ether; // 1st year will emmit 1.5B tokens
     /*
      ** Reward Calculation:
      ** Fixed Pool Rewards = Emission*allocation / PERCENT
@@ -67,6 +67,8 @@ contract GalacticChef is Ownable, ReentrancyGuard {
 
     // FEE distribution
     FeeDistributor public feeDistributor;
+    address public treasury;
+    address public p2e;
 
     mapping(uint256 => mapping(address => UserInfo)) public userInfo; // PID => USER_ADDRESS => userInfo
     mapping(uint256 => PoolInfo) public poolInfo; // PID => PoolInfo
@@ -91,19 +93,40 @@ contract GalacticChef is Ownable, ReentrancyGuard {
     event UpdatePool(uint256 indexed pid, uint256 mult, uint256 fee);
     event UpdateEmissions(uint256 amount);
     event FeeAddressEdit(address _newAddress, bool _isContract);
+    event UpdateTreasury(address _newAddress);
+    event UpdateP2E(address _newAddress);
 
     event LogEvent(uint256 number, string data);
 
     constructor(
         address _niceToken,
-        uint256 _maxEmission,
-        uint256 _chains
+        address _treasury,
+        address _p2e
     ) {
         NICE = NICEToken(_niceToken);
         feeAddress = msg.sender;
-        initMax = _maxEmission; // 20
         chains = _chains;
         chefStart = block.timestamp + 6 hours;
+        treasury = _treasury;
+        p2e = _p2e;
+    }
+
+    function setTreasury(address _treasury) external onlyOwner {
+        require(
+            _treasury != address(0) && _treasury != address(0xdEad),
+            "No Zero Address"
+        );
+        treasury = _treasury;
+        emit UpdateTreasury(_treasury);
+    }
+
+    function setP2E(address _p2e) external onlyOwner {
+        require(
+            _p2e != address(0) && _p2e != address(0xdEad),
+            "No Zero Address"
+        );
+        p2e = _p2e;
+        emit UpdateP2E(_p2e);
     }
 
     /// @notice Add Farm of a specific token
