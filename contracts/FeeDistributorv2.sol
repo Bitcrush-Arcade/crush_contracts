@@ -145,7 +145,7 @@ contract FeeDistributorV2 is Ownable {
     /// @dev This function requires funds to be sent beforehand to this contract
     function receiveFees(uint256 _pid, uint256 _amount) external onlyChef {
         FeeData storage feeInfo = feeData[_pid];
-
+        require(feeInfo.initialized, "Not init");
         (, , , IERC20 token, , , bool isLP) = chef.poolInfo(_pid);
         token.safeTransferFrom(address(chef), address(this), _amount);
         // Check if token was received
@@ -178,8 +178,18 @@ contract FeeDistributorV2 is Ownable {
                     block.timestamp
                 );
         }
-        if (reachForIdo && checkPrice) {
+        if (reachForIdo && checkPrice()) {
             // only buy back and burn NICE
+            uint256 currentETH = address(this).balance;
+            address[] memory nicePath;
+            nicePath[0] = tokenRouter.WETH();
+            nicePath[1] = NICE;
+            tokenRouter.swapExactETHForTokens(
+                0,
+                nicePath,
+                address(0),
+                block.timestamp
+            );
         } else {
             // With the ETH distribute AMOUNTS
             distributeFees(feeInfo);
@@ -189,13 +199,15 @@ contract FeeDistributorV2 is Ownable {
 
     /// @notice Check that current Nice Price is above IDO
     /// @dev get IDO price for NICE
-    function checkPrice() public view returns (bool _aboveIDO) {
+    function checkPrice() public view returns (bool _belowIDO) {
         (uint256 reserve0, uint256 reserve1, ) = IPancakePair(niceLiquidity)
             .getReserves();
         reserve1 = reserve1 > 0 ? reserve1 : 1; //just in case
-        _aboveIDO = ((reserve0 * 1 ether) / reserve1) > idoPrice;
+        _belowIDO = ((reserve0 * 1 ether) / reserve1) < idoPrice;
     }
 
+    /// @notice from the POOL ID check which token is wETH and return the other one
+    /// @param _pid the Pool ID token path to check
     function getNotEthToken(uint256 _pid)
         internal
         view
@@ -215,6 +227,8 @@ contract FeeDistributorV2 is Ownable {
         }
     }
 
+    /// @notice Remove Liquidity from pair token and swap for ETH
+    /// @param _pid Pool ID  to get token Path
     function removeLiquidityAndSwapETH(uint256 _pid, uint256 amount)
         internal
         returns (uint256)
