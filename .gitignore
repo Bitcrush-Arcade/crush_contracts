@@ -7,3 +7,4 @@ build/interfaces
 build/tests.json
 scripts/__pycache__
 tests/__pycache__
+.env
