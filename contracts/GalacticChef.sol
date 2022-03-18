@@ -438,21 +438,24 @@ contract GalacticChef is Ownable, ReentrancyGuard {
         }
         uint256 usedAmount = _amount;
         if (usedAmount > 0) {
+            pool.token.safeTransferFrom(
+                address(msg.sender),
+                address(this),
+                usedAmount
+            );
             if (pool.fee > 0) {
                 usedAmount = (usedAmount * pool.fee) / FEE_DIV;
-                if (address(feeDistributor) == address(0))
-                    pool.token.safeTransferFrom(
-                        address(msg.sender),
-                        feeAddress,
-                        usedAmount
-                    );
+                if (
+                    address(feeDistributor) == address(0) ||
+                    !feeDistributor.feeInfo(_pid).initialized
+                ) pool.token.safeTransfer(feeAddress, usedAmount);
                 else {
                     pool.token.approve(address(feeDistributor), usedAmount);
                     try feeDistributor.receiveFees(_pid, usedAmount) {
                         emit LogEvent(usedAmount, "Success Fee Distribution");
                     } catch {
                         emit LogEvent(usedAmount, "Failed Fee Distribution");
-                        pool.token.safeTransferFrom(
+                        pool.token.safeTransfer(
                             address(msg.sender),
                             feeAddress,
                             usedAmount
@@ -462,12 +465,7 @@ contract GalacticChef is Ownable, ReentrancyGuard {
                 }
                 usedAmount = _amount - usedAmount;
             }
-            user.amount = user.amount + usedAmount;
-            pool.token.safeTransferFrom(
-                address(msg.sender),
-                address(this),
-                usedAmount
-            );
+            user.amount += usedAmount;
         }
         user.accClaim = (user.amount * pool.accRewardPerShare) / PERCENT;
         emit Deposit(msg.sender, _pid, _amount);
