@@ -2,6 +2,23 @@
 pragma solidity 0.8.12;
 
 interface IFeeDistributor {
+    function feeInfo(uint256 _pid)
+        external
+        returns (
+            uint256[3] memory niceFees,
+            uint256[5] memory crushFees,
+            bool initialized, // Fail transactions where fees have not been added
+            bool hasFees, // If token charges fees on transfers need to use swapTokensForEthSupportingFeesOnTransferToken function instead
+            bool token0Fees, // FOR LP IN CASE IT HAS FEES
+            bool token1Fees, // FOR LP IN CASE ITS TOKEN HAS FEES
+            /**
+            if it's an LP token we need to remove that Liquidity
+            else it's a Single asset token and have to swap it for core ETH (BNB)
+            before buying anything else.
+        **/
+            address router // main router for this token
+        );
+
     function addorEditFee(
         uint256[5] calldata _fees, // 0 pid, 1 buyback, 2 liquidity, 3 team, 4 slippage
         bool _bbNice,
