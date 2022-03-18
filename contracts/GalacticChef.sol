@@ -122,7 +122,7 @@ contract GalacticChef is Ownable, ReentrancyGuard {
         NICE = NICEToken(_niceToken);
         feeAddress = msg.sender;
         chains = _chains;
-        chefStart = block.timestamp + 6 hours;
+        chefStart = block.timestamp;
         treasury = _treasury;
         p2e = _p2e;
         nonDefiLastRewardTransfer = chefStart;
@@ -239,11 +239,14 @@ contract GalacticChef is Ownable, ReentrancyGuard {
         uint256 updatedPerShare = pool.accRewardPerShare;
         uint256 tokenSupply = pool.token.balanceOf(address(this));
         if (block.timestamp > pool.lastRewardTs && tokenSupply > 0) {
-            uint256 multiplier = getTimeEmissions(pool) * pool.mult;
+            uint256 multiplier = getTimeEmissions(pool.lastRewardTs) *
+                pool.mult;
             uint256 maxMultiplier = currentMax * tokenSupply * PERCENT;
             updatedPerShare = updatedPerShare + (multiplier / maxMultiplier);
         }
-        _pendingRewards = updatedPerShare * user.amount - user.accClaim;
+        _pendingRewards =
+            ((updatedPerShare * user.amount) / PERCENT) -
+            user.accClaim;
     }
 
     /// @notice Update the accRewardPerShare for a specific pool
@@ -261,8 +264,8 @@ contract GalacticChef is Ownable, ReentrancyGuard {
             return;
         }
         uint256 maxMultiplier = currentMax * selfBal;
-        uint256 periodReward = (getTimeEmissions(pool) * pool.mult) /
-            maxMultiplier;
+        uint256 periodReward = (getTimeEmissions(pool.lastRewardTs) *
+            pool.mult) / maxMultiplier;
         pool.lastRewardTs = block.timestamp;
         pool.accRewardPerShare = pool.accRewardPerShare + periodReward;
     }
@@ -271,42 +274,40 @@ contract GalacticChef is Ownable, ReentrancyGuard {
     /// It Uses getTimeEmissions to get the current emissions for the pool between last reward emission and current emission
     /// @param _pid Pool Id  from which we need emissions calculated
     /// @return _emissions emissions for the given pool between
-    function getCurrentEmissions(uint256 _pid)
-        public
-        view
-        returns (uint256 _emissions)
-    {
+    function getCurrentEmissions(uint256 _pid) public view returns (uint256) {
         PoolInfo storage pool = poolInfo[_pid];
         if (address(pool.token) == address(0) || pool.mult == 0) return 0;
-        _emissions = getTimeEmissions(pool);
+        return
+            (getTimeEmissions(poolInfo[_pid].lastRewardTs) * pool.mult) /
+            (currentMax * PERCENT);
     }
 
     /// @notice getCurrentEmissions calculates the current rewards between last reward emission and current emission timestamps
     /// The function takes into account if that period is within the same year since deployment or it spans across two different years, since the emission rate changes yearly
-    /// @param _pool Pool Id  from which we need emissions calculated
+    /// @param lastTs _pool Pool Id  from which we need emissions calculated
     /// @return _emissions reward token emissions calculated between the last reward emission and the current emission
-    function getTimeEmissions(PoolInfo storage _pool)
+    function getTimeEmissions(uint256 lastTs)
         internal
         view
         returns (uint256 _emissions)
     {
-        uint256 poolYearDiff = (_pool.lastRewardTs - chefStart) / 365 days;
+        uint256 poolYearDiff = (lastTs - chefStart) / SECONDS_PER_YEAR;
         if (poolYearDiff > 4 || block.timestamp < chefStart) return 0;
-        uint256 yearDiff = (block.timestamp - chefStart) / 365 days;
+        uint256 yearDiff = (block.timestamp - chefStart) / SECONDS_PER_YEAR;
         // If a Year has passed since pool lastRewardTS
         uint256 defiEmission;
         (, defiEmission, ) = getAllEmissions(poolYearDiff);
         if (yearDiff > poolYearDiff) {
-            uint256 baseYear = yearDiff * 365 days + chefStart;
-            uint256 timeDiff = baseYear - _pool.lastRewardTs;
-            _emissions += (defiEmission * timeDiff * PERCENT) / chains;
+            uint256 baseYear = (yearDiff * SECONDS_PER_YEAR) + chefStart;
+            uint256 timeDiff = baseYear - lastTs;
+            _emissions = (defiEmission * timeDiff * PERCENT) / chains;
             //Calculate nextYear's
             (, defiEmission, ) = getAllEmissions(yearDiff);
             timeDiff = block.timestamp - baseYear;
             _emissions += (defiEmission * timeDiff * PERCENT) / chains;
         } else {
             _emissions =
-                (initMax * (block.timestamp - _pool.lastRewardTs) * PERCENT) /
+                (defiEmission * (block.timestamp - lastTs) * PERCENT) /
                 chains;
         }
     }
@@ -355,14 +356,14 @@ contract GalacticChef is Ownable, ReentrancyGuard {
     function distributeNonDefi() public {
         if (block.timestamp <= nonDefiLastRewardTransfer) return;
         uint256 lastYearDiff = (nonDefiLastRewardTransfer - chefStart) /
-            365 days;
-        uint256 yearDiff = (block.timestamp - chefStart) / 365 days;
+            SECONDS_PER_YEAR;
+        uint256 yearDiff = (block.timestamp - chefStart) / SECONDS_PER_YEAR;
         uint256 totalTreasury;
         uint256 totalP2E;
         uint256 timeDiff;
         (uint256 _treasury, , uint256 _p2e) = getAllEmissions(lastYearDiff);
         if (yearDiff > lastYearDiff) {
-            uint256 baseYear = yearDiff * 365 days + chefStart;
+            uint256 baseYear = yearDiff * SECONDS_PER_YEAR + chefStart;
             timeDiff = baseYear - nonDefiLastRewardTransfer;
             totalTreasury = _treasury * timeDiff;
             totalP2E = _p2e * timeDiff;
@@ -413,7 +414,9 @@ contract GalacticChef is Ownable, ReentrancyGuard {
         distributeNonDefi();
         PoolInfo storage pool = poolInfo[_pid];
         if (block.timestamp <= pool.lastRewardTs) return 0;
-        _minted = (getTimeEmissions(pool) * pool.mult) / (currentMax * PERCENT);
+        _minted =
+            (getTimeEmissions(pool.lastRewardTs) * pool.mult) /
+            (currentMax * PERCENT);
         pool.lastRewardTs = block.timestamp;
         NICE.mint(address(pool.token), _minted);
     }
