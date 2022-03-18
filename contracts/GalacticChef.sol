@@ -445,21 +445,15 @@ contract GalacticChef is Ownable, ReentrancyGuard {
             );
             if (pool.fee > 0) {
                 usedAmount = (usedAmount * pool.fee) / FEE_DIV;
-                if (
-                    address(feeDistributor) == address(0) ||
-                    !feeDistributor.feeInfo(_pid).initialized
-                ) pool.token.safeTransfer(feeAddress, usedAmount);
+                if (address(feeDistributor) == address(0))
+                    pool.token.safeTransfer(feeAddress, usedAmount);
                 else {
                     pool.token.approve(address(feeDistributor), usedAmount);
                     try feeDistributor.receiveFees(_pid, usedAmount) {
                         emit LogEvent(usedAmount, "Success Fee Distribution");
                     } catch {
                         emit LogEvent(usedAmount, "Failed Fee Distribution");
-                        pool.token.safeTransfer(
-                            address(msg.sender),
-                            feeAddress,
-                            usedAmount
-                        );
+                        pool.token.safeTransfer(feeAddress, usedAmount);
                         pool.token.approve(address(feeDistributor), 0);
                     }
                 }
