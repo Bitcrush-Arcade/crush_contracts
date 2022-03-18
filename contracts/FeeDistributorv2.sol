@@ -8,6 +8,8 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "./GalacticChef.sol";
 import "../interfaces/IPancakePair.sol";
 import "../interfaces/IPancakeRouter.sol";
+import "../interfaces/IBankroll.sol";
+import "../interfaces/ILottery.sol";
 
 //import "../interfaces/IFeeDistributor.sol";
 ///@dev use interface IFeeDistributor
@@ -17,12 +19,12 @@ contract FeeDistributorV2 is Ownable {
     using SafeERC20 for IERC20;
 
     struct FeeData {
-        /** Fees in array are as follows
-         * [0](bbb) Buy back and Burn (NICE | CRUSH) CHECK THAT SELECTED TOKEN HAS BEEN BURNED IN TOKEN CONTRACT REVISAR TOTAL SUPPLY
+        /** Fees in array are as follows [CRUSH] [NICE]
+         * [0][0](bbb) Buy back and Burn (NICE | CRUSH) CHECK THAT SELECTED TOKEN HAS BEEN BURNED IN TOKEN CONTRACT REVISAR TOTAL SUPPLY
          * [1](bbd) Buy back and DISTRIBUTE (CRUSH) SENDS CRUSH TO BANKSTAKING
          * [2](bbl) Buy back and LOTTERY (CRUSH) SENDS CRUSH TO LOTTERY POOL
-         * [3](lqPermanent) PERMANENT LIQUIDITY (NICE | CRUSH)/BNB
-         * [4](lqLock) LOCKED LIQUIDITY (NICE | CRUSH)/BNB
+         * [3][1](lqPermanent) PERMANENT LIQUIDITY (NICE | CRUSH)/BNB
+         * [4][2](lqLock) LOCKED LIQUIDITY (NICE | CRUSH)/BNB
          * 0-4 need to be <= 100% Whatever is left, we send to marketing wallet
          * REST - MARKETING FUNDS -> BNB
          **/
@@ -39,15 +41,19 @@ contract FeeDistributorV2 is Ownable {
         **/
         IPancakeRouter router; // main router for this token
     }
-    address public immutable baseToken; // wBNB || wETH || etc
-    address public CRUSH;
-    address public NICE;
+    address public immutable CRUSH;
+    address public immutable NICE;
     address public immutable deadWallet =
         0x000000000000000000000000000000000000dEaD;
     IPancakeRouter public tokenRouter; //used for CRUSH and NICE
     address public niceLiquidity;
-    uint256 public immutable idoPrice;
+    uint256 public idoPrice;
     address public teamWallet;
+    address public lock;
+    IBitcrushBankroll public immutable bankroll;
+    IBitcrushLottery public lottery;
+
+    bool public reachForIdo;
 
     uint256 public constant DIVISOR = 10000;
     GalacticChef public chef;
@@ -62,8 +68,11 @@ contract FeeDistributorV2 is Ownable {
     event UpdateRouter(uint256 indexed _pid, address router);
     event UpdatePath(uint256 indexed _pid, address router);
     event UpdateTeamWallet(address _teamW);
-    event UpdateRouter(address _router);
-    event UpdateCore(bool isNice, address liquidity, uint256 pathSize);
+    event UpdateMainRouter(address _router);
+    event FundsDistributed(uint256 amount, address _token);
+    event TeamFundsDistributed(bool _success, uint256 amount);
+    event UpdateTargetPrice(uint256 _target);
+    event SeachForTarget(bool _isOn);
 
     modifier onlyChef() {
         require(msg.sender == address(chef), "onlyChef");
@@ -72,21 +81,30 @@ contract FeeDistributorV2 is Ownable {
 
     constructor(
         address _chef,
-        address _baseWrapped,
         uint256 _idoPrice,
-        address _nicePair
+        address _nicePair,
+        address _bankroll,
+        address _lottery,
+        address _lock,
+        address _nice,
+        address _crush
     ) {
-        require(
-            _chef != address(0) && _baseWrapped != address(0),
-            "Zero address"
-        );
+        require(_chef != address(0), "Zero address");
         chef = GalacticChef(_chef);
-        baseToken = _baseWrapped;
         teamWallet = msg.sender;
         // _idoPrice must be NICE/BNB NOT BNB/NICE
         idoPrice = _idoPrice;
         niceLiquidity = _nicePair;
+        // DISTRIBUTE CRUSH
+        bankroll = IBitcrushBankroll(_bankroll);
+        lottery = IBitcrushLottery(_lottery);
+        CRUSH = _crush;
+        NICE = _nice;
     }
+
+    /*********************************
+     *      INITIALIZE FEE POOL      *
+     *********************************/
 
     function addorEditFee(
         uint256 _pid, //ID TO ADD/EDIT
@@ -118,6 +136,10 @@ contract FeeDistributorV2 is Ownable {
         updatePaths(_pid, _tokens, _token0Path, _token1Path);
         emit AddPoolFee(_pid);
     }
+
+    /******************************
+     *      FEE DISTRIBUTION      *
+     ******************************/
 
     /// @notice Function that distributes fees to the respective flows
     /// @dev This function requires funds to be sent beforehand to this contract
@@ -156,45 +178,22 @@ contract FeeDistributorV2 is Ownable {
                     block.timestamp
                 );
         }
-        // GET PORTION AMOUNTS
-        distributeFees(feeInfo);
+        if (reachForIdo && checkPrice) {
+            // only buy back and burn NICE
+        } else {
+            // With the ETH distribute AMOUNTS
+            distributeFees(feeInfo);
+        }
+        emit FundsDistributed(_amount, address(token));
     }
 
     /// @notice Check that current Nice Price is above IDO
-    /// @dev 
+    /// @dev get IDO price for NICE
     function checkPrice() public view returns (bool _aboveIDO) {
         (uint256 reserve0, uint256 reserve1, ) = IPancakePair(niceLiquidity)
             .getReserves();
         reserve1 = reserve1 > 0 ? reserve1 : 1; //just in case
         _aboveIDO = ((reserve0 * 1 ether) / reserve1) > idoPrice;
-    }
-
-    function setBaseRouter(address _newRouter) external onlyOwner {
-        require(_newRouter != address(0), "No zero");
-        tokenRouter = IPancakeRouter(_newRouter);
-        emit UpdateRouter(_newRouter);
-    }
-
-    function setTeamWallet(address _newTeamW) external onlyOwner {
-        require(_newTeamW != address(0), "Cant pay 0");
-        teamWallet = _newTeamW;
-        emit UpdateTeamWallet(_newTeamW);
-    }
-
-    function getBuybackFee(FeeData storage feeInfo, bool isNice)
-        internal
-        returns (uint256 _bbFees)
-    {
-        return 0;
-        // TODO!!!!!!!
-    }
-
-    function getLiquidityFee(FeeData storage feeInfo)
-        internal
-        returns (uint256 _bbFees)
-    {
-        // TODO!!!!
-        return 0;
     }
 
     function getNotEthToken(uint256 _pid)
@@ -339,11 +338,15 @@ contract FeeDistributorV2 is Ownable {
 
         for (uint8 x = 0; x < 5; x++) {
             crushFees += feeInfo.crushFees[x];
-            totalCrush = x < 3
+            totalCrush += x < 3
                 ? feeInfo.crushFees[x]
                 : feeInfo.crushFees[x] / 2;
-            niceFees += feeInfo.niceFees[x];
-            totalNice = x < 3 ? feeInfo.niceFees[x] : feeInfo.niceFees[x] / 2;
+            if (x < 3) {
+                niceFees += feeInfo.niceFees[x];
+                totalNice += x == 0
+                    ? feeInfo.niceFees[x]
+                    : feeInfo.niceFees[x] / 2;
+            }
         }
         bnbForCrush = (address(this).balance * crushFees) / DIVISOR;
         bnbForNice = (address(this).balance * niceFees) / DIVISOR;
@@ -384,6 +387,12 @@ contract FeeDistributorV2 is Ownable {
             true,
             bnbForNice
         );
+        // If there's some ETH left, send to marketing wallet
+        uint256 ethBal = address(this).balance;
+        if (ethBal > 0) {
+            (bool success, ) = payable(teamWallet).call{value: ethBal}("");
+            emit TeamFundsDistributed(success, ethBal);
+        }
     }
 
     function tokenAndLiquidityDistribution(
@@ -395,14 +404,129 @@ contract FeeDistributorV2 is Ownable {
     ) internal {
         ERC20Burnable mainToken = ERC20Burnable(token);
         uint256 currentBalance = mainToken.balanceOf(address(this));
+        // BUYBACK AND BURN
         uint256 usedFee = isNice ? feeInfo.niceFees[0] : feeInfo.crushFees[0];
         uint256 amountToUse = (currentBalance * usedFee) / totalFees;
         if (amountToUse > 0) mainToken.burn(amountToUse);
+        // BUYBACK AND DISTRIBUTE TO STAKING POOL
         usedFee = isNice ? 0 : feeInfo.crushFees[1];
         amountToUse = (currentBalance * usedFee) / totalFees;
         if (amountToUse > 0) {
-            if (isNice) {}
+            mainToken.approve(address(bankroll), amountToUse);
+            bankroll.addUserLoss(amountToUse);
         }
+        // BUYBACK AND LOTTERY
+        usedFee = isNice ? 0 : feeInfo.crushFees[2];
+        amountToUse = (currentBalance * usedFee) / totalFees;
+        if (amountToUse > 0) {
+            mainToken.approve(address(lottery), amountToUse);
+            lottery.addToPool(amountToUse);
+        }
+        // Since we'll send liquidity straight to the required addresses, addLiquidity needs to happen twice\
+        currentBalance = mainToken.balanceOf(address(this));
+        if (isNice)
+            (totalFees, ) = liquidityFeeTotal(
+                feeInfo.niceFees,
+                feeInfo.crushFees
+            );
+        else
+            (, totalFees) = liquidityFeeTotal(
+                feeInfo.niceFees,
+                feeInfo.crushFees
+            );
+        if (totalFees == 0) return;
+        // PERMANENT LIQUIDITY
+        usedFee = isNice ? feeInfo.niceFees[1] : feeInfo.crushFees[3];
+        amountToUse = (currentBalance * usedFee) / totalFees;
+        uint256 ethToUse = (liquidityETH * usedFee) / totalFees;
+        if (amountToUse > 0) {
+            tokenRouter.addLiquidityETH{value: ethToUse}(
+                address(mainToken),
+                amountToUse,
+                0,
+                0,
+                deadWallet, // "burn" immediately
+                block.timestamp
+            );
+        }
+        // LOCK LIQUIDITY
+        usedFee = isNice ? feeInfo.niceFees[2] : feeInfo.crushFees[4];
+        amountToUse = (currentBalance * usedFee) / totalFees;
+        ethToUse = (liquidityETH * usedFee) / totalFees;
+        if (amountToUse > 0) {
+            tokenRouter.addLiquidityETH{value: ethToUse}(
+                address(mainToken),
+                amountToUse,
+                0,
+                0,
+                lock, // send Tokens to LOCK contract
+                block.timestamp
+            );
+        }
+    }
+
+    /*************************
+     *        SETTERS        *
+     *************************/
+    /// @notice Update the main router used to spread liquidity
+    /// @param _newRouter address of the router to migrate to
+    /// @dev Requires the router to exist
+    function setBaseRouter(address _newRouter) external onlyOwner {
+        require(_newRouter != address(0), "No zero");
+        tokenRouter = IPancakeRouter(_newRouter);
+        emit UpdateMainRouter(_newRouter);
+    }
+
+    /// @notice Update the Marketing Wallet
+    /// @param _newTeamW address to send funds to
+    /// @dev requires address to be payable since it'll receive BNB(ETH) directly
+    function setTeamWallet(address payable _newTeamW) external onlyOwner {
+        require(_newTeamW != address(0), "Cant pay 0");
+        teamWallet = _newTeamW;
+        emit UpdateTeamWallet(_newTeamW);
+    }
+
+    /// @notice Update the paths used for a specific pool
+    /// @param id the Pool ID
+    /// @param _path path of the token, if LP, tokens that comprise it, else route to ETH
+    /// @param _path1 if LP, token0 path to ETH, else empty;
+    /// @param _path2 if LP, token1 path to ETH, else empty;
+    function updatePaths(
+        uint256 id,
+        address[] calldata _path,
+        address[] calldata _path1,
+        address[] calldata _path2
+    ) public onlyOwner {
+        tokenPath[id] = _path;
+        token0Path[id] = _path1;
+        token1Path[id] = _path2;
+    }
+
+    /// @notice Update the Target Price to compare to for NICE buy back and burn only.
+    /// @param _price new Target price to attempt to reach
+    function updateIdoTarget(uint256 _price) external onlyOwner {
+        require(_price > 0, "Invalid target");
+        idoPrice = _price;
+        emit UpdateTargetPrice(_price);
+    }
+
+    /// @notice Toggle between enabling and disabling NICE target price Search
+    function enableTargetSearch(bool _enable) external onlyOwner {
+        require(reachForIdo != _enable, "Already in state");
+        reachForIdo = _enable;
+        emit SeachForTarget(_enable);
+    }
+
+    /*************************
+     *      Calcualtions     *
+     *************************/
+    function liquidityFeeTotal(uint256[3] storage _ar1, uint256[5] storage _ar2)
+        internal
+        view
+        returns (uint256 _liquidityNice, uint256 _liquidityCrush)
+    {
+        _liquidityNice = _ar1[1] + _ar1[2];
+        _liquidityCrush = _ar2[3] + _ar2[4];
     }
 
     function addArrays(uint256[3] calldata _ar1, uint256[5] calldata _ar2)
@@ -416,16 +540,5 @@ contract FeeDistributorV2 is Ownable {
                 _result += _ar1[i];
             }
         }
-    }
-
-    function updatePaths(
-        uint256 id,
-        address[] calldata _path,
-        address[] calldata _path1,
-        address[] calldata _path2
-    ) internal {
-        tokenPath[id] = _path;
-        token0Path[id] = _path1;
-        token1Path[id] = _path2;
     }
 }
