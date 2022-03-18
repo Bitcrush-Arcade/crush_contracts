@@ -241,7 +241,7 @@ contract GalacticChef is Ownable, ReentrancyGuard {
         if (block.timestamp > pool.lastRewardTs && tokenSupply > 0) {
             uint256 multiplier = getTimeEmissions(pool.lastRewardTs) *
                 pool.mult;
-            uint256 maxMultiplier = currentMax * tokenSupply * PERCENT;
+            uint256 maxMultiplier = currentMax * tokenSupply;
             updatedPerShare = updatedPerShare + (multiplier / maxMultiplier);
         }
         _pendingRewards =

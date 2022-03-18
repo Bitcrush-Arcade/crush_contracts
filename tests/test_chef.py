@@ -92,6 +92,7 @@ def test_pool_emissions(setup):
     )  # pid 3
 
     token_1.mint(accounts[3], Web3.toWei(15000, "ether"), {"from": accounts[0]})
+    token_1.mint(accounts[4], Web3.toWei(15000, "ether"), {"from": accounts[0]})
     token_2.mint(accounts[4], Web3.toWei(15000, "ether"), {"from": accounts[0]})
     token_3.mint(accounts[5], Web3.toWei(15000, "ether"), {"from": accounts[0]})
 
@@ -139,3 +140,13 @@ def test_pool_emissions(setup):
     assert Decimal(received1 / 10 ** 18) - expected1 < Decimal(0.000000001)
     assert Decimal(received2 / 10 ** 18) - expected2 < Decimal(0.000000001)
     assert Decimal(received3 / 10 ** 18) - expected3 < Decimal(0.000000001)
+
+    chain.sleep(2 * 60 * 60)
+    assert nice.balanceOf(accounts[4]) == 0
+    token_1.approve(chef.address, Web3.toWei(10000, "ether"), {"from": accounts[4]})
+    chef.deposit(Web3.toWei(100, "ether"), 1, {"from": accounts[4]})
+    chain.mine(15)
+    chain.sleep(2 * 60 * 60)
+    expected1 = chef.pendingRewards(accounts[4], 1)
+    chef.deposit(0, 1, {"from": accounts[4]})
+    assert nice.balanceOf(accounts[4]) == expected1
