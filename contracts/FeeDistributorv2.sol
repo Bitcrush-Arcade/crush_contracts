@@ -55,7 +55,7 @@ contract FeeDistributorV2 is Ownable {
 
     bool public reachForIdo;
 
-    uint256 public constant DIVISOR = 10000;
+    uint256 public constant DIVISOR = 10000; // 100.00%
     GalacticChef public chef;
 
     mapping(uint256 => FeeData) public feeData;
@@ -72,6 +72,7 @@ contract FeeDistributorV2 is Ownable {
     event FundsDistributed(uint256 amount, address _token);
     event TeamFundsDistributed(bool _success, uint256 amount);
     event UpdateTargetPrice(uint256 _target);
+    event UpdateLotteryAddress(address _newLotteery, address _oldLottery);
     event SeachForTarget(bool _isOn);
 
     modifier onlyChef() {
@@ -140,6 +141,9 @@ contract FeeDistributorV2 is Ownable {
     /******************************
      *      FEE DISTRIBUTION      *
      ******************************/
+    receive() external payable {}
+
+    fallback() external payable {}
 
     /// @notice Function that distributes fees to the respective flows
     /// @dev This function requires funds to be sent beforehand to this contract
@@ -151,10 +155,9 @@ contract FeeDistributorV2 is Ownable {
         // Check if token was received
         require(token.balanceOf(address(this)) >= _amount, "send funds");
         // REQUIRE THAT FEES ARE NEEDED TO BE TAKEN, ELSE TRANSFER TO OWNER
-        uint256 wBNBtoWorkWith;
         // IS LP TOKEN ?
+        token.approve(address(feeInfo.router), _amount * 2);
         if (isLP) {
-            token.approve(address(feeInfo.router), _amount);
             // remove liquidity
             removeLiquidityAndSwapETH(_pid, _amount);
         } else {
@@ -184,7 +187,7 @@ contract FeeDistributorV2 is Ownable {
             address[] memory nicePath;
             nicePath[0] = tokenRouter.WETH();
             nicePath[1] = NICE;
-            tokenRouter.swapExactETHForTokens(
+            tokenRouter.swapExactETHForTokens{value: currentETH}(
                 0,
                 nicePath,
                 address(0),
@@ -295,8 +298,14 @@ contract FeeDistributorV2 is Ownable {
                 block.timestamp
             );
             // Approve tokens for swap
-            IERC20(tokenPath[_pid][0]).approve(address(feeInfo.router), tokenA);
-            IERC20(tokenPath[_pid][1]).approve(address(feeInfo.router), tokenB);
+            IERC20(tokenPath[_pid][0]).approve(
+                address(feeInfo.router),
+                tokenA * 2
+            );
+            IERC20(tokenPath[_pid][1]).approve(
+                address(feeInfo.router),
+                tokenB * 2
+            );
             // Swap token A
             if (feeInfo.token0Fees)
                 feeInfo
@@ -362,45 +371,49 @@ contract FeeDistributorV2 is Ownable {
                     : feeInfo.niceFees[x] / 2;
             }
         }
-        bnbForCrush = (address(this).balance * crushFees) / DIVISOR;
-        bnbForNice = (address(this).balance * niceFees) / DIVISOR;
-
-        swapAmountCrush = (bnbForCrush * totalCrush) / crushFees;
-        swapAmountNice = (bnbForNice * totalNice) / niceFees;
         address[] memory path;
         path[0] = tokenRouter.WETH();
         path[1] = CRUSH;
-        // Swap for CRUSH
-        tokenRouter.swapExactETHForTokens{value: swapAmountCrush}(
-            0,
-            path,
-            address(this),
-            block.timestamp
-        );
-        bnbForCrush -= swapAmountCrush;
-        bnbForNice -= swapAmountNice;
-        tokenAndLiquidityDistribution(
-            CRUSH,
-            feeInfo,
-            crushFees,
-            false,
-            bnbForCrush
-        );
-        // Swap for NICE
-        path[1] = NICE;
-        tokenRouter.swapExactETHForTokens{value: swapAmountNice}(
-            0,
-            path,
-            address(this),
-            block.timestamp
-        );
-        tokenAndLiquidityDistribution(
-            NICE,
-            feeInfo,
-            niceFees,
-            true,
-            bnbForNice
-        );
+        if (crushFees > 0) {
+            bnbForCrush = (address(this).balance * crushFees) / DIVISOR;
+            swapAmountCrush = (bnbForCrush * totalCrush) / crushFees;
+            // Swap for CRUSH
+            tokenRouter.swapExactETHForTokens{value: swapAmountCrush}(
+                0,
+                path,
+                address(this),
+                block.timestamp
+            );
+            bnbForCrush -= swapAmountCrush;
+            tokenAndLiquidityDistribution(
+                CRUSH,
+                feeInfo,
+                crushFees,
+                false,
+                bnbForCrush
+            );
+        }
+        if (niceFees > 0) {
+            bnbForNice = (address(this).balance * niceFees) / DIVISOR;
+            swapAmountNice = (bnbForNice * totalNice) / niceFees;
+            bnbForNice -= swapAmountNice;
+            // Swap for NICE
+            path[1] = NICE;
+            tokenRouter.swapExactETHForTokens{value: swapAmountNice}(
+                0,
+                path,
+                address(this),
+                block.timestamp
+            );
+            tokenAndLiquidityDistribution(
+                NICE,
+                feeInfo,
+                niceFees,
+                true,
+                bnbForNice
+            );
+        }
+
         // If there's some ETH left, send to marketing wallet
         uint256 ethBal = address(this).balance;
         if (ethBal > 0) {
@@ -426,14 +439,14 @@ contract FeeDistributorV2 is Ownable {
         usedFee = isNice ? 0 : feeInfo.crushFees[1];
         amountToUse = (currentBalance * usedFee) / totalFees;
         if (amountToUse > 0) {
-            mainToken.approve(address(bankroll), amountToUse);
+            mainToken.approve(address(bankroll), amountToUse * 2);
             bankroll.addUserLoss(amountToUse);
         }
         // BUYBACK AND LOTTERY
         usedFee = isNice ? 0 : feeInfo.crushFees[2];
         amountToUse = (currentBalance * usedFee) / totalFees;
         if (amountToUse > 0) {
-            mainToken.approve(address(lottery), amountToUse);
+            mainToken.approve(address(lottery), amountToUse * 2);
             lottery.addToPool(amountToUse);
         }
         // Since we'll send liquidity straight to the required addresses, addLiquidity needs to happen twice\
@@ -454,6 +467,7 @@ contract FeeDistributorV2 is Ownable {
         amountToUse = (currentBalance * usedFee) / totalFees;
         uint256 ethToUse = (liquidityETH * usedFee) / totalFees;
         if (amountToUse > 0) {
+            mainToken.approve(address(tokenRouter), amountToUse * 2);
             tokenRouter.addLiquidityETH{value: ethToUse}(
                 address(mainToken),
                 amountToUse,
@@ -468,6 +482,7 @@ contract FeeDistributorV2 is Ownable {
         amountToUse = (currentBalance * usedFee) / totalFees;
         ethToUse = (liquidityETH * usedFee) / totalFees;
         if (amountToUse > 0) {
+            mainToken.approve(address(tokenRouter), amountToUse * 2);
             tokenRouter.addLiquidityETH{value: ethToUse}(
                 address(mainToken),
                 amountToUse,
@@ -477,6 +492,18 @@ contract FeeDistributorV2 is Ownable {
                 block.timestamp
             );
         }
+    }
+
+    /*************************
+     *        GETTERS        *
+     *************************/
+    function getFees(uint256 _pid)
+        external
+        view
+        returns (uint256[3] memory _niceFees, uint256[5] memory _crushFees)
+    {
+        _niceFees = feeData[_pid].niceFees;
+        _crushFees = feeData[_pid].crushFees;
     }
 
     /*************************
@@ -531,8 +558,14 @@ contract FeeDistributorV2 is Ownable {
         emit SeachForTarget(_enable);
     }
 
+    function updateLottery(address _nLottery) external onlyOwner {
+        require(_nLottery != address(0), "No Zero");
+        emit UpdateLotteryAddress(_nLottery, address(lottery));
+        lottery = IBitcrushLottery(_nLottery);
+    }
+
     /*************************
-     *      Calcualtions     *
+     *      Calculations     *
      *************************/
     function liquidityFeeTotal(uint256[3] storage _ar1, uint256[5] storage _ar2)
         internal
