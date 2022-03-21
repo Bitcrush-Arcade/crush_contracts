@@ -1,55 +1,134 @@
-from brownie import accounts, NICEToken, IPancakeRouter, IPancakeFactory
+from brownie import (
+    accounts,
+    chain,
+    NICEToken,
+    FeeDistributorV3,
+    interface,
+)
 import pytest
-from scripts.deploy_chef import deploy_chef, deploy_fee, deploy_lock
-from scripts.helpful_scripts import isDevNetwork
+from web3 import Web3
 
+owner = accounts.load("my_user")
 
+# TEST WITH BSC-MAIN-FORK
 @pytest.fixture
 def setup():
-    owner = accounts[0]
-    nice = NICEToken.deploy("NICE Token", "NICE", {"from": owner})
-    test_Token1 = NICEToken.deploy("Test1", "TST1", {"from": owner})
-    guard_token = NICEToken.deploy("Guard Token", "GUARD", {"from": owner})
+    router = interface.IPancakeRouter("0x05E61E0cDcD2170a76F9568a110CEe3AFdD6c46f")
+    crush = interface.IERC20("0x0ef0626736c2d484a792508e99949736d0af807e")
+    nice = NICEToken.at("0x3a79410A3C758bF5f00216355545F4eD7CF0B34F")
+    busd = interface.IERC20("0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56")
 
-    # router to use
-    ape_router = IPancakeRouter.at("0xcF0feBd3f17CEf5b47b0cD257aCf6025c5BFf3b7")
-    IPancakeFactory.at(ape_router.factory()).createPair()
-    # CREATE PAIR FOR TEST TOKEN
-    nice_pair = ape_router.createPair(nice, ape_router.WETH())
-    test_pair = ape_router.createPair(test_Token1, ape_router.WETH())
-    guard_pair = ape_router.createPair(guard_token, test_Token1)  # 3 step test
-
-    # ADD PAIR LIQUIDITY
-
-    chef = deploy_chef(owner, nice.address)
-    # MAKE CHEF BE A MINTER
-    nice.toggleMinter(chef.address)
-    # Create new pool
-    locker = deploy_lock(owner)
-    # deploy fee distributor
-    fee_distributor = deploy_fee(owner, chef, locker)
-
-    return chef, locker, fee_distributor, nice
+    return (
+        FeeDistributorV3.deploy(router, nice, crush, {"from": owner}),
+        owner,
+        router,
+        nice,
+        crush,
+        busd,
+    )
 
 
-def test_addOrEditFee(chef, locker, feeDistributor, nice):
+def test_swap_eth_for_tokens(setup):
+    fees, owner, _, nice, crush, _ = setup
+    user1 = accounts[0]
+    user1.transfer(fees, "1 ether")
 
-    # Setting up the fees
-    # Establishing fees so that burn + distribute + lottery + permaliquidity + lockliquidity <= 10000
-    pid = 0
-    buyback_burn_fee = 500
-    buyback_distribute_fee = 1000
-    buyback_lottery_fee = 1500
-    buyback_permaliquidity_fee = 2000
-    buyback_lockliquidity_fee = 5000
-    _bbNice = True
-    _liqNice = True
-    router = "0xcF0feBd3f17CEf5b47b0cD257aCf6025c5BFf3b7"
+    fees.swapForToken("0.5 ether", False, {"from": owner})
+    niceBalance = nice.balanceOf(fees)
+    crushBalance = crush.balanceOf(fees)
+    assert niceBalance == 0
+    assert crushBalance > 0
 
 
-def test_receiveFees_test_pair(chef, locker, feeDistributor, nice):
-    pass
+# This function will be commented afterwards since this is PURE and will be internal
+def test_add_arrays(setup):
+    fees, *_ = setup
+    amount = fees.addArrays([1, 2, 3], [4, 5, 6, 7, 8])
+
+    expected = 1 + 2 + 3 + 4 + 5 + 6 + 7 + 8
+    assert amount == expected
 
 
-def test_receiveFees_guard_pair(chef, locker, feeDistributor, nice):
-    pass
+def test_update_paths(setup):
+    fees, owner, *_ = setup
+
+    fees.updatePaths(
+        1,
+        [accounts[1], accounts[2]],
+        [accounts[3], accounts[4], accounts[5]],
+        [accounts[6], accounts[7], accounts[8], accounts[9]],
+        {"from": owner},
+    )
+    paths = fees.getPath(1)
+    pathBase = paths[0]
+    path0Base = paths[1]
+    path1Base = paths[2]
+
+    assert len(pathBase) == 2
+    assert len(path0Base) == 3
+    assert len(path1Base) == 4
+
+
+# This function will be commented afterwards since this is PURE and will be internal
+def test_get_not_eth_token(setup):
+    fees, owner, router, *_, busd = setup
+    # ADD busd/Wbnb pair farm
+    fees.addorEditFee(
+        1,
+        [0, 0, 0],
+        [2000, 500, 1500, 700, 1300],
+        [False, False, False],
+        router,
+        [busd, router.WETH()],  # Token Composition in this case BUSD/BNB pair
+        [busd, router.WETH()],
+        [],
+        {"from": owner},
+    )
+
+    info = fees.getNotEthToken(1)
+    assert info["token"] == busd.address
+    assert len(info["path"]) == 2
+    assert info["path"][0] == busd.address
+    assert info["path"][1] == router.WETH()
+    assert info["hasFees"] == False
+
+
+def test_remove_liquidity_for_ETH_and_swap(setup):
+    fees, owner, router, nice, crush, busd = setup
+
+    # Add lP tokens...
+    factory = interface.IPancakeFactory(router.factory())
+    busdBnbPair = interface.IPancakePair("0x28f8ED3Bb8795b11e9be8A6015aDd73ef7Cd3a14")
+
+    busdBnbPair.transfer(fees, "0.45 ether", {"from": owner})
+    # SEND PAIR LP TOKEN TO FEES
+    # ADD busd/Wbnb pair farm
+    fees.addorEditFee(
+        1,
+        [0, 0, 0],
+        [2000, 500, 1500, 700, 1300],
+        [False, False, False],
+        router,
+        [busd, router.WETH()],  # Token Composition in this case BUSD/BNB pair
+        [busd, router.WETH()],
+        [],
+        {"from": owner},
+    )
+    # EXECUTE FN to swap for ETH
+    fees.removeLiquidityAndSwapETH(1, "0.45 ether", {"from": owner})
+
+    assert (
+        busdBnbPair.balanceOf(fees) < 100
+    )  # Value in ETH... get rid of all or most of the pair balance
+    assert busd.balanceOf(fees) < 100  # Get rid of all or most BUSD
+    assert (
+        fees.balance() > 42000000000000000
+    )  # 20BUSD and 20BUSD worth of BNB converted to BNB ~0.1BNB
+
+    ethBalance = fees.balance()
+
+    # swapETH for CRUSH
+    fees.swapForToken(ethBalance, False, {"from": owner})
+
+    assert fees.balance() < 10000  # Swap everything out... or almost everything
+    assert crush.balanceOf(fees) > 0  # Get any amount of crush we can
