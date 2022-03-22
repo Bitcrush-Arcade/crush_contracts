@@ -60,6 +60,11 @@ contract FeeDistributorV3 is Ownable {
     event UpdateLottery(address _newLottery, address _oldLottery);
     event UpdateMarketing(address _newWallet, address _oldWallet);
     event FundMarketing(address indexed _wallet, uint256 amount);
+    event UpdateRouter(
+        address _newRouter,
+        address _oldRouter,
+        bool _niceRouter
+    );
 
     constructor(
         address _router,
@@ -90,7 +95,7 @@ contract FeeDistributorV3 is Ownable {
     /// @param isNice selects between NICE and CRUSH
     /// @return _tokenReceived amount of token that is available now
     function swapForToken(uint256 _bnb, bool isNice)
-        public
+        internal
         returns (uint256 _tokenReceived)
     {
         require(_bnb <= address(this).balance); // dev: ETH balance doesn't match available balance
@@ -142,7 +147,7 @@ contract FeeDistributorV3 is Ownable {
     /// @notice from the POOL ID check which token is wETH and return the other one
     /// @param _pid the Pool ID token path to check
     function getNotEthToken(uint256 _pid)
-        public
+        internal
         view
         returns (
             INICEToken token,
@@ -163,7 +168,7 @@ contract FeeDistributorV3 is Ownable {
     /// @notice Remove Liquidity from pair token and swap for ETH
     /// @param _pid Pool ID  to get token Path
     function removeLiquidityAndSwapETH(uint256 _pid, uint256 amount)
-        public
+        internal
         returns (uint256)
     {
         FeeData storage feeInfo = feeData[_pid];
@@ -302,7 +307,7 @@ contract FeeDistributorV3 is Ownable {
     /// @param _ar2 is the array of length 5
     /// @dev this is used to prevent Stack too deep error on Add/Edit Fee
     function addArrays(uint256[3] calldata _ar1, uint256[5] calldata _ar2)
-        public
+        internal
         pure
         returns (uint256 _result)
     {
@@ -534,7 +539,7 @@ contract FeeDistributorV3 is Ownable {
         uint256 permanentLiq,
         uint256 lockLiq,
         bool isNice
-    ) public {
+    ) internal {
         IPancakeRouter router = isNice ? routerNice : routerCrush;
         INICEToken token = isNice ? nice : crush;
         uint256 ethValue = permanentLiq + lockLiq;
@@ -573,5 +578,17 @@ contract FeeDistributorV3 is Ownable {
         require(_marketingAddress != marketingWallet); // dev: Lottery can't be  same address
         emit UpdateMarketing(_marketingAddress, marketingWallet);
         marketingWallet = _marketingAddress;
+    }
+
+    function editRouter(address _newRouter, bool isNice) external onlyOwner {
+        if (isNice) {
+            require(_newRouter != address(routerNice)); // dev: can't add same router
+            emit UpdateRouter(_newRouter, address(routerNice), isNice);
+            routerNice = IPancakeRouter(_newRouter);
+        } else {
+            require(_newRouter != address(routerCrush)); // dev: can't add same router
+            emit UpdateRouter(_newRouter, address(routerCrush), isNice);
+            routerCrush = IPancakeRouter(_newRouter);
+        }
     }
 }
