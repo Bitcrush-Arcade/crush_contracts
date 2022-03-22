@@ -3,9 +3,12 @@
 pragma solidity 0.8.12;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "../interfaces/INICEToken.sol";
 import "../interfaces/IPancakeRouter.sol";
 import "../interfaces/IPancakeFactory.sol";
+import "../interfaces/ILottery.sol";
+import "../interfaces/IBankroll.sol";
+import "./GalacticChef.sol";
 
 contract FeeDistributorV3 is Ownable {
     struct FeeData {
@@ -34,9 +37,15 @@ contract FeeDistributorV3 is Ownable {
 
     uint256 public constant DIVISOR = 10000; // 100.00%
 
-    IERC20 public immutable crush;
-    IERC20 public immutable nice;
-
+    INICEToken public immutable crush;
+    INICEToken public immutable nice;
+    address public immutable deadWallet =
+        0x000000000000000000000000000000000000dEaD;
+    address public immutable chef;
+    address public immutable lockWallet;
+    address public immutable bankroll;
+    address public marketingWallet;
+    address public lottery;
     IPancakeRouter public routerCrush;
     IPancakeRouter public routerNice;
 
@@ -46,15 +55,28 @@ contract FeeDistributorV3 is Ownable {
     mapping(uint256 => address[]) public token1Path; // LP TOKEN 1 TO WBNB
 
     event EditFeeOfPool(uint256 _pid);
+    event LockLiquidity(address indexed _burnToken, uint256 _amount);
+    event BurnLiquidity(address indexed _burnToken, uint256 _amount);
+    event UpdateLottery(address _newLottery, address _oldLottery);
+    event UpdateMarketing(address _newWallet, address _oldWallet);
+    event FundMarketing(address indexed _wallet, uint256 amount);
 
     constructor(
         address _router,
         address _nice,
-        address _crush
+        address _crush,
+        address _chef,
+        address _lock,
+        address _bankroll,
+        address _marketing
     ) {
-        crush = IERC20(_crush);
-        nice = IERC20(_nice);
+        crush = INICEToken(_crush);
+        nice = INICEToken(_nice);
 
+        chef = _chef;
+        lockWallet = _lock;
+        bankroll = _bankroll;
+        marketingWallet = _marketing;
         routerCrush = IPancakeRouter(_router);
         routerNice = IPancakeRouter(_router);
     }
@@ -63,21 +85,27 @@ contract FeeDistributorV3 is Ownable {
 
     fallback() external payable {}
 
+    /// @notice Swaps amount of BNB to CRUSH or NICE
+    /// @param _bnb the amount of BNB to swap
+    /// @param isNice selects between NICE and CRUSH
+    /// @return _tokenReceived amount of token that is available now
     function swapForToken(uint256 _bnb, bool isNice)
         public
         returns (uint256 _tokenReceived)
     {
         require(_bnb <= address(this).balance); // dev: ETH balance doesn't match available balance
         address[] memory path = new address[](2);
+        INICEToken token = isNice ? nice : crush;
         IPancakeRouter router = isNice ? routerNice : routerCrush;
         path[0] = router.WETH();
-        path[1] = isNice ? address(nice) : address(crush);
+        path[1] = address(token);
         router.swapExactETHForTokens{value: _bnb}(
             0, // We get what we can
             path,
             address(this),
             block.timestamp
         );
+        _tokenReceived = token.balanceOf(address(this));
     }
 
     function addorEditFee(
@@ -117,17 +145,17 @@ contract FeeDistributorV3 is Ownable {
         public
         view
         returns (
-            IERC20 token,
+            INICEToken token,
             address[] memory path,
             bool hasFees
         )
     {
         if (tokenPath[_pid][0] != routerCrush.WETH()) {
-            token = IERC20(tokenPath[_pid][0]);
+            token = INICEToken(tokenPath[_pid][0]);
             path = token0Path[_pid];
             hasFees = feeData[_pid].token0Fees;
         } else {
-            token = IERC20(tokenPath[_pid][1]);
+            token = INICEToken(tokenPath[_pid][1]);
             path = token1Path[_pid];
         }
     }
@@ -146,7 +174,7 @@ contract FeeDistributorV3 is Ownable {
             tokenPath[_pid][0] == routerNice.WETH() ||
             tokenPath[_pid][1] == routerNice.WETH()
         ) {
-            IERC20 nonEthToken;
+            INICEToken nonEthToken;
             address[] memory path;
             bool tokenFees;
             (nonEthToken, path, tokenFees) = getNotEthToken(_pid);
@@ -202,11 +230,11 @@ contract FeeDistributorV3 is Ownable {
                 block.timestamp
             );
             // Approve tokens for swap
-            IERC20(tokenPath[_pid][0]).approve(
+            INICEToken(tokenPath[_pid][0]).approve(
                 address(feeInfo.router),
                 tokenA * 2
             );
-            IERC20(tokenPath[_pid][1]).approve(
+            INICEToken(tokenPath[_pid][1]).approve(
                 address(feeInfo.router),
                 tokenB * 2
             );
@@ -269,6 +297,10 @@ contract FeeDistributorV3 is Ownable {
         token1Path[id] = _path2;
     }
 
+    /// @notice adds the values of two arrays of length 3 and 5 respectively.
+    /// @param _ar1 is the array of length 3
+    /// @param _ar2 is the array of length 5
+    /// @dev this is used to prevent Stack too deep error on Add/Edit Fee
     function addArrays(uint256[3] calldata _ar1, uint256[5] calldata _ar2)
         public
         pure
@@ -282,6 +314,11 @@ contract FeeDistributorV3 is Ownable {
         }
     }
 
+    /// @notice Get the paths either for frontend or server information
+    /// @param _pid The pool Id to check for
+    /// @return path The token Path to BNB.. if LP the token composition
+    /// @return path0 the token0 path to BNB for LP token0
+    /// @return path1 the token1 path to BNB fro LP token1
     function getPath(uint256 _pid)
         external
         view
@@ -296,6 +333,9 @@ contract FeeDistributorV3 is Ownable {
         path1 = token1Path[_pid];
     }
 
+    /// @notice Simplify approviing liquidity spend by router
+    /// @param _pid the pool ID to get the data from
+    /// @param feeInfo feeInfo to pull token router from
     function approveLiquiditySpend(uint256 _pid, FeeData storage feeInfo)
         internal
     {
@@ -304,8 +344,234 @@ contract FeeDistributorV3 is Ownable {
             tokenPath[_pid][0],
             tokenPath[_pid][1]
         );
-        IERC20 pairToken = IERC20(pair);
+        INICEToken pairToken = INICEToken(pair);
         uint256 balance = pairToken.balanceOf(address(this));
+        require(balance > 0); // dev: No LP tokens available, please send some
         pairToken.approve(address(feeInfo.router), balance);
+    }
+
+    /// @notice get the BNB used to spread for swap and keep some for Liquidity
+    /// @param _pid pool Id to get the feeInfo
+    /// @param currentBalance Balance to distribute
+    /// @param isNice determine to get either nice or crush values
+    /// @dev Please note that liquidity amount is divided in two since only half of that goes to liquidity
+    /// @return _bnbForToken amount of BNB used to swap for token
+    /// @return _bnbLiqPerm amount of BNB used for Permanent Liquidity
+    /// @return _bnbLiqLock amount of BNB used for Liquidity that will be locked
+    function feeSpread(
+        uint256 _pid,
+        uint256 currentBalance,
+        bool isNice
+    )
+        internal
+        view
+        returns (
+            uint256 _bnbForToken,
+            uint256 _bnbLiqPerm,
+            uint256 _bnbLiqLock
+        )
+    {
+        FeeData storage feeInfo = feeData[_pid];
+        if (isNice) {
+            _bnbForToken = (currentBalance * feeInfo.niceFees[0]) / DIVISOR;
+            _bnbLiqPerm =
+                (currentBalance * feeInfo.niceFees[1]) /
+                (2 * DIVISOR);
+            _bnbLiqLock =
+                (currentBalance * feeInfo.niceFees[2]) /
+                (2 * DIVISOR);
+            _bnbForToken += _bnbLiqLock + _bnbLiqPerm;
+        } else {
+            uint256 tokenFees = feeInfo.crushFees[0] +
+                feeInfo.crushFees[1] +
+                feeInfo.crushFees[2];
+            _bnbForToken = (currentBalance * tokenFees) / DIVISOR;
+            _bnbLiqPerm =
+                (currentBalance * feeInfo.crushFees[3]) /
+                (2 * DIVISOR);
+            _bnbLiqLock =
+                (currentBalance * feeInfo.crushFees[4]) /
+                (2 * DIVISOR);
+        }
+    }
+
+    /// @notice Receive fee tokens and distribute them
+    /// @param _pid The pool ID that will get the fees
+    /// @param amount the amount of tokens received
+    /// @dev IF WE HAVE NO AMOUNT, DO NOTHING!!!
+    function receiveFees(uint256 _pid, uint256 amount) external {
+        FeeData storage feeInfo = feeData[_pid];
+        if (feeInfo.initialized != true) return;
+        // Exchange Token for ETH
+        if (token0Path[_pid].length > 0)
+            removeLiquidityAndSwapETH(_pid, amount);
+        else swapForEth(_pid, feeInfo, amount);
+
+        uint256 bnbBalance = address(this).balance;
+        // IF PRICE IS BELOW IDO
+        // SWAP ALL FOR NICE AND BURN
+
+        // Get Fee spread
+        // CRUSH FIRST
+        uint256 tokenAmountUsed;
+        (
+            uint256 tokenAmount,
+            uint256 permAmount,
+            uint256 lockAmount
+        ) = feeSpread(_pid, bnbBalance, false);
+        if (tokenAmount > 0) {
+            swapForToken(tokenAmount, false);
+            tokenAmountUsed = crush.balanceOf(address(this));
+            if (lockAmount + permAmount > 0) {
+                tokenAmountUsed =
+                    (tokenAmountUsed * (permAmount + lockAmount)) /
+                    (tokenAmount + permAmount + lockAmount);
+                addAndDistributeLiquidity(
+                    tokenAmountUsed,
+                    permAmount,
+                    lockAmount,
+                    false
+                );
+                tokenAmountUsed = crush.balanceOf(address(this));
+            }
+            if (tokenAmountUsed > 0) {
+                tokenAmount =
+                    feeInfo.crushFees[0] +
+                    feeInfo.crushFees[1] +
+                    feeInfo.crushFees[2];
+                //We're just reusing variables  to save stack depth
+                //LOTTERY
+                permAmount =
+                    (tokenAmountUsed * feeInfo.crushFees[2]) /
+                    tokenAmount;
+                if (lottery != address(0) && permAmount > 0) {
+                    crush.approve(lottery, permAmount);
+                    IBitcrushLottery(lottery).addToPool(permAmount);
+                }
+                //STAKING
+                lockAmount =
+                    (tokenAmountUsed * feeInfo.crushFees[1]) /
+                    tokenAmount;
+                if (bankroll != address(0) && lockAmount > 0) {
+                    crush.approve(bankroll, lockAmount);
+                    IBitcrushBankroll(bankroll).addUserLoss(lockAmount);
+                }
+                // BURN THE REST
+                tokenAmountUsed = crush.balanceOf(address(this));
+                crush.burn(tokenAmountUsed);
+            }
+        }
+        // NICE SECOND
+        (tokenAmount, permAmount, lockAmount) = feeSpread(
+            _pid,
+            bnbBalance,
+            true
+        );
+        if (tokenAmount > 0) swapForToken(tokenAmount, true);
+        if (lockAmount + permAmount > 0) {
+            tokenAmountUsed = nice.balanceOf(address(this));
+            tokenAmountUsed =
+                (tokenAmountUsed * (permAmount + lockAmount)) /
+                (tokenAmount + permAmount + lockAmount);
+            addAndDistributeLiquidity(
+                tokenAmountUsed,
+                permAmount,
+                lockAmount,
+                true
+            );
+        }
+        tokenAmount = nice.balanceOf(address(this));
+        if (tokenAmount > 0) {
+            //BURN IT ALL
+            nice.burn(tokenAmount);
+        }
+        bnbBalance = address(this).balance;
+        if (bnbBalance > 0) {
+            (bool success, ) = payable(marketingWallet).call{value: bnbBalance}(
+                ""
+            );
+            if (success) emit FundMarketing(marketingWallet, bnbBalance);
+        }
+    }
+
+    /// @notice Exchange token for BNB
+    /// @param _pid The id of the pool to get the tokenPath to BNB
+    /// @param feeInfo All fee info data, it's type storage to use internally on the receiveFees fn
+    /// @param amount The amount of tokens to swap
+    /// @dev This works only for straight ERC20 contracts
+    function swapForEth(
+        uint256 _pid,
+        FeeData storage feeInfo,
+        uint256 amount
+    ) internal {
+        INICEToken token = INICEToken(tokenPath[_pid][0]);
+        require(token.balanceOf(address(this)) > 0); // dev: NO LP, Wallet empty, please send funds
+        token.approve(address(feeInfo.router), amount);
+        if (feeInfo.hasFees)
+            feeInfo.router.swapExactTokensForETHSupportingFeeOnTransferTokens(
+                amount,
+                0,
+                tokenPath[_pid],
+                address(this),
+                block.timestamp
+            );
+        else
+            feeInfo.router.swapExactTokensForETH(
+                amount,
+                0,
+                tokenPath[_pid],
+                address(this),
+                block.timestamp
+            );
+    }
+
+    /// @notice addLiquidity and send the liquidity to either burn or lock
+    /// @param tokenAmount the amount of TOKEN to change into liquidity
+    /// @param permanentLiq the amount of relative liquidity to be sent to deadWallet
+    /// @param lockLiq amount of liquidity to be sent to lock
+    function addAndDistributeLiquidity(
+        uint256 tokenAmount,
+        uint256 permanentLiq,
+        uint256 lockLiq,
+        bool isNice
+    ) public {
+        IPancakeRouter router = isNice ? routerNice : routerCrush;
+        INICEToken token = isNice ? nice : crush;
+        uint256 ethValue = permanentLiq + lockLiq;
+        token.approve(address(router), tokenAmount);
+        (, , uint256 liquidity) = router.addLiquidityETH{value: ethValue}(
+            address(token),
+            tokenAmount,
+            0,
+            0,
+            address(this),
+            block.timestamp
+        );
+        IPancakeFactory factory = IPancakeFactory(router.factory());
+        address ETH = router.WETH();
+        INICEToken liqToken = INICEToken(factory.getPair(address(token), ETH));
+        uint256 liqAmount;
+        if (permanentLiq > 0) {
+            liqAmount = (liquidity * permanentLiq) / (permanentLiq + lockLiq);
+            bool success = liqToken.transfer(deadWallet, liqAmount);
+            if (success) emit BurnLiquidity(address(token), liqAmount);
+        }
+        if (lockLiq > 0) {
+            liquidity = liqToken.balanceOf(address(this));
+            bool success = liqToken.transfer(lockWallet, liquidity);
+            if (success) emit LockLiquidity(address(token), liquidity);
+        }
+    }
+
+    function editLottery(address _lotteryAddress) external onlyOwner {
+        require(_lotteryAddress != lottery); // dev: Lottery can't be  same address
+        emit UpdateLottery(_lotteryAddress, lottery);
+        lottery = _lotteryAddress;
+    }
+
+    function editMarketing(address _marketingAddress) external onlyOwner {
+        require(_marketingAddress != marketingWallet); // dev: Lottery can't be  same address
+        emit UpdateMarketing(_marketingAddress, marketingWallet);
+        marketingWallet = _marketingAddress;
     }
 }
