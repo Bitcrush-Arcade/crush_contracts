@@ -7,7 +7,7 @@ module.exports = async function (deployer) {
     
     await deployer.deploy(BitcrushNiceStaking, "0xAD026d8ae28bafa81030a76548efdE1EA796CB2C");
     let stakingInstance = await BitcrushNiceStaking.deployed();
-    await stakingInstance.setStakingPool("0x127dfc82C778aa125564d5B4aD6Fb508c6737341");
+    await stakingInstance.setStakingPool("0x8139cA222D38296daB88d65960Ca400dcd95b246");
     await stakingInstance.setGalacticChef("0x5867979Fe76E9604c0AEe4AE134cC0b55F65f975");
     
     
