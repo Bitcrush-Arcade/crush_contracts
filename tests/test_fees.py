@@ -65,6 +65,7 @@ def test_final_distribution(setup):
 
     assert busd.balanceOf(fees.address) == 0
     assert (owner.balance() - init_balance) / 10 ** 18 > 0.098
+    assert fees.balance() == 0
 
 
 # def test_add_and_distribute_liquidity(setup):
