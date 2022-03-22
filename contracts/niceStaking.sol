@@ -1,24 +1,24 @@
 //SPDX-License-Identifier: MIT
-pragma solidity >=0.6.5;
+pragma solidity 0.8.12;
 
-import "@pancakeswap/pancake-swap-lib/contracts/access/Ownable.sol";
-import "@pancakeswap/pancake-swap-lib/contracts/math/SafeMath.sol";
-import "@pancakeswap/pancake-swap-lib/contracts/token/BEP20/SafeBEP20.sol";
-import "@pancakeswap/pancake-swap-lib/contracts/token/BEP20/BEP20.sol";
-import "./staking.sol";
-
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/utils/math/SafeMath.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "./IStaking.sol";
+import "./GalacticChef.sol";
+import "./NiceToken.sol";
 contract BitcrushNiceStaking is Ownable {
     using SafeMath for uint256;
-    using SafeBEP20 for BEP20;
+    using SafeERC20 for IERC20;
     uint256 public performanceFeeCompounder = 10; // 10/10000 * 100 = 0.1%
     uint256 public constant MAX_FEE = 1000; // 1000/10000 * 100 = 10%
     uint256 public constant divisor = 10000;
-
+    uint256 public poolId;
     // Contracts to Interact with
-    BitcrushStaking public stakingPool;
-
-    BEP20 public immutable nice;
-
+    IStaking public stakingPool;
+    GalacticChef public galacticChef;
+    IERC20 public immutable nice;
+    
     struct UserStaking {
         uint256 shares;
         uint256 profitBaseline;
@@ -36,7 +36,10 @@ contract BitcrushNiceStaking is Ownable {
 
     uint256 public deploymentTimeStamp;
 
-    constructor(BEP20 _nice) public {
+    event PerformanceFeeUpdated(uint256 newFee);
+    event PoolIdUpdated (uint256 poolId);
+
+    constructor(IERC20 _nice) {
         nice = _nice;
         deploymentTimeStamp = block.timestamp;
     }
@@ -44,12 +47,31 @@ contract BitcrushNiceStaking is Ownable {
     /// Store `_staking`.
     /// @param _staking the new value to store
     /// @dev stores the _staking address in the state variable `staking`
-    function setStakingPool(BitcrushStaking _staking) public onlyOwner {
+    function setStakingPool(IStaking _staking) public onlyOwner {
         require(
-            stakingPool == BitcrushStaking(0x0),
+            address(stakingPool) == address(0x0),
             "staking pool address already set"
         );
         stakingPool = _staking;
+    }
+
+    /// Store `_galacticChef`.
+    /// @param _galacticChef the new value to store
+    /// @dev stores the _galacticChef address in the state variable `galacticChef`
+    function setGalacticChef(GalacticChef _galacticChef) public onlyOwner {
+        require(
+            address(galacticChef) == address(0x0),
+            "staking pool address already set"
+        );
+        galacticChef = _galacticChef;
+    }
+    
+    /// Store `_poolId`.
+    /// @param _poolId the new value to store
+    /// @dev stores the _poolId address in the state variable `poolId`
+    function setPoolId (uint256 _poolId) public onlyOwner {
+        poolId = _poolId;
+        emit PoolIdUpdated(_poolId);
     }
 
     /// @notice updates accProfitPerShare based on current Profit available and totalShares
@@ -57,9 +79,7 @@ contract BitcrushNiceStaking is Ownable {
     function updateProfits() public {
         if (stakingPool.totalShares() == 0) return;
         //Todo replace with galatic chef rewards
-        //uint256 requestedProfits = mintRewards(someId);
-
-        uint256 requestedProfits = 1000000000000000000;
+        uint256 requestedProfits = galacticChef.mintRewards(poolId);
         if (requestedProfits == 0) return;
         totalProfitDistributed = totalProfitDistributed.add(requestedProfits);
         uint256 profitCalc = requestedProfits.mul(1e12).div(
@@ -71,7 +91,7 @@ contract BitcrushNiceStaking is Ownable {
     /// Get pending Profits to Claim
     /// @param _address the user's wallet address to calculate profits
     /// @return pending Profits to be claimed by this user
-    function pendingProfits(address _address) public view returns (uint256) {
+    function pendingProfits(address _address) public returns (uint256) {
         UserStaking memory user = stakings[_address];
         (user.shares, , , , , , , , ) = stakingPool.stakings(_address);
         return
@@ -81,7 +101,7 @@ contract BitcrushNiceStaking is Ownable {
     }
 
     /// compounds the rewards of all users in the pool
-    /// @dev compounds the rewards of all users in the pool add adds it into their staked amount while deducting fees
+    /// @dev compounds the rewards of all users in the pool while deducting fees
     function compoundAll() public {
         require(
             lastAutoCompoundBlock <= block.number,
@@ -133,13 +153,18 @@ contract BitcrushNiceStaking is Ownable {
         }
 
         lastAutoCompoundBlock = block.number;
-        //nice.safeTransfer(msg.sender, compounderReward);
+        nice.safeTransfer(msg.sender, compounderReward);
         stakingPool.compoundAll();
     }
 
+    /// withdraw funds of users
+    /// @dev transfer all available funds of users to users wallet
     function withdrawNiceRewards() public {
         require(niceRewards[msg.sender] > 0, "No rewards available");
-        nice.safeTransfer(msg.sender, niceRewards[msg.sender]);
+        uint256 amount = niceRewards[msg.sender];
+        niceRewards[msg.sender] = 0;
+        nice.safeTransfer(msg.sender, amount);
+        
     }
 
     /// Store `_fee`.
@@ -149,11 +174,14 @@ contract BitcrushNiceStaking is Ownable {
         require(_fee > 0, "Fee must be greater than 0");
         require(_fee < MAX_FEE, "Fee must be less than 10%");
         performanceFeeCompounder = _fee;
+        emit PerformanceFeeUpdated(_fee);
     }
 
     /// emergency withdraw funds of users
     /// @dev transfer all available funds of users to users wallet
     function emergencyWithdraw() public {
-        nice.safeTransfer(msg.sender, niceRewards[msg.sender]);
+        uint256 amount = niceRewards[msg.sender];
+        niceRewards[msg.sender] = 0;
+        nice.safeTransfer(msg.sender, amount);
     }
 }
