@@ -31,6 +31,7 @@ contract InvaderPool is Ownable, ReentrancyGuard {
     event AdminTokenRecovery(address indexed _token, uint256 amount);
     event EmergencyWithdraw(address indexed _user, uint256 amount);
     event UpdateLimit(uint256 _limit);
+    event UpdateRewardPerBlock(uint256 _newRewardPerBlock);
 
     /// @notice Constructor, set startBlock at least 2 - 3 hours before actual launch time.
     /// @dev Please add funds before startBlock is reached.
@@ -52,7 +53,7 @@ contract InvaderPool is Ownable, ReentrancyGuard {
 
     function _updateRewardPool() internal {
         if (block.number <= lastRewardBlock) return;
-        uint256 stakedSupply = stakedToken.balanceOf(address(this));
+        uint256 stakedSupply = stakeToken.balanceOf(address(this));
         if (stakedSupply == 0 || lastRewardBlock > rewardEnd) {
             lastRewardBlock = block.number;
             return;
@@ -154,7 +155,7 @@ contract InvaderPool is Ownable, ReentrancyGuard {
 
             reward = reward * rewardPerBlock;
             uint256 adjustedPerShare = accRewardPerShare +
-                ((reward * PRECISION_FACTOR) / stakedSupply);
+                ((reward * PRECISION_FACTOR) / totalSupply);
             _reward =
                 ((adjustedPerShare * user.amount) / PRECISION_FACTOR) -
                 user.accReward;
@@ -193,7 +194,7 @@ contract InvaderPool is Ownable, ReentrancyGuard {
             "Increase or remove limit only"
         );
         poolLimit = _newLimit;
-        emit UpdateLimit(poolLimitPerUser);
+        emit UpdateLimit(poolLimit);
     }
 
     /// @notice Update reward per block
@@ -202,6 +203,6 @@ contract InvaderPool is Ownable, ReentrancyGuard {
     function updateRewardPerBlock(uint256 _rewardPerBlock) external onlyOwner {
         require(block.number < startBlock, "Pool has started");
         rewardPerBlock = _rewardPerBlock;
-        emit NewRewardPerBlock(_rewardPerBlock);
+        emit UpdateRewardPerBlock(_rewardPerBlock);
     }
 }
