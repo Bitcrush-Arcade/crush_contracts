@@ -3,7 +3,7 @@ from brownie import (
     accounts,
     NICEToken,
     TokenLock,
-    FeeDistributorV2,
+    FeeDistributorV3,
     interface,
     BitcrushBankroll,
     BitcrushLottery,
@@ -13,9 +13,17 @@ from scripts.helpful_scripts import isDevNetwork
 from web3 import Web3
 
 
-def deploy_fee_distributor(chef, pair, bankroll, lottery, lock, nice, crush, owner):
-    return FeeDistributorV2.deploy(
-        chef, 0, pair, bankroll, lottery, lock, nice, crush, {"from": owner}
+def deploy_fee_distributor(router, nice, crush, chef, lock, bankroll, marketing, owner):
+    return FeeDistributorV3.deploy(
+        router,
+        nice,
+        crush,
+        chef,
+        lock,
+        bankroll,
+        marketing,
+        {"from": owner},
+        publish_source=True,
     )
 
 
@@ -26,11 +34,12 @@ def deploy_chef(token, owner):
         "0x3971A80119f789D548B4E78e89EFdb20f2C83Ff8",
         1,
         {"from": owner},
+        publish_source=True,
     )
 
 
 def deploy_token_locker(chef, owner):
-    return TokenLock.deploy(chef, {"from": owner})
+    return TokenLock.deploy(chef, {"from": owner}, publish_source=True)
 
 
 def main():
@@ -47,14 +56,6 @@ def main():
     crush = interface.IERC20("0xa3ca5df2938126bae7c0df74d3132b5f72bda0b6")
     nice = NICEToken.at("0xAD026d8ae28bafa81030a76548efdE1EA796CB2C")
     # ROUTING AND LIQUIDITY
-    factory = interface.IPancakeFactory(
-        # APESWAP FACTORY
-        # "0x0841BD0B734E4F5853f0dD8d7Ea041c241fb0Da6"
-        # PancakeSwap Factory
-        # "0xcA143Ce32Fe78f1f7019d7d551a6402fC5350c73"
-        # Pancake Testnet
-        "0x6725F303b657a9451d8BA641348b6761A6CC7a17"
-    )
     router = interface.IPancakeRouter(
         # APESWAP ROUTER
         # "0xcF0feBd3f17CEf5b47b0cD257aCf6025c5BFf3b7"
@@ -63,12 +64,7 @@ def main():
         # Pancake Testnet
         "0xD99D1c33F9fC3444f8101754aBC46c52416550D1"
     )
-    # pairTx1 = factory.createPair(crush, router.WETH(), {"from": owner})
-    crushLq = factory.getPair(nice, router.WETH())
-    # pairTx = factory.createPair(nice, router.WETH())
-    niceLq = factory.getPair(nice, router.WETH())
-    crush.approve(router, Web3.toWei(10000000, "ether"), {"from": owner})
-    # routebrown
+
     #  CHEF STUFF
     chef = deploy_chef(nice, owner)
     # Allow as minter
@@ -77,10 +73,12 @@ def main():
     locker = deploy_token_locker(chef, owner)
     # Deploy Fee Distributor
     fees = deploy_fee_distributor(
-        chef, niceLq, bankroll, lottery, locker, nice, crush, owner
+        router, nice, crush, chef, locker, bankroll, user1, owner
     )
     # Set Fee Address
     chef.editFeeAddress(fees, True, {"from": owner})
+
+    # TESTING PHASE
 
     busd = interface.IERC20(
         # mainnet
@@ -101,9 +99,4 @@ def main():
         {"from": owner},
     )
     # Create Pool A
-    chef.addPool(busd, 20000, 500, False, False, [], [], {"from": owner})  # 5% fee
-
-    # Add tokens to pool 1
-    busd.approve(chef, Web3.toWei("100", "ether"), {"from": user1})
-    chef.deposit(Web3.toWei("20", "ether"), 1, {"from": user1})
-    ## Check that all is ok
+    chef.addPool(busd, 20000, 500, False, False, [], [], {"from": owner})
