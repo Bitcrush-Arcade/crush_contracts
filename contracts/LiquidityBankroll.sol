@@ -10,6 +10,7 @@ contract BitcrushLiquidityBankroll is Ownable {
     using SafeMath for uint256;
     using SafeBEP20 for BEP20;
     mapping (address => uint256) public bankroll;
+    address partner;
     address admin;
     // MODIFIERS
     modifier adminOnly() {

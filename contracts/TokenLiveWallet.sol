@@ -42,22 +42,27 @@ contract BitcrushTokenLiveWallet is Ownable {
     
     uint256 public borrowedCrush;
     uint256 public bankrollShare = 6000;
+    uint256 public partnerShare = 2000;
+    uint256 public reserveShare = 1000;
     uint256 public pendingBankroll;
     uint256 public pendingBakrollThreshold = 10000000000000000000000;
     uint256 public slipage = 100;
+
+    address tokenPartner;
 
     event Withdraw (address indexed _address, uint256 indexed _amount);
     event Deposit (address indexed _address, uint256 indexed _amount);
     event DepositWin (address indexed _address, uint256 indexed _amount);
     event LockPeriodUpdated (uint256 indexed _lockPeriod);
 
-    constructor (BEP20 _token, CRUSHToken _crush, BitcrushBankroll _bankroll, address _reserveAddress, IApeRouter02 _swapRouter, BitcrushLiquidityBankroll _liquidityBankroll) public {
+    constructor (BEP20 _token, CRUSHToken _crush, BitcrushBankroll _bankroll, address _reserveAddress, IApeRouter02 _swapRouter, BitcrushLiquidityBankroll _liquidityBankroll, address _tokenPartner) public {
         token = _token;
         crush = _crush;
         bankroll = _bankroll;
         reserveAddress = _reserveAddress;
         swapRouter = _swapRouter;
         liquidityBankroll = _liquidityBankroll;
+        tokenPartner = _tokenPartner;
         
     }
 
@@ -144,6 +149,21 @@ contract BitcrushTokenLiveWallet is Ownable {
                     crush.approve(address(bankroll), amountSwapped[1]);
                     bankroll.addUserLoss(amountSwapped[1]);
                     
+                    //do partner split here
+                    _amount = _amount.sub(requiredAmountAdjusted);
+                    uint256 bankrollAmount = _amount.mul(bankrollShare).div(DIVISOR);
+                    pendingBankroll = pendingBankroll.add(bankrollAmount);
+                    uint256 reserveLiquidity = _amount.mul(reserveShare).div(DIVISOR);
+                    uint256 partnerShareToBePaid = _amount.mul(partnerShare).div(DIVISOR);
+                    _amount = _amount.sub(bankrollAmount);
+                    _amount = _amount.sub(reserveLiquidity);
+                    _amount = _amount.sub(partnerShareToBePaid);
+
+                    token.approve(address(liquidityBankroll), reserveLiquidity);
+                    liquidityBankroll.addUserLoss(reserveLiquidity,address(token));
+                    token.safeTransfer(tokenPartner, partnerShareToBePaid);
+                    token.safeTransfer(reserveAddress, _amount);
+                    
                     token.approve(address(liquidityBankroll), _amount.sub(requiredAmountAdjusted));
                     liquidityBankroll.addUserLoss(_amount.sub(requiredAmountAdjusted),address(token));       
 
@@ -160,7 +180,6 @@ contract BitcrushTokenLiveWallet is Ownable {
 
         }else {
             uint256 bankrollAmount = _amount.mul(bankrollShare).div(DIVISOR);
-            _amount = _amount.sub(bankrollAmount);
             pendingBankroll = pendingBankroll.add(bankrollAmount);
             if(pendingBankroll >= pendingBakrollThreshold){
                 //execute swap and transfer
@@ -177,8 +196,19 @@ contract BitcrushTokenLiveWallet is Ownable {
                 pendingBankroll = 0;
                 
             }
-            token.approve(address(liquidityBankroll), _amount);
-            liquidityBankroll.addUserLoss(_amount,address(token));       
+            //do partner splits here
+            uint256 reserveLiquidity = _amount.mul(reserveShare).div(DIVISOR);
+            uint256 partnerShareToBePaid = _amount.mul(partnerShare).div(DIVISOR);
+            _amount = _amount.sub(bankrollAmount);
+            _amount = _amount.sub(reserveLiquidity);
+            _amount = _amount.sub(partnerShareToBePaid);
+
+            token.approve(address(liquidityBankroll), reserveLiquidity);
+            liquidityBankroll.addUserLoss(reserveLiquidity,address(token));
+            token.safeTransfer(tokenPartner, partnerShareToBePaid);
+            token.safeTransfer(reserveAddress, _amount);
+            
+
         }
         
     }

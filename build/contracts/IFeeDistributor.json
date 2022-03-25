@@ -1,0 +1,302 @@
+{
+  "contractName": "IFeeDistributor",
+  "abi": [
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "_pid",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "_amount",
+          "type": "uint256"
+        }
+      ],
+      "name": "receiveFees",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    }
+  ],
+  "metadata": "{\"compiler\":{\"version\":\"0.8.12+commit.f00d7308\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"_pid\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"_amount\",\"type\":\"uint256\"}],\"name\":\"receiveFees\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}],\"devdoc\":{\"kind\":\"dev\",\"methods\":{},\"version\":1},\"userdoc\":{\"kind\":\"user\",\"methods\":{},\"version\":1}},\"settings\":{\"compilationTarget\":{\"project:/contracts/IFeeDistributor.sol\":\"IFeeDistributor\"},\"evmVersion\":\"london\",\"libraries\":{},\"metadata\":{\"bytecodeHash\":\"ipfs\"},\"optimizer\":{\"enabled\":false,\"runs\":200},\"remappings\":[]},\"sources\":{\"project:/contracts/IFeeDistributor.sol\":{\"keccak256\":\"0x1500730aabc1b8983f8cf3a45943fea986fef5751ff64fb5edb3537762b8e8a3\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://4b6b020183f19c1b33825c10d3e7b09007290de42e8dc24232fa68630b2ee2ca\",\"dweb:/ipfs/QmQLveyTH1efvY1vq9xvT4VhKcSakUpBcDRVQdF2on9rdp\"]}},\"version\":1}",
+  "bytecode": "0x",
+  "deployedBytecode": "0x",
+  "immutableReferences": {},
+  "generatedSources": [],
+  "deployedGeneratedSources": [],
+  "sourceMap": "",
+  "deployedSourceMap": "",
+  "source": "// SPDX-License-Identifier: MIT\npragma solidity 0.8.12;\n\ninterface IFeeDistributor{\n  function receiveFees(uint _pid, uint _amount) external;\n}",
+  "sourcePath": "/Users/umeralisajid/Documents/Frag/bitcrush/crush_contacts_old/contracts/IFeeDistributor.sol",
+  "ast": {
+    "absolutePath": "project:/contracts/IFeeDistributor.sol",
+    "exportedSymbols": {
+      "IFeeDistributor": [
+        4783
+      ]
+    },
+    "id": 4784,
+    "license": "MIT",
+    "nodeType": "SourceUnit",
+    "nodes": [
+      {
+        "id": 4775,
+        "literals": [
+          "solidity",
+          "0.8",
+          ".12"
+        ],
+        "nodeType": "PragmaDirective",
+        "src": "32:23:12"
+      },
+      {
+        "abstract": false,
+        "baseContracts": [],
+        "canonicalName": "IFeeDistributor",
+        "contractDependencies": [],
+        "contractKind": "interface",
+        "fullyImplemented": false,
+        "id": 4783,
+        "linearizedBaseContracts": [
+          4783
+        ],
+        "name": "IFeeDistributor",
+        "nameLocation": "67:15:12",
+        "nodeType": "ContractDefinition",
+        "nodes": [
+          {
+            "functionSelector": "4f348758",
+            "id": 4782,
+            "implemented": false,
+            "kind": "function",
+            "modifiers": [],
+            "name": "receiveFees",
+            "nameLocation": "95:11:12",
+            "nodeType": "FunctionDefinition",
+            "parameters": {
+              "id": 4780,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 4777,
+                  "mutability": "mutable",
+                  "name": "_pid",
+                  "nameLocation": "112:4:12",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 4782,
+                  "src": "107:9:12",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  },
+                  "typeName": {
+                    "id": 4776,
+                    "name": "uint",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "107:4:12",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 4779,
+                  "mutability": "mutable",
+                  "name": "_amount",
+                  "nameLocation": "123:7:12",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 4782,
+                  "src": "118:12:12",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  },
+                  "typeName": {
+                    "id": 4778,
+                    "name": "uint",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "118:4:12",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "visibility": "internal"
+                }
+              ],
+              "src": "106:25:12"
+            },
+            "returnParameters": {
+              "id": 4781,
+              "nodeType": "ParameterList",
+              "parameters": [],
+              "src": "140:0:12"
+            },
+            "scope": 4783,
+            "src": "86:55:12",
+            "stateMutability": "nonpayable",
+            "virtual": false,
+            "visibility": "external"
+          }
+        ],
+        "scope": 4784,
+        "src": "57:86:12",
+        "usedErrors": []
+      }
+    ],
+    "src": "32:111:12"
+  },
+  "legacyAST": {
+    "absolutePath": "project:/contracts/IFeeDistributor.sol",
+    "exportedSymbols": {
+      "IFeeDistributor": [
+        4783
+      ]
+    },
+    "id": 4784,
+    "license": "MIT",
+    "nodeType": "SourceUnit",
+    "nodes": [
+      {
+        "id": 4775,
+        "literals": [
+          "solidity",
+          "0.8",
+          ".12"
+        ],
+        "nodeType": "PragmaDirective",
+        "src": "32:23:12"
+      },
+      {
+        "abstract": false,
+        "baseContracts": [],
+        "canonicalName": "IFeeDistributor",
+        "contractDependencies": [],
+        "contractKind": "interface",
+        "fullyImplemented": false,
+        "id": 4783,
+        "linearizedBaseContracts": [
+          4783
+        ],
+        "name": "IFeeDistributor",
+        "nameLocation": "67:15:12",
+        "nodeType": "ContractDefinition",
+        "nodes": [
+          {
+            "functionSelector": "4f348758",
+            "id": 4782,
+            "implemented": false,
+            "kind": "function",
+            "modifiers": [],
+            "name": "receiveFees",
+            "nameLocation": "95:11:12",
+            "nodeType": "FunctionDefinition",
+            "parameters": {
+              "id": 4780,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 4777,
+                  "mutability": "mutable",
+                  "name": "_pid",
+                  "nameLocation": "112:4:12",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 4782,
+                  "src": "107:9:12",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  },
+                  "typeName": {
+                    "id": 4776,
+                    "name": "uint",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "107:4:12",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 4779,
+                  "mutability": "mutable",
+                  "name": "_amount",
+                  "nameLocation": "123:7:12",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 4782,
+                  "src": "118:12:12",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  },
+                  "typeName": {
+                    "id": 4778,
+                    "name": "uint",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "118:4:12",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "visibility": "internal"
+                }
+              ],
+              "src": "106:25:12"
+            },
+            "returnParameters": {
+              "id": 4781,
+              "nodeType": "ParameterList",
+              "parameters": [],
+              "src": "140:0:12"
+            },
+            "scope": 4783,
+            "src": "86:55:12",
+            "stateMutability": "nonpayable",
+            "virtual": false,
+            "visibility": "external"
+          }
+        ],
+        "scope": 4784,
+        "src": "57:86:12",
+        "usedErrors": []
+      }
+    ],
+    "src": "32:111:12"
+  },
+  "compiler": {
+    "name": "solc",
+    "version": "0.8.12+commit.f00d7308.Emscripten.clang"
+  },
+  "networks": {},
+  "schemaVersion": "3.4.4",
+  "updatedAt": "2022-03-22T13:41:38.334Z",
+  "devdoc": {
+    "kind": "dev",
+    "methods": {},
+    "version": 1
+  },
+  "userdoc": {
+    "kind": "user",
+    "methods": {},
+    "version": 1
+  }
+}
