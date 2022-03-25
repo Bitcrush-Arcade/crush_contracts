@@ -5,11 +5,8 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "../interfaces/IStaking.sol";
-//import "../interfaces/INiceStaking.sol";
-///@dev Use IBitcrushNiceStaking interface
 import "./GalacticChef.sol";
-import "./NICEToken.sol";
-
+import "./NiceToken.sol";
 contract BitcrushNiceStaking is Ownable {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
@@ -21,7 +18,7 @@ contract BitcrushNiceStaking is Ownable {
     IStaking public stakingPool;
     GalacticChef public galacticChef;
     IERC20 public immutable nice;
-
+    
     struct UserStaking {
         uint256 shares;
         uint256 profitBaseline;
@@ -40,7 +37,7 @@ contract BitcrushNiceStaking is Ownable {
     uint256 public deploymentTimeStamp;
 
     event PerformanceFeeUpdated(uint256 newFee);
-    event PoolIdUpdated(uint256 poolId);
+    event PoolIdUpdated (uint256 poolId);
 
     constructor(IERC20 _nice) {
         nice = _nice;
@@ -68,11 +65,11 @@ contract BitcrushNiceStaking is Ownable {
         );
         galacticChef = _galacticChef;
     }
-
+    
     /// Store `_poolId`.
     /// @param _poolId the new value to store
     /// @dev stores the _poolId address in the state variable `poolId`
-    function setPoolId(uint256 _poolId) public onlyOwner {
+    function setPoolId (uint256 _poolId) public onlyOwner {
         poolId = _poolId;
         emit PoolIdUpdated(_poolId);
     }
@@ -110,7 +107,7 @@ contract BitcrushNiceStaking is Ownable {
             lastAutoCompoundBlock <= block.number,
             "Compound All not yet applicable."
         );
-
+        
         uint256 compounderReward = 0;
         uint256 batchStartingIndex = stakingPool.batchStartingIndex();
         uint256 indexesLength = stakingPool.indexesLength();
@@ -167,6 +164,18 @@ contract BitcrushNiceStaking is Ownable {
         uint256 amount = niceRewards[msg.sender];
         niceRewards[msg.sender] = 0;
         nice.safeTransfer(msg.sender, amount);
+        
+    }
+
+     /// withdraw nice rewards of users and run a compound
+    /// @dev transfer all available funds of users to users wallet
+    function harvestRewards() public {
+        compoundAll();
+        require(niceRewards[msg.sender] > 0, "No rewards available");
+        uint256 amount = niceRewards[msg.sender];
+        niceRewards[msg.sender] = 0;
+        nice.safeTransfer(msg.sender, amount);
+        
     }
 
     /// Store `_fee`.
