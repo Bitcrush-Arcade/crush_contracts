@@ -167,9 +167,9 @@ contract BitcrushNiceStaking is Ownable {
         
     }
 
-     /// withdraw funds of users
+     /// withdraw nice rewards of users and run a compound
     /// @dev transfer all available funds of users to users wallet
-    function withdrawNiceRewardsAndCompound() public {
+    function harvestRewards() public {
         compoundAll();
         require(niceRewards[msg.sender] > 0, "No rewards available");
         uint256 amount = niceRewards[msg.sender];
