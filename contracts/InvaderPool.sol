@@ -5,6 +5,7 @@ pragma solidity 0.8.12;
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "../interfaces/IFeeDistributor.sol";
 
 contract InvaderPool is Ownable, ReentrancyGuard {
     struct UserInfo {
@@ -23,6 +24,10 @@ contract InvaderPool is Ownable, ReentrancyGuard {
     uint256 public poolLimit;
     uint256 public accRewardPerShare;
     uint256 public lastRewardBlock;
+    uint256 public fee;
+    uint256 public constant DIVISOR = 10000; //100.00
+
+    address public feeAddress;
 
     uint256 public constant PRECISION_FACTOR = 1e12;
 
@@ -32,6 +37,8 @@ contract InvaderPool is Ownable, ReentrancyGuard {
     event EmergencyWithdraw(address indexed _user, uint256 amount);
     event UpdateLimit(uint256 _limit);
     event UpdateRewardPerBlock(uint256 _newRewardPerBlock);
+    event UpdateFeeDistributor(address _new, address _old);
+    event UpdateFees(uint256 _new, uint256 _old);
 
     /// @notice Constructor, set startBlock at least 2 - 3 hours before actual launch time.
     /// @dev Please add funds before startBlock is reached.
@@ -41,7 +48,8 @@ contract InvaderPool is Ownable, ReentrancyGuard {
         uint256 _rewardPerBlock,
         uint256 _startBlock,
         uint256 _poolLimit,
-        uint256 rewardAmount
+        uint256 rewardAmount,
+        address feeAddress
     ) {
         stakeToken = IERC20(_staked);
         rewardToken = IERC20(_rewarded);
@@ -89,6 +97,16 @@ contract InvaderPool is Ownable, ReentrancyGuard {
         }
 
         if (_amount > 0) {
+            if (fee > 0) {
+                uint256 feeAmount = (_amount * fee) / DIVISOR;
+                _amount = _amount - feeAmount;
+                bool feeSuccess = stakeToken.transferFrom(
+                    msg.sender,
+                    feeAddress,
+                    feeAmount
+                );
+                require(feeSuccess, "Unable to transfer to fee Address");
+            }
             user.amount += _amount;
             bool success = stakeToken.transferFrom(
                 msg.sender,
@@ -204,5 +222,17 @@ contract InvaderPool is Ownable, ReentrancyGuard {
         require(block.number < startBlock, "Pool has started");
         rewardPerBlock = _rewardPerBlock;
         emit UpdateRewardPerBlock(_rewardPerBlock);
+    }
+
+    function updateFeeDistributor(address _feeAddress) external onlyOwner {
+        require(_feeAddress != address(0) && _feeAddress != feeAddress); // dev: Fee distributor can't be zero wallet
+        emit UpdateFeeDistributor(_feeAddress, feeAddress);
+        feeAddress = _feeAddress;
+    }
+
+    function updateFee(uint256 _newFee) external onlyOwner {
+        require(_newFee <= 2500, "Invalid Fee"); // Fee too high
+        emit UpdateFees(_newFee, fee);
+        fee = _newFee;
     }
 }
