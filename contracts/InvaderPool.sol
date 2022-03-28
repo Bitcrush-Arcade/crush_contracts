@@ -45,11 +45,12 @@ contract InvaderPool is Ownable, ReentrancyGuard {
     constructor(
         address _staked,
         address _rewarded,
+        address _feeAddress,
         uint256 _rewardPerBlock,
         uint256 _startBlock,
         uint256 _poolLimit,
         uint256 rewardAmount,
-        address feeAddress
+        uint256 _fee
     ) {
         stakeToken = IERC20(_staked);
         rewardToken = IERC20(_rewarded);
@@ -57,6 +58,8 @@ contract InvaderPool is Ownable, ReentrancyGuard {
         startBlock = _startBlock;
         poolLimit = _poolLimit;
         rewardEnd = (rewardAmount / _rewardPerBlock) + _startBlock;
+        feeAddress = _feeAddress;
+        fee = _fee;
     }
 
     function _updateRewardPool() internal {
