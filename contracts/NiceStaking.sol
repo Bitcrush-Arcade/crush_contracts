@@ -167,16 +167,6 @@ contract BitcrushNiceStaking is Ownable {
         nice.safeTransfer(msg.sender, amount);
     }
 
-    /// withdraw nice rewards of users and run a compound
-    /// @dev transfer all available funds of users to users wallet
-    function harvestRewards() public {
-        compoundAll();
-        require(niceRewards[msg.sender] > 0, "No rewards available");
-        uint256 amount = niceRewards[msg.sender];
-        niceRewards[msg.sender] = 0;
-        nice.safeTransfer(msg.sender, amount);
-    }
-
     /// Store `_fee`.
     /// @param _fee the new value to store
     /// @dev stores the fee in the state variable `performanceFeeCompounder`
