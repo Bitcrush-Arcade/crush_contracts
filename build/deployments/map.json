@@ -1,5 +1,14 @@
 {
   "56": {
+    "BitcrushLiveWallet": [
+      "0x5326C45a31DEEBa15EDC68055bF69b2682c9B215"
+    ],
+    "BitcrushLottery": [
+      "0x9B55987e92958d3d6Af48Dd2DB1C577593401f78"
+    ],
+    "CRUSHToken": [
+      "0x0Ef0626736c2d484A792508e99949736D0AF807e"
+    ],
     "NICEToken": [
       "0x3a79410A3C758bF5f00216355545F4eD7CF0B34F"
     ]
@@ -10,6 +19,12 @@
     ],
     "BitcrushLottery": [
       "0x5979522D00Bd8D9921FcbDA10F1bfD5abD09417f"
+    ],
+    "BitcrushNiceStaking": [
+      "0xb8522747Ac79Dc8cE089CfD745fE7eE9CA01D157"
+    ],
+    "BitcrushStaking": [
+      "0x8139cA222D38296daB88d65960Ca400dcd95b246"
     ],
     "FeeDistributorV2": [
       "0x01FC3DA9Ba76cF66a33AFBf32f6738aEDDeCfecd",
