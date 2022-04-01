@@ -1,4 +1,10 @@
 {
+  "4": {
+    "MadInvaderNFT": [
+      "0x7cF02e862571f0a2E304d111331CcC39971B82BA",
+      "0x26332eA089b8928F75a065a3A1Bd828939c5Ed2a"
+    ]
+  },
   "56": {
     "BitcrushLiveWallet": [
       "0x5326C45a31DEEBa15EDC68055bF69b2682c9B215"
@@ -47,6 +53,9 @@
       "0x9AB60Da7a00d4096498542d9EE6a9fef69Aa8d8B",
       "0x6B546efD9dA8Fc4293E744B4F7Fc165836E9cf68",
       "0x1f0aA449a7aB293ebB9220E53D0CE2eDE9f3Ec1A"
+    ],
+    "MadInvaderNFT": [
+      "0x4195F16994951115eD7b28e9eeEa81442f04F0c1"
     ],
     "NICEToken": [
       "0xAD026d8ae28bafa81030a76548efdE1EA796CB2C",
