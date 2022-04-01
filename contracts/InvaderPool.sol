@@ -22,6 +22,7 @@ contract InvaderPool is Ownable, ReentrancyGuard {
     uint256 public rewardPerBlock;
     uint256 public startBlock;
     uint256 public poolLimit;
+    uint256 public prevLimit;
     uint256 public accRewardPerShare;
     uint256 public lastRewardBlock;
     uint256 public fee;
@@ -52,11 +53,18 @@ contract InvaderPool is Ownable, ReentrancyGuard {
         uint256 rewardAmount,
         uint256 _fee
     ) {
+        require(
+            _staked != address(0) &&
+                _rewarded != address(0) &&
+                _feeAddress != address(0),
+            "Invalid address"
+        );
         stakeToken = IERC20(_staked);
         rewardToken = IERC20(_rewarded);
         rewardPerBlock = _rewardPerBlock;
         startBlock = _startBlock;
         poolLimit = _poolLimit;
+        prevLimit = _poolLimit;
         rewardEnd = (rewardAmount / _rewardPerBlock) + _startBlock;
         feeAddress = _feeAddress;
         fee = _fee;
@@ -211,10 +219,11 @@ contract InvaderPool is Ownable, ReentrancyGuard {
     /// @dev if _newLimit is 0 then limit is removed
     function updatePoolLimitPerUser(uint256 _newLimit) external onlyOwner {
         require(
-            _newLimit > poolLimit || _newLimit == 0,
+            _newLimit > prevLimit || _newLimit == 0,
             "Increase or remove limit only"
         );
         poolLimit = _newLimit;
+        if (_newLimit != 0) prevLimit = _newLimit;
         emit UpdateLimit(poolLimit);
     }
 
@@ -228,7 +237,10 @@ contract InvaderPool is Ownable, ReentrancyGuard {
     }
 
     function updateFeeDistributor(address _feeAddress) external onlyOwner {
-        require(_feeAddress != address(0) && _feeAddress != feeAddress); // dev: Fee distributor can't be zero wallet
+        require(
+            _feeAddress != address(0) && _feeAddress != feeAddress,
+            "Invalid Address"
+        ); // dev: Fee distributor can't be zero wallet
         emit UpdateFeeDistributor(_feeAddress, feeAddress);
         feeAddress = _feeAddress;
     }

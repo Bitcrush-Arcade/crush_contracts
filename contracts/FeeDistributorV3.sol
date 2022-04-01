@@ -75,6 +75,16 @@ contract FeeDistributorV3 is Ownable {
         address _bankroll,
         address _marketing
     ) {
+        require(
+            _router != address(0) &&
+                _nice != address(0) &&
+                _crush != address(0) &&
+                _chef != address(0) &&
+                _lock != address(0) &&
+                _bankroll != address(0) &&
+                _marketing != address(0),
+            "No zero address"
+        );
         crush = INICEToken(_crush);
         nice = INICEToken(_nice);
 
@@ -98,7 +108,7 @@ contract FeeDistributorV3 is Ownable {
         internal
         returns (uint256 _tokenReceived)
     {
-        require(_bnb <= address(this).balance); // dev: ETH balance doesn't match available balance
+        require(_bnb <= address(this).balance, "Balance not available"); // dev: ETH balance doesn't match available balance
         address[] memory path = new address[](2);
         INICEToken token = isNice ? nice : crush;
         IPancakeRouter router = isNice ? routerNice : routerCrush;
@@ -338,7 +348,7 @@ contract FeeDistributorV3 is Ownable {
         path1 = token1Path[_pid];
     }
 
-    /// @notice Simplify approviing liquidity spend by router
+    /// @notice Simplify approving liquidity spend by router
     /// @param _pid the pool ID to get the data from
     /// @param feeInfo feeInfo to pull token router from
     function approveLiquiditySpend(uint256 _pid, FeeData storage feeInfo)
@@ -351,7 +361,7 @@ contract FeeDistributorV3 is Ownable {
         );
         INICEToken pairToken = INICEToken(pair);
         uint256 balance = pairToken.balanceOf(address(this));
-        require(balance > 0); // dev: No LP tokens available, please send some
+        require(balance > 0, "No balance"); // dev: No LP tokens available, please send some
         pairToken.approve(address(feeInfo.router), balance);
     }
 
@@ -510,7 +520,7 @@ contract FeeDistributorV3 is Ownable {
         uint256 amount
     ) internal {
         INICEToken token = INICEToken(tokenPath[_pid][0]);
-        require(token.balanceOf(address(this)) > 0); // dev: NO LP, Wallet empty, please send funds
+        require(token.balanceOf(address(this)) > 0, "Wallet empty"); // dev: NO LP, Wallet empty, please send funds
         token.approve(address(feeInfo.router), amount);
         if (feeInfo.hasFees)
             feeInfo.router.swapExactTokensForETHSupportingFeeOnTransferTokens(
@@ -569,24 +579,32 @@ contract FeeDistributorV3 is Ownable {
     }
 
     function editLottery(address _lotteryAddress) external onlyOwner {
-        require(_lotteryAddress != lottery); // dev: Lottery can't be  same address
+        require(
+            _lotteryAddress != lottery && _lotteryAddress != address(0),
+            "Invalid address"
+        ); // dev: Lottery can't be  same address
         emit UpdateLottery(_lotteryAddress, lottery);
         lottery = _lotteryAddress;
     }
 
     function editMarketing(address _marketingAddress) external onlyOwner {
-        require(_marketingAddress != marketingWallet); // dev: Lottery can't be  same address
+        require(
+            _marketingAddress != marketingWallet &&
+                _marketingAddress != address(0),
+            "Invalid address"
+        ); // dev: Lottery can't be  same address
         emit UpdateMarketing(_marketingAddress, marketingWallet);
         marketingWallet = _marketingAddress;
     }
 
     function editRouter(address _newRouter, bool isNice) external onlyOwner {
+        require(_newRouter != address(0), "No zero address");
         if (isNice) {
-            require(_newRouter != address(routerNice)); // dev: can't add same router
+            require(_newRouter != address(routerNice), "Invalid Address"); // dev: can't add same router
             emit UpdateRouter(_newRouter, address(routerNice), isNice);
             routerNice = IPancakeRouter(_newRouter);
         } else {
-            require(_newRouter != address(routerCrush)); // dev: can't add same router
+            require(_newRouter != address(routerCrush), "Invalid Address"); // dev: can't add same router
             emit UpdateRouter(_newRouter, address(routerCrush), isNice);
             routerCrush = IPancakeRouter(_newRouter);
         }
