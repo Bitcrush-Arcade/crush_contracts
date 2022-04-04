@@ -133,7 +133,7 @@ contract InvaderPool is Ownable, ReentrancyGuard {
     }
 
     /// @notice withdraw stake tokens from pool back to user.
-    /// @dev updates the pool reward to give throught time.
+    /// @dev updates the pool reward to give through time.
     /// @param _amount the amount to withdraw... Amount must be the staked amount MAX
     function withdraw(uint256 _amount) external nonReentrant {
         UserInfo storage user = userInfo[msg.sender];
