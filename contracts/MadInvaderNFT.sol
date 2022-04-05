@@ -12,15 +12,20 @@ contract MadInvaderNFT is ERC721Enumerable, Ownable {
     string othersURI;
     uint256 public maxEmperor = 100;
     uint256 public emperorSupply;
+    uint256 public invaderSupply;
 
     string public baseExtension = ".json";
-    /// TODO EDIT COST
-    uint256 public cost = 0.05 ether;
+
+    uint256 public emperorCost = 0.4 ether;
+    uint256 public invaderCost = 0.05 ether;
+    uint256 public maxEmperors = 2;
+    uint256 public maxInvaders = 5;
+
     uint256 public maxSupply = 8888;
-    uint256 public maxMintAmount = 5;
     bool public paused = false;
     bool public revealed = false;
     string public notRevealedUri;
+    mapping(address => bool) public whitelist;
 
     constructor(
         string memory _name,
@@ -43,31 +48,37 @@ contract MadInvaderNFT is ERC721Enumerable, Ownable {
     // public
     function mint(uint256 _mintAmount, bool _type) public payable {
         uint256 supply = totalSupply();
-        require(!paused);
         require(_mintAmount > 0);
+        uint256 maxMintAmount = _type ? 2 : 5;
         require(_mintAmount <= maxMintAmount);
         require(supply + _mintAmount <= maxSupply);
-
+        uint256 cost = calculatePrice(_mintAmount, _type);
         if (_type) {
+            require(emperorSupply + _mintAmount <= maxEmperor);
             if (msg.sender != owner()) {
-                require(msg.value >= cost * _mintAmount);
+                require(!paused);
+                if (whitelist[msg.sender]) {
+                    whitelist[msg.sender] = false;
+                    cost -= 0.01 ether;
+                }
+                require(msg.value >= cost);
             }
-            require(emperorSupply < maxEmperor); // dev: too many emperors
             for (uint256 i = 1; i <= _mintAmount; i++) {
                 _safeMint(msg.sender, emperorSupply + i);
             }
             emperorSupply += _mintAmount;
         } else {
+            require(invaderSupply + _mintAmount <= maxSupply - maxEmperor);
             if (msg.sender != owner()) {
                 require(msg.value >= cost * _mintAmount);
+                require(!paused);
             }
 
             for (uint256 i = 1; i <= _mintAmount; i++) {
-                uint256 tokenId = supply + i > maxEmperor
-                    ? supply + i
-                    : maxEmperor + supply + i;
+                uint256 tokenId = invaderSupply + i + maxEmperor;
                 _safeMint(msg.sender, tokenId);
             }
+            invaderSupply += _mintAmount;
         }
     }
 
@@ -118,12 +129,9 @@ contract MadInvaderNFT is ERC721Enumerable, Ownable {
         revealed = true;
     }
 
-    function setCost(uint256 _newCost) public onlyOwner {
-        cost = _newCost;
-    }
-
-    function setmaxMintAmount(uint256 _newmaxMintAmount) public onlyOwner {
-        maxMintAmount = _newmaxMintAmount;
+    function setCost(uint256 _newCost, bool _type) public onlyOwner {
+        if (_type) emperorCost = _newCost;
+        else invaderCost = _newCost;
     }
 
     function setNotRevealedURI(string memory _notRevealedURI) public onlyOwner {
@@ -152,5 +160,30 @@ contract MadInvaderNFT is ERC721Enumerable, Ownable {
     function withdraw() public payable onlyOwner {
         (bool os, ) = payable(owner()).call{value: address(this).balance}("");
         require(os);
+    }
+
+    function calculatePrice(uint256 _amount, bool _isEmperor)
+        public
+        view
+        returns (uint256 _cost)
+    {
+        if (_isEmperor)
+            _cost = _amount == 1 ? emperorCost : emperorCost - 0.1 ether;
+        else _cost = _amount == 5 ? invaderCost - 0.01 ether : invaderCost;
+    }
+
+    function addWhitelisters(address[] calldata _users) external onlyOwner {
+        uint256 length = _users.length;
+        for (uint256 i = 0; i < length; i++) {
+            whitelist[_users[i]] = true;
+        }
+    }
+
+    function editMaxPerWallet(uint256 _newMax, bool _isEmperor)
+        external
+        onlyOwner
+    {
+        if (_isEmperor) maxEmperors = _newMax;
+        else maxInvaders = _newMax;
     }
 }
