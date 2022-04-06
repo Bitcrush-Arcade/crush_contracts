@@ -55,9 +55,13 @@ contract MadInvaderNFT is ERC721Enumerable, Ownable {
         }
         require(supply + _mintAmount <= maxSupply, "MaxSupply");
         uint256 cost = calculatePrice(_mintAmount, _type);
+        (uint256 _ownedEmperors, uint256 _ownedInvaders) = getInvaderTypesOwned(
+            msg.sender
+        );
         if (_type) {
             require(emperorSupply + _mintAmount <= maxEmperor, "MaxEmperor");
             if (msg.sender != owner()) {
+                require(_ownedEmperors + _mintAmount <= 2, "Too many EMPERORS");
                 require(!paused, "paused");
                 if (whitelist[msg.sender]) {
                     whitelist[msg.sender] = false;
@@ -75,6 +79,7 @@ contract MadInvaderNFT is ERC721Enumerable, Ownable {
                 "MaxInvaders"
             );
             if (msg.sender != owner()) {
+                require(_ownedEmperors + _mintAmount <= 5, "Too many EMPERORS");
                 require(msg.value >= cost * _mintAmount, "Need to pay");
                 require(!paused, "paused");
             }
@@ -190,5 +195,18 @@ contract MadInvaderNFT is ERC721Enumerable, Ownable {
     {
         if (_isEmperor) maxEmperors = _newMax;
         else maxInvaders = _newMax;
+    }
+
+    function getInvaderTypesOwned(address _user)
+        public
+        view
+        returns (uint256 _emperors, uint256 _invaders)
+    {
+        uint256[] memory owned = walletOfOwner(_user);
+        if (owned.length == 0) return;
+        for (uint256 i = 0; i < owned.length; i++) {
+            if (owned[i] > 100) _invaders++;
+            else _emperors++;
+        }
     }
 }
