@@ -122,6 +122,7 @@ contract MadInvaderNFT is ERC721Enumerable, Ownable {
         }
 
         string memory currentBaseURI = _baseURI(tokenId);
+        if (tokenId > 100) tokenId -= 100;
         return
             bytes(currentBaseURI).length > 0
                 ? string(
