@@ -43,6 +43,7 @@ contract InvaderPool is Ownable, ReentrancyGuard {
 
     /// @notice Constructor, set startBlock at least 2 - 3 hours before actual launch time.
     /// @dev Please add funds before startBlock is reached.
+    /// @dev param _startBlock is the amount of blocks until pool starts
     constructor(
         address _staked,
         address _rewarded,
@@ -62,10 +63,10 @@ contract InvaderPool is Ownable, ReentrancyGuard {
         stakeToken = IERC20(_staked);
         rewardToken = IERC20(_rewarded);
         rewardPerBlock = _rewardPerBlock;
-        startBlock = _startBlock;
+        startBlock = block.number + _startBlock;
         poolLimit = _poolLimit;
         prevLimit = _poolLimit;
-        rewardEnd = (rewardAmount / _rewardPerBlock) + _startBlock;
+        rewardEnd = (rewardAmount / _rewardPerBlock) + startBlock;
         feeAddress = _feeAddress;
         fee = _fee;
     }
