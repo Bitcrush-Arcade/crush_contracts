@@ -203,10 +203,13 @@ contract MadInvaderNFT is ERC721Enumerable, Ownable {
         returns (uint256 _emperors, uint256 _invaders)
     {
         uint256[] memory owned = walletOfOwner(_user);
-        if (owned.length == 0) return;
-        for (uint256 i = 0; i < owned.length; i++) {
-            if (owned[i] > 100) _invaders++;
-            else _emperors++;
+        _emperors = 0;
+        _invaders = 0;
+        if (owned.length > 0) {
+            for (uint256 i = 0; i < owned.length; i++) {
+                if (owned[i] > 100) _invaders++;
+                else _emperors++;
+            }
         }
     }
 }
