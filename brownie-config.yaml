@@ -9,5 +9,5 @@ compiler:
       - '@smartcontractkit=smartcontractkit/chainlink@1.1.0'
 dotenv: .env
 
-networks:
-  default: testnet
+# networks:
+#   default: testnet
