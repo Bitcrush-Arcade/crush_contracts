@@ -122,7 +122,7 @@ contract GalacticChef is Ownable, ReentrancyGuard {
         NICE = NICEToken(_niceToken);
         feeAddress = msg.sender;
         chains = _chains;
-        chefStart = block.timestamp;
+        chefStart = block.timestamp + 1 hours;
         treasury = _treasury;
         p2e = _p2e;
         nonDefiLastRewardTransfer = chefStart;
