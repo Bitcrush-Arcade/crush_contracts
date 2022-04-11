@@ -1,102 +1,181 @@
+from imp import lock_held
 from brownie import (
     GalacticChef,
-    accounts,
     NICEToken,
-    TokenLock,
+    CrushToken,
     FeeDistributorV3,
+    TokenLock,
+    accounts,
     interface,
-    BitcrushBankroll,
-    BitcrushLottery,
-    chain,
 )
-from scripts.helpful_scripts import isDevNetwork
-from web3 import Web3
-
-
-def deploy_fee_distributor(router, nice, crush, chef, lock, bankroll, marketing, owner):
-    return FeeDistributorV3.deploy(
-        router,
-        nice,
-        crush,
-        chef,
-        lock,
-        bankroll,
-        marketing,
-        {"from": owner},
-        publish_source=True,
-    )
-
-
-def deploy_chef(token, owner):
-    return GalacticChef.deploy(
-        token,
-        "0xc528B36B9c7DB0DF961de167B84333C6cefF2A86",
-        "0x3971A80119f789D548B4E78e89EFdb20f2C83Ff8",
-        1,
-        {"from": owner},
-        publish_source=True,
-    )
-
-
-def deploy_token_locker(chef, owner):
-    return TokenLock.deploy(chef, {"from": owner}, publish_source=True)
 
 
 def main():
     owner = accounts.load("dev_deploy")
-    user1 = accounts.load("my_user")
-    # MAINNET
-    # bankroll = BitcrushBankroll.at("0xF43A7d04DcD76601dE0B0d03D761B09fBF095502")
-    # lottery = BitcrushLottery.at("0x9B55987e92958d3d6Af48Dd2DB1C577593401f78")
-    # crush = interface.IERC20("0x0ef0626736c2d484a792508e99949736d0af807e")
-    # nice = NICEToken.at("0x3a79410A3C758bF5f00216355545F4eD7CF0B34F")
-    # TESTNET
-    bankroll = BitcrushBankroll.at("0xb40287dA5A314F6AB864498355b1FCDe6703956D")
-    lottery = BitcrushLottery.at("0x5979522D00Bd8D9921FcbDA10F1bfD5abD09417f")
-    crush = interface.IERC20("0xa3ca5df2938126bae7c0df74d3132b5f72bda0b6")
-    nice = NICEToken.at("0xAD026d8ae28bafa81030a76548efdE1EA796CB2C")
-    # ROUTING AND LIQUIDITY
-    router = interface.IPancakeRouter(
-        # APESWAP ROUTER
-        # "0xcF0feBd3f17CEf5b47b0cD257aCf6025c5BFf3b7"
-        # PancakeSwap Router
-        # "0x10ED43C718714eb63d5aA57B78B54704E256024E"
-        # Pancake Testnet
-        "0xD99D1c33F9fC3444f8101754aBC46c52416550D1"
+    # TOKENS
+    nice = NICEToken.at("0x3a79410A3C758bF5f00216355545F4eD7CF0B34F")
+    crush = CrushToken.at("0x0Ef0626736c2d484A792508e99949736D0AF807e")
+    wBnb = "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c"
+    busd = "0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56"
+    weth = "0x2170Ed0880ac9A755fd29B2688956BD959F933F8"
+    wbtc = "0x7130d2A12B9BCbFAe4f2634d864A1Ee1Ce3Ead9c"
+    usdc = "0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d"
+    # PAIRS
+    nice_bnb = "0x7B83E9530775f8A940a93dFb745dC6c464aD34cf"
+    nice_busd = ""  # NEED THIS ADDRESS
+    crush_bnb = "0x8A10489f1255fb63217Be4cc96B8F4CD4D42a469"
+    crush_busd = "0x99B0dC3249e62b896c5ea592af29881131471519"
+    busd_usdc = "0xC087C78AbaC4A0E900a327444193dBF9BA69058E"
+    crush_nice = ""
+    busd_bnb = "0x51e6D27FA57373d8d4C256231241053a70Cb1d93"
+
+    treasury = ""  # Treasury address
+    p2e = ""  # P2E Address
+    marketing = ""  # Team Wallet
+
+    bankroll = interface.IBitcrushBankroll("0xF43A7d04DcD76601dE0B0d03D761B09fBF095502")
+    router = interface.IPancakeRouter("0xcF0feBd3f17CEf5b47b0cD257aCf6025c5BFf3b7")
+    pancakeRouter = interface.IPancakeRouter(
+        "0x10ED43C718714eb63d5aA57B78B54704E256024E"
+    )
+    # DEPLOY CHEF
+    chef = GalacticChef.deploy(nice, treasury, p2e, 1, {"from": owner})
+
+    # Deploy Locker
+    lock = TokenLock.deploy(chef, {"from": owner})
+
+    # DEPLOY FEE DISTRIBUTOR
+    distributor = FeeDistributorV3.deploy(
+        router, nice, crush, chef, lock, bankroll, marketing, {"from": owner}
     )
 
-    #  CHEF STUFF
-    chef = deploy_chef(nice, owner)
-    # Allow as minter
-    nice.toggleMinter(chef.address, {"from": owner})
-    # Token Locker (mainly will be Liquidity but can be used for a lot of things)
-    locker = deploy_token_locker(chef, owner)
-    # Deploy Fee Distributor
-    fees = deploy_fee_distributor(
-        router, nice, crush, chef, locker, bankroll, user1, owner
-    )
-    # Set Fee Address
-    chef.editFeeAddress(fees, True, {"from": owner})
+    # ADD FEE DISTRIBUTOR TO CHEF
+    chef.editFeeAddress(distributor, True, {"from": owner})
 
-    # TESTING PHASE
+    # ADD POOLS & it's fees
+    # NICE BNB 1
+    mult1 = 1000000  # -> 100X... this is the total so it would need to change
+    chef.addPool(nice_bnb, mult1, 0, False, True, [], [], {"from": owner})
+    # NICE BUSD 2
+    mult2 = 1000000  # -> 100X... this is the total so it would need to change
+    chef.addPool(nice_busd, mult2, 0, False, True, [], [], {"from": owner})
+    # CRUSH BNB 3
+    mult3 = 1000000  # -> 100X... this is the total so it would need to change
+    chef.addPool(crush_bnb, mult3, 0, False, True, [], [], {"from": owner})
+    # CRUSH BUSD 4
+    mult4 = 1000000  # -> 100X... this is the total so it would need to change
+    chef.addPool(crush_busd, mult4, 0, False, True, [], [], {"from": owner})
+    # CRUSH NICE 5
+    mult5 = 1000000  # -> 100X... this is the total so it would need to change
+    chef.addPool(crush_nice, mult5, 0, False, True, [], [], {"from": owner})
+    # BUSD USDC - PANCAKE 6
+    mult6 = 1000000  # -> 100X... this is the total so it would need to change
+    chef.addPool(busd_usdc, mult6, 0, False, True, [], [], {"from": owner})
+    # BUSD BNB 7
+    mult7 = 1000000  # -> 100X... this is the total so it would need to change
+    chef.addPool(busd_bnb, mult7, 0, False, True, [], [], {"from": owner})
+    # NICE 8
+    mult8 = 1000000  # -> 100X... this is the total so it would need to change
+    chef.addPool(nice, mult8, 0, False, True, [], [], {"from": owner})
+    # ETH 9
+    mult9 = 1000000  # -> 100X... this is the total so it would need to change
+    chef.addPool(weth, mult9, 0, False, True, [], [], {"from": owner})
+    # BTC 10
+    mult10 = 1000000  # -> 100X... this is the total so it would need to change
+    chef.addPool(wbtc, mult10, 0, False, True, [], [], {"from": owner})
 
-    busd = interface.IERC20(
-        # mainnet
-        # "0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56"
-        # testnet
-        "0x8301F2213c0eeD49a7E28Ae4c3e91722919B8B47"
-    )
-    # Add Fee Structure to Pool
-    fees.addorEditFee(
-        1,
-        [0, 0, 0],
-        [2000, 500, 1500, 700, 1300],
+    # POOL6
+    nice_burn = 0
+    nice_lq_perm = 0
+    nice_lq_lock = 0
+    crush_burn = 0
+    crush_staker = 0
+    crush_lottery = 0
+    crush_lq_perm = 0
+    crush_lq_lock = 0
+    distributor.addorEditFee(
+        6,
+        [nice_burn, nice_lq_perm, nice_lq_lock],
+        [crush_burn, crush_staker, crush_lottery, crush_lq_perm, crush_lq_lock],
         [False, False, False],
         router,
-        [busd, router.WETH()],
-        [],
-        [],
-        {"from": owner},
+        [busd, usdc],
+        [busd, wBnb],
+        [usdc, wBnb],
     )
-    # Create Pool A
-    chef.addPool(busd, 20000, 500, False, False, [], [], {"from": owner})
+    # POOL7
+    nice_burn = 0
+    nice_lq_perm = 0
+    nice_lq_lock = 0
+    crush_burn = 0
+    crush_staker = 0
+    crush_lottery = 0
+    crush_lq_perm = 0
+    crush_lq_lock = 0
+    distributor.addorEditFee(
+        7,
+        [nice_burn, nice_lq_perm, nice_lq_lock],
+        [crush_burn, crush_staker, crush_lottery, crush_lq_perm, crush_lq_lock],
+        [False, False, False],
+        router,
+        [busd, wBnb],
+        [busd, wBnb],
+        [],
+    )
+    # POOL 8
+    nice_burn = 0
+    nice_lq_perm = 0
+    nice_lq_lock = 0
+    crush_burn = 0
+    crush_staker = 0
+    crush_lottery = 0
+    crush_lq_perm = 0
+    crush_lq_lock = 0
+    distributor.addorEditFee(
+        8,
+        [nice_burn, nice_lq_perm, nice_lq_lock],
+        [crush_burn, crush_staker, crush_lottery, crush_lq_perm, crush_lq_lock],
+        [False, False, False],
+        router,
+        [nice, wBnb],
+        [],
+        [],
+    )
+    # POOL 9
+    nice_burn = 0
+    nice_lq_perm = 0
+    nice_lq_lock = 0
+    crush_burn = 0
+    crush_staker = 0
+    crush_lottery = 0
+    crush_lq_perm = 0
+    crush_lq_lock = 0
+    distributor.addorEditFee(
+        9,
+        [nice_burn, nice_lq_perm, nice_lq_lock],
+        [crush_burn, crush_staker, crush_lottery, crush_lq_perm, crush_lq_lock],
+        [False, False, False],
+        router,
+        [weth, wBnb],
+        [],
+        [],
+    )
+    # POOL 10
+    nice_burn = 0
+    nice_lq_perm = 0
+    nice_lq_lock = 0
+    crush_burn = 0
+    crush_staker = 0
+    crush_lottery = 0
+    crush_lq_perm = 0
+    crush_lq_lock = 0
+    distributor.addorEditFee(
+        10,
+        [nice_burn, nice_lq_perm, nice_lq_lock],
+        [crush_burn, crush_staker, crush_lottery, crush_lq_perm, crush_lq_lock],
+        [False, False, False],
+        router,
+        [wbtc, wBnb],
+        [],
+        [],
+    )
