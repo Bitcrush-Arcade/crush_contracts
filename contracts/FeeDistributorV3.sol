@@ -125,7 +125,7 @@ contract FeeDistributorV3 is Ownable {
 
     function addorEditFee(
         uint256 _pid, //ID TO ADD/EDIT
-        uint256[3] calldata _niceFees, // 0 buyback BURN, 1 buyback DISTRIBUTE, 2 buyback LOTTERY, 3 liquidity PERMANENT, 4 liquidity LOCK
+        uint256[3] calldata _niceFees, // 0 buyback BURN, 1 liquidity PERMANENT, 2 liquidity LOCK
         uint256[5] calldata _crushFees, // 0 buyback BURN, 1 buyback DISTRIBUTE, 2 buyback LOTTERY, 3 liquidity PERMANENT, 4 liquidity LOCK
         bool[3] calldata hasFees, // 0 token has Fees, 1 token0 has fees, 2 token1 has fees
         address router, //swap router address
