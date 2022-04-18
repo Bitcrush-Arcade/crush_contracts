@@ -150,7 +150,7 @@ contract FeeDistributorV2 is Ownable {
     function receiveFees(uint256 _pid, uint256 _amount) external onlyChef {
         FeeData storage feeInfo = feeData[_pid];
         require(feeInfo.initialized, "Not init");
-        (, , , IERC20 token, , , bool isLP) = chef.poolInfo(_pid);
+        (, , , IERC20 token, , , bool isLP, ) = chef.poolInfo(_pid);
         token.safeTransferFrom(address(chef), address(this), _amount);
         // Check if token was received
         require(token.balanceOf(address(this)) >= _amount, "send funds");
