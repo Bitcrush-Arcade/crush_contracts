@@ -28,13 +28,10 @@ contract GalacticChef is Ownable, ReentrancyGuard {
         uint256 accRewardPerShare;
         uint256 lastRewardTs;
         bool isLP;
+        bool paused;
     }
     /// Timestamp Specific
     uint256 constant SECONDS_PER_YEAR = 365 * 24 * 60 * 60;
-    uint256 constant SECONDS_PER_DAY = 24 * 60 * 60;
-    uint256 constant SECONDS_PER_HOUR = 60 * 60;
-    uint256 constant SECONDS_PER_MINUTE = 60;
-    int256 constant OFFSET19700101 = 2440588;
     /*
      ** We have two different types of pools: Regular False, Third True
      ** Nice has a fixed emission given per second due to tokenomics
@@ -117,12 +114,13 @@ contract GalacticChef is Ownable, ReentrancyGuard {
         address _niceToken,
         address _treasury,
         address _p2e,
+        address teamFee,
         uint256 _chains
     ) {
         NICE = NICEToken(_niceToken);
-        feeAddress = msg.sender;
+        feeAddress = teamFee;
         chains = _chains;
-        chefStart = block.timestamp + 1 hours;
+        chefStart = 1650312000; // Apr 18th 10AM
         treasury = _treasury;
         p2e = _p2e;
         nonDefiLastRewardTransfer = chefStart;
@@ -179,7 +177,8 @@ contract GalacticChef is Ownable, ReentrancyGuard {
                 IERC20(_token),
                 0,
                 chefStart,
-                _isLP
+                _isLP,
+                false
             );
         else
             poolInfo[poolCounter] = PoolInfo(
@@ -189,7 +188,8 @@ contract GalacticChef is Ownable, ReentrancyGuard {
                 IERC20(_token),
                 0,
                 block.timestamp,
-                _isLP
+                _isLP,
+                false
             );
         tokenPools[_token] = poolCounter;
         if (_type) tpPools[poolCounter] = _token;
@@ -214,7 +214,9 @@ contract GalacticChef is Ownable, ReentrancyGuard {
                 "mult: nonexistent pool"
             );
             //Update the pool reward per share before editing the multiplier
-            updatePool(_pidEdit[i]);
+            if (poolInfo[_pidEdit[i]].poolType) {
+                _mintRewards(_pidEdit[i]);
+            } else updatePool(_pidEdit[i]);
             newMax = newMax - poolInfo[_pidEdit[i]].mult + _pidMulEdit[i];
             //decrease old val and increase new val
             poolInfo[_pidEdit[i]].mult = _pidMulEdit[i];
@@ -255,6 +257,7 @@ contract GalacticChef is Ownable, ReentrancyGuard {
         distributeNonDefi();
         PoolInfo storage pool = poolInfo[_pid];
         uint256 selfBal = pool.token.balanceOf(address(this));
+        if (block.timestamp < chefStart) return;
         if (
             pool.mult == 0 ||
             selfBal == 0 ||
@@ -385,13 +388,21 @@ contract GalacticChef is Ownable, ReentrancyGuard {
 
     /// @notice Update all pools accPerShare
     /// @dev this might be expensive to call...
+    /// @dev for tP POOLS make sure they call mintRewards BEFORE, to ensure proper reward distribution
     function massUpdatePools() public {
         for (uint256 id = 1; id <= poolCounter; id++) {
             emit LogEvent(id, "pool update");
-            if (poolInfo[id].mult == 0) continue;
-            if (!poolInfo[id].poolType) updatePool(id);
-            else _mintRewards(id);
+            if (poolInfo[id].mult == 0 || poolInfo[id].poolType) continue;
+            updatePool(id);
         }
+    }
+
+    function updatePoolType(uint256 _pid, bool _poolType) external onlyOwner {
+        poolInfo[_pid].poolType = _poolType;
+    }
+
+    function pausePool(uint256 _pid, bool pauseStatus) external onlyOwner {
+        poolInfo[_pid].paused = pauseStatus;
     }
 
     /// @notice This is for Third party pools only. This handles the reward.
@@ -413,7 +424,11 @@ contract GalacticChef is Ownable, ReentrancyGuard {
     function _mintRewards(uint256 _pid) internal returns (uint256 _minted) {
         distributeNonDefi();
         PoolInfo storage pool = poolInfo[_pid];
-        if (block.timestamp <= pool.lastRewardTs) return 0;
+        if (block.timestamp <= chefStart) return 0;
+        if (block.timestamp <= pool.lastRewardTs || pool.mult == 0) {
+            pool.lastRewardTs = block.timestamp;
+            return 0;
+        }
         _minted =
             (getTimeEmissions(pool.lastRewardTs) * pool.mult) /
             (currentMax * PERCENT);
@@ -436,6 +451,7 @@ contract GalacticChef is Ownable, ReentrancyGuard {
                 PERCENT) - user.accClaim;
             if (pending > 0) NICE.mint(msg.sender, pending);
         }
+        if (pool.paused && msg.sender != owner()) return;
         uint256 usedAmount = _amount;
         if (usedAmount > 0) {
             pool.token.safeTransferFrom(
