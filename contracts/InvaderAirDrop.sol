@@ -21,14 +21,14 @@ contract InvaderAirDrop is Ownable{
   }
   
   /// @notice Adds candidate to receive an invader NFT to map
-  /// @param _candidate is the address of said candidate
+  /// @param _candidate Address of said candidate
   function addCandidate(address _candidate) external onlyOwner {
     require (_candidate != address(0) || candidateStatus[_candidate] != false || wrappedContract.balanceOf(_candidate) < 5, "Invalid candidate");
     _addCandidate(_candidate);
   }
 
   /// @notice Adds candidate to receive an invader NFT to the candidates map 
-  /// @param _candidates is the array of receiver candidates 
+  /// @param _candidates Array of receiver candidates 
   function addCandidateArray (address[] _candidates) external onlyOwner {
     require (_candidates.length > 0, "No array");
     for (uint i = 0; i < _candidates.length; i++){
@@ -37,8 +37,8 @@ contract InvaderAirDrop is Ownable{
     }
   }
 
-  /// @notice Owner function to remove candidate from map.
-  /// @param _candidate is the address of said candidate to remove. 
+  /// @notice Removes candidate from map
+  /// @param _candidate Address of said candidate to remove. 
   function removeCandidate(address _candidate) external onlyOwner {
     require (_candidate != address(0));
     _removeCandidate(_candidate);
@@ -46,7 +46,7 @@ contract InvaderAirDrop is Ownable{
 
 
   /// @notice Removes candidate array from map
-  /// @param _candidates is the address array of candidates to remove
+  /// @param _candidates Address array of candidates to remove
   function removeCandidateArray(address[] _candidates) external onlyOwner {
     require (_candidates.length > 0, "No array");
     for (uint i = 0; i < _candidates; i++){
@@ -71,14 +71,14 @@ contract InvaderAirDrop is Ownable{
   // Internal functions
 
   /// @notice Adds candidate to receive an invader NFT to map
-  /// @param _candidate is the address of said candidate
+  /// @param _candidate Address of said candidate
   function _addCandidate(address _candidate) internal {
     candidateStatus[_candidate] = true;
     emit CandidateAdded(_candidate);
   }
 
   /// @notice Removes candidate from map. It doesn't delete it from map but sets it to false so they can't become a candidate
-  /// @param _candidate is the address of said candidate to remove. 
+  /// @param _candidate Address of said candidate to remove
   function _removeCandidate(address _candidate) internal {
     candidateStatus[_candidate] = false;
     emit CandidateRemoved(_candidate);
