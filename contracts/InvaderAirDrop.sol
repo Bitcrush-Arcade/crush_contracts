@@ -44,7 +44,6 @@ contract InvaderAirDrop is Ownable{
     _removeCandidate(_candidate);
   }
 
-
   /// @notice Removes candidate array from map
   /// @param _candidates Address array of candidates to remove
   function removeCandidateArray(address[] _candidates) external onlyOwner {
@@ -83,7 +82,6 @@ contract InvaderAirDrop is Ownable{
     candidateStatus[_candidate] = false;
     emit CandidateRemoved(_candidate);
   }
-
 }
 
 
