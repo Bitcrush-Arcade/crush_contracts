@@ -23,7 +23,7 @@ contract InvaderAirDrop is Ownable{
   }
   
   /// @notice Adds candidate to receive an invader NFT to map
-  /// @param candidateAddress is the address of said candidate
+  /// @param _candidate is the address of said candidate
   function addCandidate(address _candidate) external onlyOwner {
     require (_candidate != address(0) || candidateStatus[_candidate] != false || wrappedContract.balanceOf(_candidate) < 5, "Invalid candidate");
     candidateStatus[_candidate] = true;
@@ -31,7 +31,7 @@ contract InvaderAirDrop is Ownable{
   }
 
   /// @notice Adds candidate to receive an invader NFT to the candidates map 
-  /// @param candidateArray is the array of receiver candidates 
+  /// @param _candidates is the array of receiver candidates 
   function addCandidateArray (address[] _candidates) external onlyOwner {
     require (_candidates.length > 0, "No array");
     for (uint i = 0; i < _candidates.length; i++){
@@ -42,7 +42,7 @@ contract InvaderAirDrop is Ownable{
   }
 
   /// @notice Removes candidate from map. It doesn't delete it from map, but sets it to false so they can't become a candidate
-  /// @param candidateAddress is the address of said candidate to remove. 
+  /// @param _candidate is the address of said candidate to remove. 
   function removeCandidate(address _candidate) external onlyOwner {
     require (_candidate != address(0), "Invalid candidate");
     candidateStatus[_candidate] = false;
@@ -50,7 +50,7 @@ contract InvaderAirDrop is Ownable{
   }
 
   /// @notice Removes candidate array from map
-  /// @param candidateAddress is the address array of candidates to remove
+  /// @param _candidates is the address array of candidates to remove
   function removeCandidateArray(address[] _candidates) external onlyOwner {
     require (_candidates.length > 0, "No array");
     for (uint i = 0; i < _candidates; i++){
