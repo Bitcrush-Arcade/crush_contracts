@@ -7,7 +7,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "../MadInvaderNFT.sol";
 
 contract InvaderAirDrop is Ownable{
-  MadInvaderNFT public immutable wrappedContract;
+  MadInvaderNFT public wrappedContract;
 
   /// true = isCandidate
   mapping (address => boolean) public candidateStatus;
@@ -55,8 +55,8 @@ contract InvaderAirDrop is Ownable{
   }
 
   /// @notice Distributes the NFT's to wallets that can receive the NFT's. Sets previous added candidates to false and cleans candidateArray
-  function dropToCandidates() external {
-    require(candidateStatus[msg.sender] == true);
+  function dropToCandidate() external {
+    require(candidateStatus[msg.sender] == true && wrappedContract.balanceOf(msg.sender) < 5);
     wrappedContract.mint(1, false);
     emit InvaderDroppedTo(msg.sender);
     _removeCandidate(msg.sender);
