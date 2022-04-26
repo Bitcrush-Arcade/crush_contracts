@@ -59,14 +59,16 @@ contract InvaderAirDrop is Ownable{
   function dropToCandidates() external {
     require(candidateStatus[msg.sender] == true);
     wrappedContract.mint(1, false);
-    _removeCandidate(msg.sender);
     emit InvaderDroppedTo(msg.sender);
+    _removeCandidate(msg.sender);
   }
 
   /// @notice selfdestruct function and assets sent to owner
   function selfdestruct() external onlyOwner{
     selfdestruct(msg.sender);
   }
+
+  // Internal functions
 
   /// @notice Adds candidate to receive an invader NFT to map
   /// @param _candidate is the address of said candidate
