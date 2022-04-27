@@ -4,13 +4,13 @@ pragma solidity 0.8.12;
 // This wrapper contract will handle the invader giveaways (airDrops) for candidates that have been whitelisted for a giveaway. 
 // It interacts directly with the MadInvaderNFT contract.
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "../MadInvaderNFT.sol";
+import "./MadInvaderNFT.sol";
 
 contract InvaderAirDrop is Ownable{
   MadInvaderNFT public wrappedContract;
 
   /// true = isCandidate
-  mapping (address => boolean) public candidateStatus;
+  mapping (address => bool) public candidateStatus;
 
   event CandidateAdded(address);
   event CandidateRemoved(address);
@@ -29,7 +29,7 @@ contract InvaderAirDrop is Ownable{
 
   /// @notice Adds candidate to receive an invader NFT to the candidates map 
   /// @param _candidates Array of receiver candidates 
-  function addCandidateArray (address[] _candidates) external onlyOwner {
+  function addCandidateArray (address[] memory _candidates) external onlyOwner {
     require (_candidates.length > 0, "No array");
     for (uint i = 0; i < _candidates.length; i++){
       if (_candidates[i] == address(0) || candidateStatus[_candidates[i]] == false || wrappedContract.balanceOf(_candidates[i]) == 5) continue;
@@ -46,9 +46,9 @@ contract InvaderAirDrop is Ownable{
 
   /// @notice Removes candidate array from map
   /// @param _candidates Address array of candidates to remove
-  function removeCandidateArray(address[] _candidates) external onlyOwner {
+  function removeCandidateArray(address[] memory _candidates) external onlyOwner {
     require (_candidates.length > 0, "No array");
-    for (uint i = 0; i < _candidates; i++){
+    for (uint i = 0; i < _candidates.length ; i++){
       if (_candidates[i] == address(0)) continue;
       _removeCandidate(_candidates[i]);
     }
@@ -63,8 +63,8 @@ contract InvaderAirDrop is Ownable{
   }
 
   /// @notice selfdestruct function and assets sent to owner
-  function selfdestruct() external onlyOwner{
-    selfdestruct(msg.sender);
+  function endInvasion() public onlyOwner {
+    selfdestruct(payable(msg.sender));
   }
 
   // Internal functions
