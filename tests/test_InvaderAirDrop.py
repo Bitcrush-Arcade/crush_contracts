@@ -1,6 +1,7 @@
 from brownie import accounts, chain, MadInvaderNFT, InvaderAirDrop 
 import brownie
 import pytest
+from web3 import Web3
 
 # This wrapper contract will handle the invader giveaways for candidates that have been whitelisted. 
 # The contract should ask the MadInvaderNFT.sol to mint the whitelisted person (receiver). This contract should be the owner of the existing MadInvaderNFT Contract.
@@ -27,7 +28,6 @@ def test_addCandidate(setup):
   assert wrapper.candidateStatus(accounts[1]) == True
 
   # Testing if candidate is does not comply with max invadaer condition
-  nft.mint(5, False, {"from": accounts[2]}).transact({"from": accounts[2], "value" : 0.25})
   with brownie.reverts("Invalid candidate"):
     wrapper.addCandidate(accounts[2], {"from": accounts[0]})
 
