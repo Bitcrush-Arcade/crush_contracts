@@ -9,8 +9,6 @@ import "./MadInvaderNFT.sol";
 contract InvaderAirDrop is Ownable{
   MadInvaderNFT public wrappedContract;
 
-  uint256 maxInvaders;
-
   /// 0 => not in map, 1 => candidate, 2 => no longer a candidate
   mapping (address => uint8) public candidateStatus;
 
@@ -21,13 +19,12 @@ contract InvaderAirDrop is Ownable{
 
   constructor(address _NFTContractAddress){
     wrappedContract = MadInvaderNFT(_NFTContractAddress);
-    maxInvaders =  wrappedContract.maxInvaders();
   }
   
   /// @notice Adds candidate to receive an invader NFT to map
   /// @param _candidate Address of said candidate
   function addCandidate(address _candidate) external onlyOwner {
-    require (_candidate != address(0) || candidateStatus[_candidate] == 1 || wrappedContract.balanceOf(_candidate) < maxInvaders, "Invalid candidate");
+    require (_candidate != address(0) || candidateStatus[_candidate] == 1, "Invalid candidate");
     _addCandidate(_candidate);
   }
 
@@ -36,7 +33,7 @@ contract InvaderAirDrop is Ownable{
   function addCandidateArray (address[] memory _candidates) external onlyOwner {
     require (_candidates.length > 0, "No array");
     for (uint i = 0; i < _candidates.length; i++){
-      if (_candidates[i] == address(0) || candidateStatus[_candidates[i]] == 2 || wrappedContract.balanceOf(_candidates[i]) == maxInvaders) continue;
+      if (_candidates[i] == address(0) || candidateStatus[_candidates[i]] == 2) continue;
       _addCandidate(_candidates[i]);
     }
   }
@@ -58,10 +55,12 @@ contract InvaderAirDrop is Ownable{
     }
   }
 
-  /// @notice Distributes the NFT's to wallets that can receive the NFT's. Sets previous added candidates to false and cleans candidateArray
+  /// @notice Distributes the NFT's to the candidate if valid
   function dropToCandidate() external {
-    require(candidateStatus[msg.sender] == 1 && wrappedContract.balanceOf(msg.sender) < maxInvaders);
+    require(candidateStatus[msg.sender] == 1);
     wrappedContract.mint(1, false);
+    uint256[] memory tokenId = wrappedContract.walletOfOwner(address(this));
+    wrappedContract.safeTransferFrom(address(this), msg.sender, tokenId[0], "");
     emit InvaderDroppedTo(msg.sender);
     _removeCandidate(msg.sender);
   }
@@ -69,12 +68,6 @@ contract InvaderAirDrop is Ownable{
   /// @notice Selfdestruct function and assets sent to owner
   function endInvasion() public onlyOwner {
     selfdestruct(payable(msg.sender));
-  }
-
-  /// @notice Updates max invaders per wallet
-  function updateMaxInvaders() public onlyOwner {
-    maxInvaders = wrappedContract.maxInvaders();
-    emit MaxInvaders(wrappedContract.maxInvaders());
   }
 
   // Internal functions
