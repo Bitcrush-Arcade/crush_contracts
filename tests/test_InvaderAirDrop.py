@@ -4,7 +4,6 @@ import pytest
 
 # This wrapper contract will handle the invader giveaways for candidates that have been whitelisted. 
 # The contract should ask the MadInvaderNFT.sol to mint the whitelisted person (receiver). This contract should be the owner of the existing MadInvaderNFT Contract.
-# These tests were run on rinkeby
 
 @pytest.fixture(scope="function", autouse=True)
 def setup():
@@ -18,18 +17,29 @@ def setup():
   )
   wrapper = InvaderAirDrop.deploy(nft.address, {"from" : accounts[0]})
 
-  return nft,wrapper
+  return nft, wrapper
 
 # It should add a single receiver candidate to a map. function addCandidate onlyOwner. 
 def test_addCandidate(setup):
   nft, wrapper = setup 
 
-  wrapper.addCandidate(accounts[1])
+  wrapper.addCandidate(accounts[1], {"from" : accounts[0]})
   assert wrapper.candidateStatus(accounts[1]) == True
+
+  # Testing if candidate is does not comply with max invadaer condition
+  nft.mint(5, False, {"from": accounts[2]}).transact({"from": accounts[2], "value" : 0.25})
+  with brownie.reverts("Invalid candidate"):
+    wrapper.addCandidate(accounts[2], {"from": accounts[0]})
 
 # It should add to map from an array of receiver candidates. function addCandidateArray onlyOwner. 
 def test_addCandidateArray(setup):
-  return
+  nft, wrapper = setup
+  candidateArray = [accounts[1], accounts[2], accounts[3]]
+
+  wrapper.addCandidateArray(candidateArray, {"from": accounts[0]})
+  assert wrapper.candidateStatus(accounts[1]) == 1
+  assert wrapper.candidateStatus(accounts[2]) == 1
+  assert wrapper.candidateStatus(accounts[3]) == 1
 
 # It should remove a single receiver candidate from map. function removeCandidate onlyOwner.
 def test_removeCandidate(setup):
