@@ -1,3 +1,4 @@
+# Tested in rinkeby
 # from brownie import accounts, MadInvaderNFT, MadInvaderNFT2, chain
 import brownie
 import pytest
