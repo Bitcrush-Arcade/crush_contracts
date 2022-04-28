@@ -2,15 +2,16 @@
 pragma solidity 0.8.12;
 
 // This wrapper contract will handle the invader giveaways (airDrops) for candidates that have been whitelisted for a giveaway. 
-// It interacts directly with the MadInvaderNFT contract.
+// It will dispatch only ONE Invader NFT per account. It interacts directly with the MadInvaderNFT contract.
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 import "./MadInvaderNFT.sol";
 
-contract InvaderAirDrop is Ownable{
+contract InvaderAirDrop is Ownable, IERC721Receiver{
   MadInvaderNFT public wrappedContract;
 
   /// 0 => not in map, 1 => candidate, 2 => no longer a candidate
-  mapping (address => uint8) public candidateStatus;
+  mapping (address => bool) public candidateStatus;
 
   event CandidateAdded(address);
   event CandidateRemoved(address);
@@ -24,7 +25,7 @@ contract InvaderAirDrop is Ownable{
   /// @notice Adds candidate to receive an invader NFT to map
   /// @param _candidate Address of said candidate
   function addCandidate(address _candidate) external onlyOwner {
-    require (_candidate != address(0) || candidateStatus[_candidate] == 1, "Invalid candidate");
+    require (_candidate != address(0), "Invalid candidate");
     _addCandidate(_candidate);
   }
 
@@ -33,7 +34,7 @@ contract InvaderAirDrop is Ownable{
   function addCandidateArray (address[] memory _candidates) external onlyOwner {
     require (_candidates.length > 0, "No array");
     for (uint i = 0; i < _candidates.length; i++){
-      if (_candidates[i] == address(0) || candidateStatus[_candidates[i]] == 2) continue;
+      if (_candidates[i] == address(0)) continue;
       _addCandidate(_candidates[i]);
     }
   }
@@ -41,7 +42,6 @@ contract InvaderAirDrop is Ownable{
   /// @notice Removes candidate from map
   /// @param _candidate Address of said candidate to remove. 
   function removeCandidate(address _candidate) external onlyOwner {
-    require (_candidate != address(0));
     _removeCandidate(_candidate);
   }
 
@@ -50,23 +50,32 @@ contract InvaderAirDrop is Ownable{
   function removeCandidateArray(address[] memory _candidates) external onlyOwner {
     require (_candidates.length > 0, "No array");
     for (uint i = 0; i < _candidates.length ; i++){
-      if (_candidates[i] == address(0)) continue;
       _removeCandidate(_candidates[i]);
     }
   }
 
   /// @notice Distributes the NFT's to the candidate if valid
   function dropToCandidate() external {
-    require(candidateStatus[msg.sender] == 1);
+    require(candidateStatus[msg.sender] == true);
+    _removeCandidate(msg.sender);
     wrappedContract.mint(1, false);
     uint256[] memory tokenId = wrappedContract.walletOfOwner(address(this));
     wrappedContract.safeTransferFrom(address(this), msg.sender, tokenId[0], "");
     emit InvaderDroppedTo(msg.sender);
-    _removeCandidate(msg.sender);
   }
 
+  /// @notice Makes this contract able to receive NFT's according to ERC721 standard
+  function onERC721Received(
+        address operator,
+        address from,
+        uint256 tokenId,
+        bytes calldata data
+    ) external override returns (bytes4){
+      return IERC721Receiver.onERC721Received.selector;
+    }
+
   /// @notice Selfdestruct function and assets sent to owner
-  function endInvasion() public onlyOwner {
+  function deleteWrapper() external onlyOwner {
     selfdestruct(payable(msg.sender));
   }
 
@@ -75,16 +84,17 @@ contract InvaderAirDrop is Ownable{
   /// @notice Adds candidate to receive an invader NFT to map
   /// @param _candidate Address of said candidate
   function _addCandidate(address _candidate) internal {
-    candidateStatus[_candidate] = 1;
+    candidateStatus[_candidate] = true;
     emit CandidateAdded(_candidate);
   }
 
   /// @notice Removes candidate from map. It doesn't delete it from map but sets it to false so they can't become a candidate
   /// @param _candidate Address of said candidate to remove
   function _removeCandidate(address _candidate) internal {
-    candidateStatus[_candidate] = 2;
+    candidateStatus[_candidate] = false;
     emit CandidateRemoved(_candidate);
   }
+  
 }
 
 
